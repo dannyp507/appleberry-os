@@ -210,6 +210,17 @@ export default function Dashboard({ profile }: { profile: Profile | null }) {
             <p className="text-[#5d6468] mt-4 max-w-2xl">
               Welcome back to Appleberry OS. Keep sales moving, repairs on schedule, and inventory under control from one operations desk.
             </p>
+            {hasPermission(profile, 'repairs.view') && (
+              <div className="mt-5">
+                <Link
+                  to="/repairs?status=open"
+                  className="inline-flex items-center gap-2 rounded-2xl bg-[#214e5f] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
+                >
+                  <Wrench className="h-4 w-4" />
+                  Open Repairs
+                </Link>
+              </div>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-3 lg:min-w-[260px]">
             <div className="rounded-2xl bg-white/70 border border-white/70 px-4 py-4">
@@ -241,11 +252,12 @@ export default function Dashboard({ profile }: { profile: Profile | null }) {
           trendUp={true}
           color="bg-green-500"
         />
-        <StatCard 
-          title="Active Repairs" 
-          value={stats.activeRepairs.toString()} 
-          icon={Wrench} 
-          trend="-2" 
+        <StatCardLink
+          to="/repairs?status=open"
+          title="Active Repairs"
+          value={stats.activeRepairs.toString()}
+          icon={Wrench}
+          trend="-2"
           trendUp={false}
           color="bg-orange-500"
         />
@@ -345,6 +357,32 @@ function StatCard({ title, value, icon: Icon, trend, trendUp, color }: any) {
         <p className="text-2xl font-bold text-[#18242b]">{value}</p>
       </div>
     </div>
+  );
+}
+
+function StatCardLink({ to, title, value, icon: Icon, trend, trendUp, color }: any) {
+  return (
+    <Link to={to} className="section-card block rounded-[24px] p-6 transition hover:-translate-y-0.5 hover:border-[#d3b494]">
+      <div className="mb-4 flex items-center justify-between">
+        <div className={cn("rounded-2xl p-3 text-white shadow-sm", color)}>
+          <Icon className="h-5 w-5" />
+        </div>
+        <div className={cn(
+          "flex items-center rounded-full px-2 py-1 text-xs font-medium",
+          trendUp ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"
+        )}>
+          {trendUp ? <ArrowUpRight className="mr-1 h-3 w-3" /> : <ArrowDownRight className="mr-1 h-3 w-3" />}
+          {trend}
+        </div>
+      </div>
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium text-[#6a6f72]">{title}</p>
+          <p className="text-2xl font-bold text-[#18242b]">{value}</p>
+        </div>
+        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8b6f51]">Open queue</span>
+      </div>
+    </Link>
   );
 }
 

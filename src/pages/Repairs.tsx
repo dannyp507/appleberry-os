@@ -41,7 +41,8 @@ export default function Repairs() {
   const [staff, setStaff] = useState<Profile[]>([]);
   
   const [search, setSearch] = useState(searchParams.get('search') || '');
-  const [statusFilter, setStatusFilter] = useState('All Statuses');
+  const initialStatusFilter = searchParams.get('status') === 'open' ? 'Open Repairs' : 'All Statuses';
+  const [statusFilter, setStatusFilter] = useState(initialStatusFilter);
   const [technicianFilter, setTechnicianFilter] = useState('All Technicians');
   
   const [loading, setLoading] = useState(true);
@@ -87,6 +88,7 @@ export default function Repairs() {
 
   useEffect(() => {
     setSearch(searchParams.get('search') || '');
+    setStatusFilter(searchParams.get('status') === 'open' ? 'Open Repairs' : 'All Statuses');
   }, [searchParams]);
 
   async function fetchStatuses() {
@@ -321,13 +323,23 @@ export default function Repairs() {
 
   const filteredRepairs = useMemo(() => {
     return enrichedRepairs.filter(r => {
+      const statusName = (r.status?.name || '').toLowerCase();
+      const isOpenRepair =
+        !statusName ||
+        (!statusName.includes('collected') &&
+          !statusName.includes('cancelled') &&
+          !statusName.includes('complete') &&
+          !statusName.includes('completed'));
+
       const matchesSearch = 
         r.device_name.toLowerCase().includes(search.toLowerCase()) ||
         (r.imei && r.imei.includes(search)) ||
         (r.ticket_number && r.ticket_number.toLowerCase().includes(search.toLowerCase())) ||
         r.customer?.name.toLowerCase().includes(search.toLowerCase());
       
-      const matchesStatus = statusFilter === 'All Statuses' || r.status?.name === statusFilter;
+      const matchesStatus =
+        statusFilter === 'All Statuses' ||
+        (statusFilter === 'Open Repairs' ? isOpenRepair : r.status?.name === statusFilter);
       const matchesTech = technicianFilter === 'All Technicians' || r.technician?.full_name === technicianFilter;
       
       return matchesSearch && matchesStatus && matchesTech;
@@ -388,6 +400,7 @@ export default function Repairs() {
             onChange={(e) => setStatusFilter(e.target.value)}
           >
             <option>All Statuses</option>
+            <option>Open Repairs</option>
             {uniqueStatuses.map(s => (
               <option key={s.id} value={s.name}>{s.name}</option>
             ))}
