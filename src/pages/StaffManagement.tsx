@@ -6,6 +6,7 @@ import { Profile, Role } from '../types';
 import { safeFormatDate } from '../lib/utils';
 import { toast } from 'sonner';
 import { ALL_PERMISSIONS, PERMISSION_GROUPS, PermissionKey, PermissionPreset, PRESET_PERMISSIONS, getDefaultPermissions, normalizePermissions } from '../lib/permissions';
+import { getCompanySettingsDocId } from '../lib/company';
 import axios from 'axios';
 
 type StaffStatus = 'active' | 'inactive';
@@ -205,7 +206,10 @@ export default function StaffManagement() {
 
     setSendingInviteId(member.id);
     try {
-      const communicationSnap = await getDoc(doc(db, 'settings', 'communication'));
+      const inviteCompanyId = member.company_id || companyId || null;
+      const communicationSnap = await getDoc(
+        doc(db, 'settings', getCompanySettingsDocId('communication', inviteCompanyId || 'global')),
+      );
       const communicationSettings = communicationSnap.exists() ? communicationSnap.data() as any : null;
       const token = crypto.randomUUID();
       const tempPassword = createTempPassword();
@@ -217,7 +221,7 @@ export default function StaffManagement() {
         email: member.email,
         full_name: member.full_name || null,
         role: member.role,
-        company_id: member.company_id || companyId || null,
+        company_id: inviteCompanyId,
         permissions: member.role === 'admin' ? ALL_PERMISSIONS : normalizePermissions(member.role, member.permissions),
         branch: member.branch || null,
         title: member.title || null,
@@ -235,6 +239,7 @@ export default function StaffManagement() {
           subject: 'Your Appleberry OS staff invite',
           text: `Hello ${member.full_name || 'there'},\n\nYou have been invited to Appleberry OS.\nActivation link: ${inviteLink}\nTemporary password: ${tempPassword}\n\nPlease use the link to create your own password.`,
           html: `<p>Hello ${member.full_name || 'there'},</p><p>You have been invited to Appleberry OS.</p><p><strong>Activation link:</strong> <a href="${inviteLink}">${inviteLink}</a></p><p><strong>Temporary password:</strong> ${tempPassword}</p><p>Please use the link to create your own password.</p>`,
+          companyId: inviteCompanyId,
           settings: communicationSettings.email,
         });
       }
@@ -243,6 +248,7 @@ export default function StaffManagement() {
         await axios.post('/api/send-whatsapp', {
           phone: String(member.phone).replace(/[^0-9+]/g, ''),
           message: `Hello ${member.full_name || ''}, you have been invited to Appleberry OS. Activate here: ${inviteLink} Temp password: ${tempPassword}`,
+          companyId: inviteCompanyId,
           settings: communicationSettings.whatsapp,
         });
       }
