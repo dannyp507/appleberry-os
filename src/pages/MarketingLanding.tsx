@@ -27,94 +27,98 @@ import {
 const shopTypes = [
   {
     title: 'Cell phone repair',
-    description: 'Book in devices, manage diagnostics, approve quotes, and move repairs from intake to collection without losing context.',
+    description: 'Run intake, diagnostics, approvals, parts, and collection from one calm workflow.',
     icon: Smartphone,
-    accent: 'from-[#d26a33] to-[#f0b06c]',
+    accent: 'from-[#f29f58] via-[#d26a33] to-[#87411f]',
   },
   {
     title: 'Electronics retail',
-    description: 'Sell accessories, devices, and services with proper margin visibility, customer history, and cleaner stock control.',
+    description: 'Sell accessories, devices, and services while keeping stock, margins, and customer history connected.',
     icon: Store,
-    accent: 'from-[#214e5f] to-[#4d7889]',
+    accent: 'from-[#5fa0b8] via-[#214e5f] to-[#13252e]',
   },
   {
     title: 'Multi-branch operators',
-    description: 'Run stock transfers, branch comparisons, shared reporting, and permission layers from one operating system.',
+    description: 'Use transfers, permissions, reporting, and shared operating standards to scale without chaos.',
     icon: MonitorSmartphone,
-    accent: 'from-[#7c4a26] to-[#214e5f]',
+    accent: 'from-[#d9b06a] via-[#8a5a34] to-[#214e5f]',
   },
 ];
 
-const operatingSystemCards = [
+const platformRows = [
   {
-    eyebrow: 'Point of sale',
+    eyebrow: 'Counter and checkout',
     title: 'Take payments, close invoices, and keep the front counter moving.',
     copy: 'Sales, invoices, customer lookup, and repair collections live in one flow instead of four disconnected tools.',
     icon: CreditCard,
+    tone: 'bg-[#fff7ef]',
   },
   {
-    eyebrow: 'Repair queue',
-    title: 'Run intake, diagnostics, approvals, notes, and collection reminders.',
-    copy: 'Give technicians and front-desk staff one shared repair picture with better accountability and less confusion.',
+    eyebrow: 'Repair operations',
+    title: 'Track diagnostics, approvals, status changes, and technician accountability.',
+    copy: 'Give your team one repair picture with cleaner handoffs, better notes, and fewer missed promises.',
     icon: Wrench,
+    tone: 'bg-[#f3f7f8]',
   },
   {
-    eyebrow: 'Inventory control',
-    title: 'Track stock, IMEIs, stock takes, purchase orders, and transfers.',
-    copy: 'Reduce shrinkage, buy with more discipline, and keep your fast-moving items under control.',
+    eyebrow: 'Inventory discipline',
+    title: 'Control stock takes, purchase orders, IMEIs, transfers, and low-stock risk.',
+    copy: 'Run inventory like an operator, not like a shop constantly reacting to surprises.',
     icon: Boxes,
+    tone: 'bg-[#fff8f3]',
   },
   {
-    eyebrow: 'CRM and retention',
-    title: 'See every customer, device, sale, repair, warranty, and follow-up in one timeline.',
-    copy: 'Appleberry OS turns customer memory into a commercial advantage instead of scattered notes and missed opportunities.',
+    eyebrow: 'Customer memory',
+    title: 'Keep every customer, warranty, sale, device, and note in one timeline.',
+    copy: 'Appleberry OS turns service history into a commercial advantage instead of scattered memory and old chats.',
     icon: Users,
+    tone: 'bg-[#f6f1fb]',
   },
 ];
 
 const growthFeatures = [
   {
     title: 'Campaigns and automations',
-    copy: 'Send collection nudges, comeback offers, warranty follow-ups, and review requests from one place.',
+    copy: 'Send collection nudges, comeback offers, warranty follow-ups, and review requests from one system.',
     icon: Megaphone,
   },
   {
     title: 'WhatsApp and email',
-    copy: 'Use one system for invoices, reminders, invites, approvals, and customer follow-through.',
+    copy: 'Use the same platform for invoices, updates, invites, quote follow-up, and customer retention.',
     icon: MessageSquareMore,
   },
   {
-    title: 'Reports owners actually use',
-    copy: 'Track revenue, margins, stock risk, repair throughput, and branch performance without spreadsheet chaos.',
+    title: 'Owner reporting',
+    copy: 'Track margins, stock risk, repair throughput, and branch performance without spreadsheet cleanup.',
     icon: BarChart3,
   },
   {
-    title: 'Safe staff onboarding',
-    copy: 'Invite-only accounts, permission presets, role controls, and tighter operational access for real teams.',
+    title: 'Safer staff onboarding',
+    copy: 'Invite-only access, permission presets, and role controls for serious internal operations.',
     icon: ShieldCheck,
   },
 ];
 
 const proofPoints = [
-  { value: 'Repairs + POS + CRM', label: 'One operating system instead of disconnected store tools.' },
-  { value: 'Invite-only access', label: 'Cleaner staff onboarding with permissions and owner control.' },
-  { value: 'Retail to branch scale', label: 'Built for single stores now and multi-branch growth later.' },
+  { value: 'Repairs + POS + CRM', label: 'One operating system for front counter, workshop, stock, and follow-up.' },
+  { value: 'Invite-only access', label: 'Serious staff controls, permissions, and safer onboarding.' },
+  { value: 'Built for growth', label: 'Structured for serious stores and multi-branch teams, not hobby workflows.' },
 ];
 
 const valuePillars = [
   {
     title: 'Faster front counter',
-    copy: 'Move from customer intake to payment without hopping across disconnected tools.',
+    copy: 'Move from walk-in to payment without jumping across multiple systems.',
     icon: Receipt,
   },
   {
-    title: 'Better stock discipline',
-    copy: 'Use purchase orders, stock takes, transfers, and alerts to tighten operational control.',
+    title: 'Better stock control',
+    copy: 'Use purchase orders, stock takes, transfers, and alerts to tighten discipline.',
     icon: Truck,
   },
   {
     title: 'Clear customer memory',
-    copy: 'Track repairs, invoices, messages, warranties, and notes inside one customer record.',
+    copy: 'See customer history, warranties, notes, repairs, and invoices in one place.',
     icon: SearchCheck,
   },
   {
@@ -124,25 +128,40 @@ const valuePillars = [
   },
 ];
 
+const signalCards = [
+  {
+    title: 'Live operations',
+    value: 'Repair queue, invoices, and customer replies in one board',
+  },
+  {
+    title: 'Commercial follow-through',
+    value: 'Campaigns, collection nudges, and repeat-revenue workflows',
+  },
+  {
+    title: 'Stock discipline',
+    value: 'IMSI, stock take, POs, transfers, and low-stock visibility',
+  },
+];
+
 const pricingPlans = [
   {
     title: 'Starter',
     price: 'R799/mo',
-    copy: 'For one store replacing spreadsheets, notebooks, and disconnected repair tools.',
-    bullets: ['POS and invoices', 'Repair queue', 'Customer records', 'Inventory basics'],
+    copy: 'For one store replacing spreadsheets and disconnected repair tools.',
+    bullets: ['POS and invoices', 'Repair workflow', 'Customer records', 'Inventory basics'],
     featured: false,
   },
   {
     title: 'Growth',
     price: 'R1,499/mo',
-    copy: 'For serious operators who want CRM, reporting, stock controls, and stronger workflows.',
-    bullets: ['Everything in Starter', 'Stock take and purchase orders', 'Campaigns and automations', 'Operational reporting'],
+    copy: 'For serious operators who want CRM, reporting, stock controls, and stronger workflow discipline.',
+    bullets: ['Everything in Starter', 'Stock take and purchase orders', 'Campaigns and automations', 'Owner reporting'],
     featured: true,
   },
   {
     title: 'Multi-Branch',
     price: 'Custom',
-    copy: 'For businesses running multiple teams, larger stock movement, and stricter control.',
+    copy: 'For multi-branch teams, larger stock movement, stronger governance, and migration support.',
     bullets: ['Branch-aware operations', 'Transfers and permissions', 'Migration support', 'Growth planning'],
     featured: false,
   },
@@ -157,17 +176,17 @@ const faqs = [
   {
     question: 'Do you support CRM and marketing tools too?',
     answer:
-      'Yes. The direction includes CRM timelines, customer segmentation, WhatsApp and email campaigns, pickup reminders, and retention workflows.',
+      'Yes. Appleberry OS includes CRM direction around customer timelines, segmentation, WhatsApp and email campaigns, follow-ups, and retention workflows.',
   },
   {
     question: 'Can we import from another system?',
     answer:
-      'Yes. Appleberry OS already supports migration workflows for customers, inventory, repairs, sales history, and stock take data so teams can test before going live.',
+      'Yes. Migration workflows already support customers, inventory, repairs, sales history, and stock take data so teams can test before going live.',
   },
   {
     question: 'Is it suitable for multiple branches?',
     answer:
-      'Yes. The platform is being built with branch-aware operations, transfers, permissions, reporting, and owner-level visibility in mind.',
+      'Yes. The platform is being shaped for branch-aware operations, permissions, transfers, reporting, and owner-level visibility.',
   },
   {
     question: 'How do staff get access?',
@@ -181,8 +200,8 @@ export default function MarketingLanding() {
   const [openFaq, setOpenFaq] = useState(0);
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[linear-gradient(180deg,#fbf6ef_0%,#f4ebdf_100%)]">
-      <header className="sticky top-0 z-40 border-b border-[#e5d6c5] bg-[rgba(251,246,239,0.92)] backdrop-blur-xl">
+    <div className="min-h-screen overflow-x-hidden bg-[linear-gradient(180deg,#f4ece2_0%,#f7f2eb_28%,#efe5d8_100%)] text-[#18242b]">
+      <header className="sticky top-0 z-40 border-b border-[#e3d3bf] bg-[rgba(246,239,231,0.88)] backdrop-blur-xl">
         <div className="mx-auto flex min-h-20 max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
           <Link to="/" className="flex min-w-0 items-center gap-3">
             <div className="brand-badge flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] text-xl font-bold text-white sm:h-12 sm:w-12">
@@ -190,9 +209,7 @@ export default function MarketingLanding() {
             </div>
             <div className="min-w-0">
               <p className="display-font truncate text-xl font-bold leading-none text-[#18242b] sm:text-2xl">Appleberry OS</p>
-              <p className="truncate text-[10px] uppercase tracking-[0.2em] text-[#7b5c3c] sm:text-[11px] sm:tracking-[0.24em]">
-                Repair Commerce Platform
-              </p>
+              <p className="truncate text-[10px] uppercase tracking-[0.22em] text-[#7b5c3c] sm:text-[11px]">Repair Commerce Platform</p>
             </div>
           </Link>
 
@@ -223,7 +240,7 @@ export default function MarketingLanding() {
           <div className="flex items-center gap-2 sm:hidden">
             <Link
               to="/signup"
-              className="inline-flex items-center justify-center rounded-xl border border-[#d8c4af] bg-white/80 px-3 py-2 text-xs font-semibold text-[#214e5f]"
+              className="inline-flex items-center justify-center rounded-xl border border-[#d8c4af] bg-white/85 px-3 py-2 text-xs font-semibold text-[#214e5f]"
             >
               Trial
             </Link>
@@ -231,7 +248,7 @@ export default function MarketingLanding() {
               type="button"
               aria-label="Open navigation"
               onClick={() => setMobileNavOpen(true)}
-              className="rounded-xl border border-[#d8c4af] bg-white/80 p-2.5 text-[#214e5f]"
+              className="rounded-xl border border-[#d8c4af] bg-white/85 p-2.5 text-[#214e5f]"
             >
               <Menu className="h-5 w-5" />
             </button>
@@ -239,14 +256,14 @@ export default function MarketingLanding() {
         </div>
 
         {mobileNavOpen && (
-          <div className="border-t border-[#e5d6c5] bg-[rgba(251,246,239,0.98)] px-4 py-4 sm:hidden">
+          <div className="border-t border-[#e3d3bf] bg-[rgba(246,239,231,0.98)] px-4 py-4 sm:hidden">
             <div className="mb-4 flex items-center justify-between">
               <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#7b5c3c]">Explore</p>
               <button
                 type="button"
                 aria-label="Close navigation"
                 onClick={() => setMobileNavOpen(false)}
-                className="rounded-xl border border-[#d8c4af] bg-white/80 p-2 text-[#214e5f]"
+                className="rounded-xl border border-[#d8c4af] bg-white/85 p-2 text-[#214e5f]"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -263,7 +280,7 @@ export default function MarketingLanding() {
                   key={href}
                   href={href}
                   onClick={() => setMobileNavOpen(false)}
-                  className="rounded-2xl border border-[#e5d6c5] bg-white/80 px-4 py-3 text-sm font-medium text-[#34454d]"
+                  className="rounded-2xl border border-[#e5d6c5] bg-white/85 px-4 py-3 text-sm font-medium text-[#34454d]"
                 >
                   {label}
                 </a>
@@ -281,48 +298,75 @@ export default function MarketingLanding() {
       </header>
 
       <main>
-        <section className="relative overflow-hidden px-4 pb-14 pt-10 sm:px-6 lg:px-8 lg:pb-24 lg:pt-16">
-          <div className="absolute inset-x-0 top-0 h-[560px] bg-[radial-gradient(circle_at_top_right,rgba(33,78,95,0.18),transparent_28%),radial-gradient(circle_at_left,rgba(198,90,34,0.18),transparent_22%)]" />
-          <div className="relative mx-auto grid max-w-7xl items-center gap-8 lg:grid-cols-[1.02fr_0.98fr]">
-            <div>
-              <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.34em] text-[#7b5c3c]">All-in-one POS and repair commerce software</p>
-              <h1 className="display-font max-w-4xl text-4xl font-bold leading-[0.96] text-[#18242b] sm:text-6xl lg:text-7xl">
-                Run repairs, retail, CRM, inventory, and growth from one operating system.
-              </h1>
-              <p className="mt-5 max-w-2xl text-base leading-7 text-[#516068] sm:text-lg sm:leading-8">
-                Appleberry OS is built for cell phone repair shops, electronics retailers, buy-sell-trade operators, and multi-branch teams who want more control and less chaos.
-              </p>
+        <section className="relative overflow-hidden px-4 pb-10 pt-6 sm:px-6 lg:px-8 lg:pb-18 lg:pt-10">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(33,78,95,0.15),transparent_26%),radial-gradient(circle_at_left,rgba(198,90,34,0.14),transparent_20%)]" />
+          <div className="relative mx-auto max-w-7xl">
+            <div className="overflow-hidden rounded-[36px] border border-[#1b323d] bg-[#101c22] px-5 py-6 text-white shadow-[0_35px_90px_rgba(18,32,39,0.24)] sm:px-8 sm:py-8 lg:px-10 lg:py-10">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(242,162,95,0.12),transparent_22%),radial-gradient(circle_at_bottom_right,rgba(95,160,184,0.14),transparent_25%)]" />
+              <div className="relative grid items-start gap-8 lg:grid-cols-[1fr_0.92fr]">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/6 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.24em] text-white/70">
+                  Mobile-first repair commerce software
+                </div>
+                <h1 className="display-font mt-5 max-w-4xl text-[2.7rem] font-bold leading-[0.9] text-white sm:text-6xl lg:text-7xl">
+                  The operating system for repair stores that want to look sharper and run tighter.
+                </h1>
+                <p className="mt-5 max-w-2xl text-base leading-7 text-white/72 sm:text-lg sm:leading-8">
+                  Appleberry OS brings repairs, retail, inventory, CRM, campaigns, purchase orders, transfers, and staff control into one calm commercial layer for modern device businesses.
+                </p>
 
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <Link
-                  to="/signup"
-                  className="appleberry-gradient inline-flex items-center justify-center gap-2 rounded-2xl px-6 py-4 text-base font-semibold text-white shadow-[0_18px_34px_rgba(198,90,34,0.22)] transition hover:opacity-90"
-                >
-                  Start your Appleberry OS trial
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-                <a
-                  href="#platform"
-                  className="inline-flex items-center justify-center rounded-2xl border border-[#d8c4af] bg-white/75 px-6 py-4 text-base font-semibold text-[#214e5f] transition hover:bg-white"
-                >
-                  Explore the platform
-                </a>
+                <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                  <Link
+                    to="/signup"
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#f2a25f] px-6 py-4 text-base font-semibold text-[#18242b] shadow-[0_18px_34px_rgba(242,162,95,0.24)] transition hover:translate-y-[-1px] hover:bg-[#f5b173]"
+                  >
+                    Start your Appleberry OS trial
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                  <a
+                    href="#platform"
+                    className="inline-flex items-center justify-center rounded-2xl border border-white/12 bg-white/8 px-6 py-4 text-base font-semibold text-white transition hover:bg-white/12"
+                  >
+                    Explore the platform
+                  </a>
+                </div>
+
+                <div className="mt-6 flex flex-wrap gap-2">
+                  {['Repairs', 'POS', 'CRM', 'Marketing', 'Stock take', 'Purchase orders'].map((chip) => (
+                    <span
+                      key={chip}
+                      className="rounded-full border border-white/10 bg-white/6 px-3 py-1.5 text-xs font-medium text-white/74"
+                    >
+                      {chip}
+                    </span>
+                  ))}
+                </div>
               </div>
 
-              <div className="mt-10 grid gap-4 sm:grid-cols-3">
-                {proofPoints.map((point) => (
-                  <div key={point.label} className="section-card rounded-[24px] p-5">
-                    <p className="display-font text-2xl font-bold text-[#18242b]">{point.value}</p>
-                    <p className="mt-2 text-sm leading-6 text-[#5d6468]">{point.label}</p>
-                  </div>
-                ))}
-              </div>
+              <HeroConsole />
             </div>
 
-            <div>
-              <div className="hero-card relative rounded-[32px] p-4 sm:p-7">
-                <div className="soft-grid absolute inset-0 rounded-[32px] opacity-35" />
-                <HeroMockup />
+              <div className="relative mt-8 grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+                <div className="grid gap-4 md:grid-cols-3">
+                  {proofPoints.map((point) => (
+                    <div key={point.label} className="rounded-[24px] border border-white/10 bg-white/6 px-5 py-5 backdrop-blur-sm">
+                      <p className="display-font text-2xl font-bold text-white">{point.value}</p>
+                      <p className="mt-2 text-sm leading-6 text-white/65">{point.label}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="rounded-[28px] border border-white/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/55">What operators feel</p>
+                  <div className="mt-4 space-y-3">
+                    {signalCards.map((card) => (
+                      <div key={card.title} className="rounded-2xl border border-white/10 bg-black/18 px-4 py-4">
+                        <p className="text-sm font-semibold text-white">{card.title}</p>
+                        <p className="mt-1 text-sm leading-6 text-white/65">{card.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -330,22 +374,22 @@ export default function MarketingLanding() {
 
         <section id="shop-types" className="px-4 py-16 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-7xl">
-            <div className="mb-10 text-center">
+            <div className="mb-10 max-w-3xl">
               <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#7b5c3c]">Choose your shop type</p>
               <h2 className="mt-3 display-font text-4xl font-bold text-[#18242b] sm:text-5xl">
-                Built for the businesses that repair, sell, source, and scale devices.
+                Clear fit for repair-led teams, retailers, and operators scaling past one branch.
               </h2>
-              <p className="mx-auto mt-4 max-w-3xl text-base text-[#5d6468] sm:text-lg">
-                Keep the clarity CellStore gets right, but with a more modern operating system underneath the work.
+              <p className="mt-4 text-base leading-7 text-[#5d6468] sm:text-lg sm:leading-8">
+                The best SaaS sites make it obvious who the product is for. Appleberry OS should feel specific, confident, and easier to trust at a glance.
               </p>
             </div>
 
             <div className="grid gap-6 lg:grid-cols-3">
               {shopTypes.map(({ title, description, icon: Icon, accent }) => (
-                <div key={title} className="overflow-hidden rounded-[30px] border border-[rgba(141,111,77,0.14)] bg-[#fffaf4] shadow-[0_18px_34px_rgba(79,56,30,0.07)]">
+                <div key={title} className="group overflow-hidden rounded-[30px] border border-[#e4d3c1] bg-white shadow-[0_18px_40px_rgba(64,46,25,0.08)] transition hover:-translate-y-1">
                   <div className={`h-2 bg-gradient-to-r ${accent}`} />
                   <div className="p-6">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-[18px] bg-[#efe0ce] text-[#214e5f]">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-[18px] bg-[#f3e2d0] text-[#214e5f] transition group-hover:bg-[#214e5f] group-hover:text-white">
                       <Icon className="h-7 w-7" />
                     </div>
                     <h3 className="mt-6 display-font text-2xl font-bold text-[#18242b] sm:text-3xl">{title}</h3>
@@ -359,71 +403,111 @@ export default function MarketingLanding() {
 
         <section id="platform" className="px-4 py-16 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-7xl">
-            <div className="mb-10 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#7b5c3c]">Platform features</p>
-                <h2 className="mt-3 display-font text-4xl font-bold text-[#18242b] sm:text-5xl">
-                  More than a repair POS. This is the operating layer.
-                </h2>
-              </div>
-              <p className="max-w-2xl text-base leading-7 text-[#5d6468] sm:text-lg sm:leading-8">
-                The strongest systems do not stop at checkout. They help teams organize, remember, automate, and grow.
+            <div className="mb-10 max-w-3xl">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#7b5c3c]">Platform features</p>
+              <h2 className="mt-3 display-font text-4xl font-bold text-[#18242b] sm:text-5xl">
+                More than a repair POS. This is the operating layer for the whole business.
+              </h2>
+              <p className="mt-4 text-base leading-7 text-[#5d6468] sm:text-lg sm:leading-8">
+                Front counter, repair flow, stock discipline, and customer memory should feel connected. That’s the difference between a stitched-together toolset and a serious operating system.
               </p>
             </div>
 
-            <div className="grid gap-6 lg:grid-cols-2">
-              {operatingSystemCards.map(({ eyebrow, title, copy, icon: Icon }) => (
-                <div key={title} className="section-card rounded-[30px] p-7">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#7b5c3c]">{eyebrow}</p>
-                      <h3 className="mt-4 display-font text-3xl font-bold leading-tight text-[#18242b] sm:text-4xl">{title}</h3>
-                    </div>
-                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[18px] bg-[#f2e4d3] text-[#214e5f]">
-                      <Icon className="h-7 w-7" />
+            <div className="space-y-5">
+              {platformRows.map(({ eyebrow, title, copy, icon: Icon, tone }, index) => (
+                <div
+                  key={title}
+                  className={`grid gap-5 rounded-[30px] border border-[#e5d6c5] ${tone} p-6 shadow-[0_16px_34px_rgba(79,56,30,0.05)] lg:grid-cols-[0.9fr_1.1fr] ${index % 2 === 1 ? 'lg:grid-cols-[1.1fr_0.9fr]' : ''}`}
+                >
+                  <div className={`${index % 2 === 1 ? 'lg:order-2' : ''}`}>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#7b5c3c]">{eyebrow}</p>
+                    <h3 className="mt-3 display-font text-3xl font-bold leading-tight text-[#18242b] sm:text-4xl">{title}</h3>
+                    <p className="mt-4 text-base leading-7 text-[#536169]">{copy}</p>
+                  </div>
+                  <div className={`${index % 2 === 1 ? 'lg:order-1' : ''}`}>
+                    <div className="rounded-[26px] border border-white/70 bg-white/80 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)]">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-14 w-14 items-center justify-center rounded-[18px] bg-[#18242b] text-[#f2a25f]">
+                          <Icon className="h-7 w-7" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-[#18242b]">Appleberry OS module</p>
+                          <p className="text-sm text-[#69767d]">Practical workflows for high-volume stores</p>
+                        </div>
+                      </div>
+                      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                        {[
+                          'Cleaner handoffs',
+                          'Faster staff actions',
+                          'Less admin friction',
+                          'Stronger customer follow-through',
+                        ].map((item) => (
+                          <div key={item} className="rounded-2xl border border-[#eadaca] bg-[#fbf5ed] px-4 py-3 text-sm font-medium text-[#33434b]">
+                            {item}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                  <p className="mt-5 text-base leading-7 text-[#5d6468]">{copy}</p>
                 </div>
               ))}
-            </div>
-
-            <div className="mt-8 grid gap-6 lg:grid-cols-[1.08fr_0.92fr]">
-              <WorkflowMockup />
-              <AutomationMockup />
             </div>
           </div>
         </section>
 
         <section id="growth" className="px-4 py-16 sm:px-6 lg:px-8">
-          <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.94fr_1.06fr]">
-            <div className="hero-card rounded-[32px] p-8">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#7b5c3c]">CRM and marketing</p>
-              <h2 className="mt-3 display-font text-4xl font-bold text-[#18242b] sm:text-5xl">
-                Keep every customer memory, every follow-up, and every comeback offer in one place.
-              </h2>
-              <p className="mt-5 text-base leading-7 text-[#4f5a60] sm:text-lg sm:leading-8">
-                Appleberry OS should feel like the next step beyond tools that only manage tickets and sales. The stronger story is retention, trust, and revenue continuity.
-              </p>
+          <div className="mx-auto max-w-7xl overflow-hidden rounded-[36px] bg-[#142732] px-6 py-8 text-white shadow-[0_30px_70px_rgba(20,39,50,0.18)] sm:px-8 lg:px-10">
+            <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/55">CRM and marketing engine</p>
+                <h2 className="mt-3 display-font text-4xl font-bold leading-tight sm:text-5xl">
+                  Turn service activity into repeat revenue, not just completed tickets.
+                </h2>
+                <p className="mt-5 text-base leading-7 text-white/72 sm:text-lg sm:leading-8">
+                  Modern operators do not want a site that sounds like old repair software. The growth story here is CRM, messaging, memory, and better follow-through after the job is finished.
+                </p>
+                <div className="mt-8 space-y-3">
+                  {[
+                    'Segment customers by spend, device type, warranty activity, and branch.',
+                    'Launch WhatsApp and email follow-ups for pickups, promos, and review requests.',
+                    'See which campaigns actually drive replies, visits, and recovered revenue.',
+                  ].map((item) => (
+                    <div key={item} className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/6 px-4 py-4">
+                      <BadgeCheck className="mt-0.5 h-5 w-5 text-[#f2a25f]" />
+                      <p className="text-sm leading-6 text-white/74">{item}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-              <div className="mt-8 space-y-3">
-                {[
-                  'Segment customers by spend, device type, branch, repair history, and warranty activity.',
-                  'Automate WhatsApp and email nudges for collection, win-back campaigns, and review requests.',
-                  'Track repeat work, customer value, and operational follow-through without spreadsheet cleanup.',
-                ].map((item) => (
-                  <div key={item} className="flex items-start gap-3 rounded-2xl border border-[#eadaca] bg-white/75 px-4 py-4">
-                    <BadgeCheck className="mt-0.5 h-5 w-5 text-[#c65a22]" />
-                    <p className="text-sm leading-6 text-[#4f5a60]">{item}</p>
+              <div className="grid gap-5 sm:grid-cols-2">
+                {growthFeatures.map(({ title, copy, icon: Icon }) => (
+                  <div key={title} className="rounded-[28px] border border-white/10 bg-white/6 p-5 backdrop-blur-sm">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-[18px] bg-white/10 text-[#f2a25f]">
+                      <Icon className="h-7 w-7" />
+                    </div>
+                    <h3 className="mt-6 text-2xl font-semibold text-white">{title}</h3>
+                    <p className="mt-3 text-base leading-7 text-white/70">{copy}</p>
                   </div>
                 ))}
               </div>
             </div>
+          </div>
+        </section>
 
-            <div className="grid gap-5 sm:grid-cols-2">
-              {growthFeatures.map(({ title, copy, icon: Icon }) => (
+        <section className="px-4 py-16 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-7xl">
+            <div className="mb-10 text-center">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#7b5c3c]">Why companies switch</p>
+              <h2 className="mt-3 display-font text-4xl font-bold text-[#18242b] sm:text-5xl">
+                Less tool sprawl. More control. Better customer follow-through.
+              </h2>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+              {valuePillars.map(({ title, copy, icon: Icon }) => (
                 <div key={title} className="section-card rounded-[28px] p-6">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-[18px] bg-[#e8d8c4] text-[#214e5f]">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-[18px] bg-[#f1e1cf] text-[#c65a22]">
                     <Icon className="h-7 w-7" />
                   </div>
                   <h3 className="mt-6 text-2xl font-semibold text-[#18242b]">{title}</h3>
@@ -434,34 +518,12 @@ export default function MarketingLanding() {
           </div>
         </section>
 
-        <section className="px-4 py-16 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-7xl rounded-[36px] bg-[#13252e] px-6 py-10 text-white sm:px-10 lg:px-12">
-            <div className="grid gap-8 lg:grid-cols-[1fr_1fr]">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/55">Why serious companies switch</p>
-                <h2 className="mt-3 display-font text-4xl font-bold leading-tight sm:text-5xl">
-                  Less tool sprawl. More control. Better customer follow-through.
-                </h2>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                {valuePillars.map(({ title, copy, icon: Icon }) => (
-                  <div key={title} className="rounded-[24px] border border-white/10 bg-white/6 p-5">
-                    <Icon className="h-6 w-6 text-[#f0b06c]" />
-                    <h3 className="mt-4 text-xl font-semibold">{title}</h3>
-                    <p className="mt-2 text-sm leading-6 text-white/70">{copy}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
         <section id="pricing" className="px-4 py-16 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-7xl">
             <div className="mb-10 text-center">
               <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#7b5c3c]">Pricing direction</p>
               <h2 className="mt-3 display-font text-4xl font-bold text-[#18242b] sm:text-5xl">
-                Simple pricing for operators who want real software, not complexity.
+                Simple pricing for serious operators.
               </h2>
             </div>
 
@@ -471,28 +533,28 @@ export default function MarketingLanding() {
                   key={plan.title}
                   className={`rounded-[30px] p-7 ${
                     plan.featured
-                      ? 'appleberry-gradient text-white shadow-[0_26px_40px_rgba(198,90,34,0.2)]'
+                      ? 'bg-[#18242b] text-white shadow-[0_26px_40px_rgba(24,36,43,0.18)]'
                       : 'section-card text-[#18242b]'
                   }`}
                 >
-                  <p className={`text-[11px] font-semibold uppercase tracking-[0.24em] ${plan.featured ? 'text-white/70' : 'text-[#7b5c3c]'}`}>
+                  <p className={`text-[11px] font-semibold uppercase tracking-[0.24em] ${plan.featured ? 'text-white/60' : 'text-[#7b5c3c]'}`}>
                     {plan.title}
                   </p>
-                  <p className="mt-4 display-font text-4xl font-bold sm:text-5xl">{plan.price}</p>
-                  <p className={`mt-4 text-base leading-7 ${plan.featured ? 'text-white/84' : 'text-[#5d6468]'}`}>{plan.copy}</p>
-                  <div className={`mt-6 h-px ${plan.featured ? 'bg-white/20' : 'bg-[#e4d2bd]'}`} />
+                  <p className="display-font mt-4 text-4xl font-bold sm:text-5xl">{plan.price}</p>
+                  <p className={`mt-4 text-base leading-7 ${plan.featured ? 'text-white/76' : 'text-[#5d6468]'}`}>{plan.copy}</p>
+                  <div className={`mt-6 h-px ${plan.featured ? 'bg-white/12' : 'bg-[#e4d2bd]'}`} />
                   <div className="mt-6 space-y-3">
                     {plan.bullets.map((bullet) => (
                       <div key={bullet} className="flex items-start gap-3">
-                        <BadgeCheck className={`mt-0.5 h-5 w-5 ${plan.featured ? 'text-[#fff0d5]' : 'text-[#c65a22]'}`} />
-                        <p className={`text-sm leading-6 ${plan.featured ? 'text-white/84' : 'text-[#4f5a60]'}`}>{bullet}</p>
+                        <BadgeCheck className={`mt-0.5 h-5 w-5 ${plan.featured ? 'text-[#f2a25f]' : 'text-[#c65a22]'}`} />
+                        <p className={`text-sm leading-6 ${plan.featured ? 'text-white/78' : 'text-[#4f5a60]'}`}>{bullet}</p>
                       </div>
                     ))}
                   </div>
                   <Link
                     to="/login"
                     className={`mt-8 inline-flex w-full items-center justify-center rounded-2xl px-5 py-3.5 text-sm font-semibold transition ${
-                      plan.featured ? 'bg-white text-[#18242b] hover:bg-[#fff3df]' : 'bg-[#18242b] text-white hover:bg-[#214e5f]'
+                      plan.featured ? 'bg-[#f2a25f] text-[#18242b] hover:bg-[#f5b173]' : 'bg-[#18242b] text-white hover:bg-[#214e5f]'
                     }`}
                   >
                     Talk to sales
@@ -536,7 +598,7 @@ export default function MarketingLanding() {
         </section>
 
         <section className="px-4 pb-20 pt-8 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-7xl rounded-[36px] bg-[linear-gradient(135deg,#dfe7f0_0%,#f1e6d8_52%,#f9f3ea_100%)] px-6 py-12 sm:px-10 lg:px-12">
+          <div className="mx-auto max-w-7xl rounded-[36px] bg-[linear-gradient(135deg,#dfebf1_0%,#f2e3d1_52%,#fbf6ef_100%)] px-6 py-12 sm:px-10 lg:px-12">
             <div className="grid gap-8 lg:grid-cols-[1fr_auto] lg:items-center">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#7b5c3c]">Ready to move properly?</p>
@@ -619,19 +681,9 @@ export default function MarketingLanding() {
   );
 }
 
-function HeroMockup() {
+function HeroConsole() {
   return (
-    <div className="relative overflow-hidden rounded-[28px] border border-white/70 bg-[#13252e] p-4 text-white shadow-[0_26px_60px_rgba(17,34,41,0.22)] sm:p-5">
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-[11px] uppercase tracking-[0.26em] text-white/60">Live operations board</p>
-          <h2 className="mt-2 display-font text-2xl font-bold sm:text-3xl">Appleberry OS</h2>
-        </div>
-        <div className="w-fit rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white/80">
-          Repair + Retail + CRM
-        </div>
-      </div>
-
+    <div className="rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:p-5">
       <div className="rounded-[24px] border border-white/10 bg-[#0f1d24] p-4">
         <div className="mb-4 flex items-center gap-2">
           <span className="h-3 w-3 rounded-full bg-[#d46a30]" />
@@ -659,7 +711,7 @@ function HeroMockup() {
               {[
                 ['Repairs queue', '182 open jobs', 'bg-[#214e5f]'],
                 ['Sales today', 'R 34,740', 'bg-[#b85b26]'],
-                ['Campaigns', '12 automations live', 'bg-[#6b4e35]'],
+                ['Campaigns', '12 live automations', 'bg-[#6b4e35]'],
                 ['Stock alerts', '27 items need action', 'bg-[#314b58]'],
               ].map(([label, value, tone]) => (
                 <div key={label} className={`rounded-2xl ${tone} p-4`}>
@@ -699,138 +751,13 @@ function HeroMockup() {
                   ['Reports', BarChart3],
                 ].map(([label, Icon]) => (
                   <div key={label} className="rounded-2xl border border-white/10 bg-white/8 p-3">
-                    <Icon className="h-5 w-5 text-[#f0b06c]" />
+                    <Icon className="h-5 w-5 text-[#f2a25f]" />
                     <p className="mt-3 text-sm font-semibold text-white">{label}</p>
                   </div>
                 ))}
               </div>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function WorkflowMockup() {
-  return (
-    <div className="section-card rounded-[30px] p-6">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#7b5c3c]">Operational workflow</p>
-      <h3 className="mt-3 display-font text-3xl font-bold text-[#18242b] sm:text-4xl">
-        From intake to invoice, your whole team works off the same picture.
-      </h3>
-      <p className="mt-4 text-base leading-7 text-[#5d6468]">
-        Repairs, approvals, parts, payments, and customer follow-through should be connected instead of scattered.
-      </p>
-
-      <div className="mt-6 rounded-[28px] border border-[#e6d7c6] bg-[#13252e] p-5 text-white">
-        <div className="grid gap-4 md:grid-cols-4">
-          {[
-            ['Booked in', '43 today', '#214e5f'],
-            ['Diagnosing', '17 active', '#2d5e70'],
-            ['Awaiting approval', '9 quotes', '#8b542c'],
-            ['Ready to collect', '28 complete', '#c65a22'],
-          ].map(([label, value, color]) => (
-            <div key={label} className="rounded-[22px] p-4" style={{ backgroundColor: color }}>
-              <p className="text-xs uppercase tracking-[0.18em] text-white/70">{label}</p>
-              <p className="mt-4 text-2xl font-semibold text-white">{value}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_0.95fr]">
-          <div className="rounded-[24px] bg-white/8 p-4">
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
-              <div>
-                <p className="text-sm font-semibold">Repair #R-20841</p>
-                <p className="text-xs text-white/55">iPhone 13 Pro Max | Jan Botha</p>
-              </div>
-              <div className="rounded-full bg-[#f0b06c] px-3 py-1 text-xs font-semibold text-[#18242b]">Ready to collect</div>
-            </div>
-            <div className="mt-4 space-y-3">
-              {[
-                ['09:10', 'Device booked in at front counter'],
-                ['10:25', 'Battery and charging IC diagnosis completed'],
-                ['11:00', 'Quote approved by customer on WhatsApp'],
-                ['14:40', 'Repair completed and invoice prepared'],
-              ].map(([time, text]) => (
-                <div key={time} className="flex items-start gap-3">
-                  <div className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-white/65">{time}</div>
-                  <p className="text-sm text-white/78">{text}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-[24px] bg-[#f8f0e5] p-4 text-[#18242b]">
-            <p className="text-xs uppercase tracking-[0.2em] text-[#7b5c3c]">Revenue handoff</p>
-            <div className="mt-4 grid gap-3">
-              {[
-                ['Repair revenue', 'R 2,850'],
-                ['Parts used', 'Battery + charging IC'],
-                ['Customer profile', '3rd repair, 2 sales, active warranty'],
-                ['Next action', 'Send review request + accessory campaign'],
-              ].map(([label, value]) => (
-                <div key={label} className="rounded-2xl border border-[#e4d2bd] bg-white px-4 py-3">
-                  <p className="text-xs uppercase tracking-[0.18em] text-[#8b7e73]">{label}</p>
-                  <p className="mt-1 text-sm font-semibold text-[#18242b]">{value}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function AutomationMockup() {
-  return (
-    <div className="hero-card rounded-[30px] p-6">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#7b5c3c]">CRM and retention</p>
-      <h3 className="mt-3 display-font text-3xl font-bold text-[#18242b] sm:text-4xl">
-        Turn service activity into repeat revenue.
-      </h3>
-      <p className="mt-4 text-base leading-7 text-[#5d6468]">
-        This is where Appleberry OS should feel bigger than an old-school repair POS.
-      </p>
-
-      <div className="mt-6 space-y-4">
-        <div className="rounded-[24px] border border-[#e6d7c6] bg-white/85 p-5">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs uppercase tracking-[0.18em] text-[#7b5c3c]">Campaign builder</p>
-              <p className="mt-2 text-xl font-semibold text-[#18242b]">Back-to-school accessories push</p>
-            </div>
-            <div className="rounded-full bg-[#214e5f] px-3 py-1 text-xs font-semibold text-white">Live</div>
-          </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {[
-              ['Audience', 'Customers with iPhone repairs in last 6 months'],
-              ['Channel', 'WhatsApp + email'],
-              ['Open rate', '68%'],
-              ['Recovered revenue', 'R 18,240'],
-            ].map(([label, value]) => (
-              <div key={label} className="rounded-2xl bg-[#fbf4eb] px-4 py-3">
-                <p className="text-xs uppercase tracking-[0.16em] text-[#8b7e73]">{label}</p>
-                <p className="mt-1 text-sm font-semibold text-[#18242b]">{value}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          {[
-            ['Collection reminder', 'Auto-send after repair is ready for 24 hours'],
-            ['Warranty check-in', 'Prompt customers before coverage expires'],
-            ['Trade-in campaign', 'Target repeat buyers with upgrade offers'],
-            ['Review request', 'Send after successful collection and invoice'],
-          ].map(([title, copy]) => (
-            <div key={title} className="rounded-[24px] border border-[#e6d7c6] bg-white/82 p-4">
-              <p className="text-base font-semibold text-[#18242b]">{title}</p>
-              <p className="mt-2 text-sm leading-6 text-[#5d6468]">{copy}</p>
-            </div>
-          ))}
         </div>
       </div>
     </div>
