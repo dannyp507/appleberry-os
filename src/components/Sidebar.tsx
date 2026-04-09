@@ -14,7 +14,8 @@ import {
   ClipboardList,
   Smartphone,
   CheckSquare,
-  Database
+  Database,
+  X
 } from 'lucide-react';
 import { auth } from '../lib/firebase';
 import { signOut } from 'firebase/auth';
@@ -41,23 +42,39 @@ const navItems = [
   { icon: Search, label: 'IMEI Search', path: '/imei', permission: 'imei.view' as PermissionKey },
 ];
 
-export default function Sidebar({ profile, company }: { profile: Profile | null; company?: Company | null }) {
+type SidebarProps = {
+  profile: Profile | null;
+  company?: Company | null;
+  mobileOpen?: boolean;
+  onCloseMobile?: () => void;
+};
+
+function SidebarContent({
+  profile,
+  company,
+  onNavigate,
+}: {
+  profile: Profile | null;
+  company?: Company | null;
+  onNavigate?: () => void;
+}) {
   const visibleNavItems = navItems.filter((item) => hasPermission(profile, item.permission));
 
   const handleLogout = async () => {
     await signOut(auth);
+    onNavigate?.();
   };
 
   return (
-    <aside className="w-72 app-sidebar relative border-r border-white/10 flex flex-col h-full overflow-hidden">
-      <div className="relative p-6 flex-1 min-h-0 flex flex-col">
+    <>
+      <div className="relative p-5 md:p-6 flex-1 min-h-0 flex flex-col">
         <div className="flex items-center gap-3 mb-8">
-          <div className="w-12 h-12 rounded-2xl brand-badge flex items-center justify-center text-white font-bold text-xl">
+          <div className="w-11 h-11 md:w-12 md:h-12 rounded-2xl brand-badge flex items-center justify-center text-white font-bold text-xl shrink-0">
             A
           </div>
-          <div>
-            <h1 className="display-font font-bold text-2xl leading-none text-white">Appleberry OS</h1>
-            <p className="text-[11px] tracking-[0.22em] uppercase text-white/65 font-semibold mt-1">
+          <div className="min-w-0">
+            <h1 className="display-font font-bold text-xl md:text-2xl leading-none text-white truncate">Appleberry OS</h1>
+            <p className="text-[10px] md:text-[11px] tracking-[0.22em] uppercase text-white/65 font-semibold mt-1 truncate">
               {company?.name || 'Repair Operations Suite'}
             </p>
           </div>
@@ -68,6 +85,7 @@ export default function Sidebar({ profile, company }: { profile: Profile | null;
             <NavLink
               key={item.path}
               to={item.path}
+              onClick={onNavigate}
               className={({ isActive }) =>
                 cn(
                   "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all",
@@ -77,17 +95,17 @@ export default function Sidebar({ profile, company }: { profile: Profile | null;
                 )
               }
             >
-              <item.icon className="w-5 h-5" />
-              {item.label}
+              <item.icon className="w-5 h-5 shrink-0" />
+              <span className="truncate">{item.label}</span>
             </NavLink>
           ))}
         </nav>
       </div>
 
-      <div className="mt-auto relative p-6 border-t border-white/10 space-y-4">
+      <div className="mt-auto relative p-5 md:p-6 border-t border-white/10 space-y-4">
         {auth.currentUser && (
           <div className="flex items-center gap-3 px-4 py-3 bg-white/8 rounded-2xl border border-white/10">
-            <div className="w-9 h-9 rounded-full bg-white/12 flex items-center justify-center text-white">
+            <div className="w-9 h-9 rounded-full bg-white/12 flex items-center justify-center text-white shrink-0">
               <UserIcon className="w-4 h-4" />
             </div>
             <div className="flex-1 min-w-0">
@@ -108,6 +126,41 @@ export default function Sidebar({ profile, company }: { profile: Profile | null;
           Logout
         </button>
       </div>
-    </aside>
+    </>
+  );
+}
+
+export default function Sidebar({ profile, company, mobileOpen = false, onCloseMobile }: SidebarProps) {
+  return (
+    <>
+      <aside className="hidden lg:flex w-72 app-sidebar relative border-r border-white/10 flex-col min-h-screen overflow-hidden">
+        <SidebarContent profile={profile} company={company} />
+      </aside>
+
+      {mobileOpen && (
+        <div className="lg:hidden fixed inset-0 z-50">
+          <button
+            type="button"
+            aria-label="Close navigation"
+            onClick={onCloseMobile}
+            className="absolute inset-0 bg-[#0d1820]/60 backdrop-blur-[2px]"
+          />
+          <aside className="relative z-10 h-full w-[88vw] max-w-sm app-sidebar border-r border-white/10 flex flex-col overflow-hidden shadow-2xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+              <p className="text-xs uppercase tracking-[0.22em] text-white/60 font-semibold">Navigation</p>
+              <button
+                type="button"
+                aria-label="Close navigation"
+                onClick={onCloseMobile}
+                className="rounded-xl border border-white/12 bg-white/6 p-2 text-white/80 hover:bg-white/10"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <SidebarContent profile={profile} company={company} onNavigate={onCloseMobile} />
+          </aside>
+        </div>
+      )}
+    </>
   );
 }

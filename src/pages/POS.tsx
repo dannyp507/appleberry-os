@@ -365,19 +365,19 @@ export default function POS() {
   };
 
   return (
-    <div className="h-full flex gap-6 overflow-hidden">
+    <div className="flex min-h-full flex-col gap-4 xl:flex-row xl:gap-6">
       {/* Main Area */}
-      <div className="flex-1 flex flex-col min-w-0 space-y-4">
-        <div className="hero-card rounded-[28px] px-6 py-5 flex items-center justify-between">
+      <div className="order-2 flex flex-1 min-w-0 flex-col space-y-4 xl:order-1">
+        <div className="hero-card rounded-[28px] px-4 py-4 md:px-6 md:py-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-[11px] uppercase tracking-[0.28em] text-[#7b5c3c] font-semibold mb-2">Point Of Sale</p>
-            <h1 className="display-font text-4xl font-bold text-[#18242b]">Cash Register</h1>
+            <h1 className="display-font text-3xl md:text-4xl font-bold text-[#18242b]">Cash Register</h1>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 bg-white/80 border border-[#e3d5c4] rounded-xl px-3 py-2 shadow-sm">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-2 bg-white/80 border border-[#e3d5c4] rounded-xl px-3 py-2 shadow-sm min-w-0">
               <UserIcon className="w-4 h-4 text-gray-400" />
               <select 
-                className="text-sm font-medium bg-transparent focus:outline-none"
+                className="min-w-0 text-sm font-medium bg-transparent focus:outline-none"
                 value={selectedStaffId}
                 onChange={(e) => setSelectedStaffId(e.target.value)}
               >
@@ -394,7 +394,7 @@ export default function POS() {
 
         {/* Item Search */}
         <div className="section-card p-4 rounded-[24px]">
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
@@ -442,7 +442,7 @@ export default function POS() {
         {/* Cart Table */}
         <div className="flex-1 section-card rounded-[24px] overflow-hidden flex flex-col">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[760px] text-sm">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="px-4 py-3 text-left font-bold text-gray-600 w-12">#</th>
@@ -520,7 +520,7 @@ export default function POS() {
 
         {/* Activity Log */}
         <div className="section-card rounded-[24px] overflow-hidden">
-          <div className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors">
+          <div className="w-full px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between hover:bg-gray-50 transition-colors">
             <button 
               onClick={() => setIsActivityLogExpanded(!isActivityLogExpanded)}
               className="flex items-center gap-2 flex-1 text-left focus:outline-none"
@@ -528,7 +528,7 @@ export default function POS() {
               {isActivityLogExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               <span className="font-bold text-gray-700">Activity Log</span>
             </button>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <select className="text-xs border border-gray-200 rounded px-2 py-1 bg-white">
                 <option>All Activities</option>
               </select>
@@ -549,10 +549,10 @@ export default function POS() {
       </div>
 
       {/* Right Sidebar */}
-      <div className="w-80 flex flex-col space-y-4">
+      <div className="order-1 w-full xl:order-2 xl:w-80 xl:max-w-[20rem] flex flex-col space-y-4">
         {/* Customer Search */}
         <div className="section-card p-4 rounded-[24px] space-y-3">
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <div className="relative flex-1">
               <input
                 type="text"
@@ -685,7 +685,7 @@ export default function POS() {
                 <option>Card</option>
                 <option>EFT</option>
               </select>
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <div className="relative flex-1">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">R</span>
                   <input

@@ -211,7 +211,7 @@ export default function Dashboard({ profile }: { profile: Profile | null }) {
               Welcome back to Appleberry OS. Keep sales moving, repairs on schedule, and inventory under control from one operations desk.
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-3 min-w-[260px]">
+          <div className="grid grid-cols-2 gap-3 lg:min-w-[260px]">
             <div className="rounded-2xl bg-white/70 border border-white/70 px-4 py-4">
               <p className="text-xs uppercase tracking-[0.18em] text-[#7b5c3c]">Today</p>
               <p className="text-2xl font-bold text-[#18242b] mt-2">{formatCurrency(stats.dailySales)}</p>
