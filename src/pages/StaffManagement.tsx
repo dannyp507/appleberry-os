@@ -34,6 +34,24 @@ const defaultForm = {
   permissions: getDefaultPermissions('staff') as PermissionKey[],
 };
 
+const getRequestErrorMessage = (error: unknown) => {
+  if (axios.isAxiosError(error)) {
+    return (
+      (typeof error.response?.data?.error === 'string' && error.response.data.error) ||
+      (typeof error.response?.data?.message === 'string' && error.response.data.message) ||
+      error.message
+    );
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return 'Unknown error';
+};
+
+const normalizeWhatsAppPhone = (phone: string) => phone.replace(/\D/g, '');
+
 export default function StaffManagement() {
   const [staff, setStaff] = useState<StaffProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -233,33 +251,58 @@ export default function StaffManagement() {
         accepted_at: null,
       });
 
+      const sendTasks: Promise<{ channel: 'email' | 'whatsapp' }>[] = [];
+
       if (communicationSettings?.email?.host) {
-        await axios.post('/api/send-email', {
+        sendTasks.push(axios.post('/api/send-email', {
           to: member.email,
           subject: 'Your Appleberry OS staff invite',
           text: `Hello ${member.full_name || 'there'},\n\nYou have been invited to Appleberry OS.\nActivation link: ${inviteLink}\nTemporary password: ${tempPassword}\n\nPlease use the link to create your own password.`,
           html: `<p>Hello ${member.full_name || 'there'},</p><p>You have been invited to Appleberry OS.</p><p><strong>Activation link:</strong> <a href="${inviteLink}">${inviteLink}</a></p><p><strong>Temporary password:</strong> ${tempPassword}</p><p>Please use the link to create your own password.</p>`,
           companyId: inviteCompanyId,
           settings: communicationSettings.email,
-        });
+        }, { timeout: 15000 }).then(() => ({ channel: 'email' as const })));
       }
 
       if (communicationSettings?.whatsapp && member.phone) {
-        await axios.post('/api/send-whatsapp', {
-          phone: String(member.phone).replace(/[^0-9+]/g, ''),
+        const normalizedPhone = normalizeWhatsAppPhone(String(member.phone));
+        if (normalizedPhone.length < 10) {
+          throw new Error('Staff WhatsApp number looks invalid. Use the full mobile number with country code.');
+        }
+
+        sendTasks.push(axios.post('/api/send-whatsapp', {
+          phone: normalizedPhone,
           message: `Hello ${member.full_name || ''}, you have been invited to Appleberry OS. Activate here: ${inviteLink} Temp password: ${tempPassword}`,
           companyId: inviteCompanyId,
           settings: communicationSettings.whatsapp,
-        });
+        }, { timeout: 15000 }).then(() => ({ channel: 'whatsapp' as const })));
       }
+
+      if (sendTasks.length === 0) {
+        throw new Error('No delivery channel is configured. Add SMTP or WhatsApp settings first.');
+      }
+
+      const deliveryResults = await Promise.allSettled(sendTasks);
+      const deliveredChannels = deliveryResults
+        .filter((result): result is PromiseFulfilledResult<{ channel: 'email' | 'whatsapp' }> => result.status === 'fulfilled')
+        .map((result) => result.value.channel);
+      const failedMessages = deliveryResults
+        .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+        .map((result) => getRequestErrorMessage(result.reason));
 
       await updateDoc(doc(db, 'profiles', member.id), {
         invite_sent_at: new Date().toISOString(),
       });
 
-      toast.success('Invite sent successfully.');
+      if (deliveredChannels.length > 0) {
+        toast.success(`Invite sent via ${deliveredChannels.join(' and ')}.`);
+      }
+
+      if (failedMessages.length > 0) {
+        toast.error(failedMessages[0]);
+      }
     } catch (error: any) {
-      toast.error(error.message || 'Failed to send invite');
+      toast.error(getRequestErrorMessage(error) || 'Failed to send invite');
     } finally {
       setSendingInviteId(null);
     }
