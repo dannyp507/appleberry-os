@@ -160,20 +160,12 @@ export default function StaffManagement() {
         await updateDoc(doc(db, 'profiles', editingStaff.id), payload);
         toast.success('Staff member updated');
       } else {
-        const staffRef = await addDoc(collection(db, 'profiles'), {
+        await addDoc(collection(db, 'profiles'), {
           ...payload,
           created_at: new Date().toISOString(),
           last_active_at: null,
         });
         toast.success('Staff member added');
-
-        if (formData.email) {
-          await sendInvite({
-            id: staffRef.id,
-            ...payload,
-            created_at: new Date().toISOString(),
-          } as StaffProfile);
-        }
       }
       setIsModalOpen(false);
       setFormData(defaultForm);
@@ -216,7 +208,7 @@ export default function StaffManagement() {
 
   const createTempPassword = () => `AB-${Math.random().toString(36).slice(2, 6).toUpperCase()}${Math.random().toString(10).slice(2, 6)}`;
 
-  const sendInvite = async (member: StaffProfile) => {
+  const sendInvite = async (member: StaffProfile, options?: { suppressErrorToast?: boolean }) => {
     if (!member.email) {
       toast.error('Add an email before sending an invite.');
       return;
@@ -299,10 +291,16 @@ export default function StaffManagement() {
       }
 
       if (failedMessages.length > 0) {
-        toast.error(failedMessages[0]);
+        if (!options?.suppressErrorToast) {
+          toast.error(failedMessages[0]);
+        }
+        throw new Error(failedMessages[0]);
       }
     } catch (error: any) {
-      toast.error(getRequestErrorMessage(error) || 'Failed to send invite');
+      if (!options?.suppressErrorToast) {
+        toast.error(getRequestErrorMessage(error) || 'Failed to send invite');
+      }
+      throw error;
     } finally {
       setSendingInviteId(null);
     }
