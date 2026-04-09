@@ -128,11 +128,11 @@ export default function PostSaleModal({ isOpen, onClose, repair, customer, cart,
         return;
       }
       const settings = settingsSnap.data() as CommunicationSettings;
-      const pdfDoc = await generateInvoicePDF(invoiceRecord, customer, cart, shopSettings);
+      const pdfDoc = await generateInvoicePDF(invoiceRecord, customer, cart, shopSettings, { variant: 'whatsapp' });
       const pdfBase64 = pdfDoc.output('datauristring').split(',')[1];
       const pdfFilename = `Invoice_${repair?.ticket_number || saleId || 'Sale'}.pdf`;
 
-      const pdfUrl = saleId ? `${window.location.origin}/api/invoices/${saleId}.pdf` : null;
+      const pdfUrl = saleId ? `${window.location.origin}/api/invoices/${saleId}.pdf?compact=1` : null;
       const isLocalUrl = pdfUrl ? /:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/i.test(pdfUrl) : false;
       const attachmentMessage = `Hello ${customer.name}, your invoice for repair ${repair?.ticket_number || 'Sale'} is attached.`;
       const linkMessage = `Hello ${customer.name}, your invoice for repair ${repair?.ticket_number || 'Sale'} is ready. You can view it here: ${window.location.origin}/view-invoice/${saleId || 'sale'}`;

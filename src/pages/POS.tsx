@@ -295,6 +295,10 @@ export default function POS() {
     try {
       const saleRef = await addDoc(collection(db, 'sales'), withCompanyId(companyId, {
         customer_id: selectedCustomer?.id || null,
+        customer_name: selectedCustomer?.name || null,
+        customer_phone: selectedCustomer?.phone || null,
+        ticket_number: currentRepair?.ticket_number || null,
+        device_name: currentRepair?.device_name || null,
         subtotal: subtotal,
         global_discount: globalDiscount,
         total_amount: grandTotal,

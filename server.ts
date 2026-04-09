@@ -33,6 +33,7 @@ async function startServer() {
   // PDF Generation Route
   app.get("/api/invoices/:id.pdf", async (req, res) => {
     const { id } = req.params;
+    const compact = String(req.query.compact || '') === '1';
     console.log(`Generating PDF for sale ID: ${id}`);
     
     try {
@@ -84,7 +85,16 @@ async function startServer() {
       console.log(`Fetched ${items.length} items for sale ${id}`);
 
       // Create PDF
-      const docPDF = new PDFDocument({ margin: 50, size: 'A4' });
+      const pageSize = compact ? 'A5' : 'A4';
+      const margin = compact ? 28 : 50;
+      const docPDF = new PDFDocument({ margin, size: pageSize });
+      const left = compact ? 28 : 50;
+      const rightColumn = compact ? 360 : 400;
+      const footerY = compact ? 540 : 720;
+      const tableRightPriceX = compact ? 250 : 350;
+      const tableRightTotalX = compact ? 320 : 450;
+      const tableQtyX = compact ? 215 : 300;
+      const descWidth = compact ? 150 : 240;
       
       // Set response headers
       res.setHeader('Content-Type', 'application/pdf');
@@ -100,45 +110,45 @@ async function startServer() {
             responseType: 'arraybuffer',
             timeout: 5000 
           });
-          docPDF.image(logoResponse.data, 50, 45, { width: 60 });
+          docPDF.image(logoResponse.data, left, compact ? 32 : 45, { width: compact ? 42 : 60 });
         } catch (e) {
           console.warn("Logo fetch failed, using text fallback:", e);
-          docPDF.fontSize(25).fillColor('#9333ea').text(shop.name.charAt(0), 50, 45);
+          docPDF.fontSize(compact ? 18 : 25).fillColor('#9333ea').text(shop.name.charAt(0), left, compact ? 32 : 45);
         }
       } else {
-        docPDF.fontSize(25).fillColor('#9333ea').text(shop.name.charAt(0), 50, 45);
+        docPDF.fontSize(compact ? 18 : 25).fillColor('#9333ea').text(shop.name.charAt(0), left, compact ? 32 : 45);
       }
 
-      docPDF.fillColor('#1e293b').fontSize(20).text('INVOICE', 400, 50, { align: 'right' });
+      docPDF.fillColor('#1e293b').fontSize(compact ? 16 : 20).text('INVOICE', rightColumn, compact ? 38 : 50, { align: 'right' });
       
-      docPDF.fontSize(10).fillColor('#64748b').text(shop.name, 50, 110);
+      docPDF.fontSize(compact ? 8.5 : 10).fillColor('#64748b').text(shop.name, left, compact ? 88 : 110);
       docPDF.text(shop.address || '');
       docPDF.text(`Phone: ${shop.phone || ''}`);
       docPDF.text(`Email: ${shop.email || ''}`);
       if (shop.website) docPDF.text(shop.website);
       
       // Invoice Details (Fixed position on the right)
-      docPDF.fillColor('#1e293b').text(`Invoice #: ${id.slice(0, 8)}`, 400, 110, { align: 'right' });
-      docPDF.text(`Date: ${sale.created_at ? new Date(sale.created_at).toLocaleDateString() : new Date().toLocaleDateString()}`, 400, 125, { align: 'right' });
+      docPDF.fillColor('#1e293b').text(`Invoice #: ${id.slice(0, 8)}`, rightColumn, compact ? 88 : 110, { align: 'right' });
+      docPDF.text(`Date: ${sale.created_at ? new Date(sale.created_at).toLocaleDateString() : new Date().toLocaleDateString()}`, rightColumn, compact ? 100 : 125, { align: 'right' });
       
       // Customer Info (Dynamic position based on shop info height)
-      const customerInfoY = Math.max(docPDF.y + 20, 180);
-      docPDF.fontSize(12).fillColor('#1e293b').text('BILL TO:', 50, customerInfoY);
-      docPDF.fontSize(10).fillColor('#475569').text(customer?.name || 'Walk-in Customer');
+      const customerInfoY = Math.max(docPDF.y + (compact ? 16 : 20), compact ? 132 : 180);
+      docPDF.fontSize(compact ? 10 : 12).fillColor('#1e293b').text('BILL TO:', left, customerInfoY);
+      docPDF.fontSize(compact ? 8.5 : 10).fillColor('#475569').text(customer?.name || 'Walk-in Customer');
       if (customer?.phone) docPDF.text(customer.phone);
       if (customer?.email) docPDF.text(customer.email);
       
       // Table Header (Dynamic position)
-      const tableTop = Math.max(docPDF.y + 30, 260);
-      docPDF.fillColor('#1e293b').fontSize(10).text('Description', 50, tableTop);
-      docPDF.text('Qty', 300, tableTop, { width: 50, align: 'center' });
-      docPDF.text('Price', 350, tableTop, { width: 100, align: 'right' });
-      docPDF.text('Total', 450, tableTop, { width: 100, align: 'right' });
+      const tableTop = Math.max(docPDF.y + (compact ? 20 : 30), compact ? 190 : 260);
+      docPDF.fillColor('#1e293b').fontSize(compact ? 8.5 : 10).text('Description', left, tableTop);
+      docPDF.text('Qty', tableQtyX, tableTop, { width: compact ? 28 : 50, align: 'center' });
+      docPDF.text('Price', tableRightPriceX, tableTop, { width: compact ? 58 : 100, align: 'right' });
+      docPDF.text('Total', tableRightTotalX, tableTop, { width: compact ? 58 : 100, align: 'right' });
       
-      docPDF.moveTo(50, tableTop + 15).lineTo(550, tableTop + 15).strokeColor('#e2e8f0').stroke();
+      docPDF.moveTo(left, tableTop + (compact ? 11 : 15)).lineTo(compact ? 392 : 550, tableTop + (compact ? 11 : 15)).strokeColor('#e2e8f0').stroke();
       
       // Items
-      let currentY = tableTop + 25;
+      let currentY = tableTop + (compact ? 18 : 25);
       if (items.length > 0) {
         items.forEach(item => {
           const name = item.name || 'Unknown Item';
@@ -146,27 +156,27 @@ async function startServer() {
           const price = Number(item.unit_price) || 0;
           const total = Number(item.total_price) || (qty * price);
 
-          docPDF.fillColor('#475569').text(name, 50, currentY, { width: 240 });
-          docPDF.text(qty.toString(), 300, currentY, { width: 50, align: 'center' });
-          docPDF.text(`R ${price.toFixed(2)}`, 350, currentY, { width: 100, align: 'right' });
-          docPDF.text(`R ${total.toFixed(2)}`, 450, currentY, { width: 100, align: 'right' });
-          currentY += 25;
+          docPDF.fillColor('#475569').fontSize(compact ? 8.5 : 10).text(name, left, currentY, { width: descWidth });
+          docPDF.text(qty.toString(), tableQtyX, currentY, { width: compact ? 28 : 50, align: 'center' });
+          docPDF.text(`R ${price.toFixed(2)}`, tableRightPriceX, currentY, { width: compact ? 58 : 100, align: 'right' });
+          docPDF.text(`R ${total.toFixed(2)}`, tableRightTotalX, currentY, { width: compact ? 58 : 100, align: 'right' });
+          currentY += compact ? 18 : 25;
         });
       } else {
-        docPDF.fillColor('#94a3b8').text('No items found for this sale.', 50, currentY);
-        currentY += 25;
+        docPDF.fillColor('#94a3b8').fontSize(compact ? 8.5 : 10).text('No items found for this sale.', left, currentY);
+        currentY += compact ? 18 : 25;
       }
       
-      docPDF.moveTo(50, currentY).lineTo(550, currentY).strokeColor('#e2e8f0').stroke();
+      docPDF.moveTo(left, currentY).lineTo(compact ? 392 : 550, currentY).strokeColor('#e2e8f0').stroke();
       
       // Totals
-      currentY += 20;
+      currentY += compact ? 14 : 20;
       const totalAmount = Number(sale.total_amount) || 0;
-      docPDF.fillColor('#1e293b').fontSize(12).text('Grand Total:', 350, currentY, { width: 100, align: 'right' });
-      docPDF.fontSize(14).text(`R ${totalAmount.toFixed(2)}`, 450, currentY, { width: 100, align: 'right' });
+      docPDF.fillColor('#1e293b').fontSize(compact ? 10 : 12).text('Grand Total:', tableRightPriceX, currentY, { width: compact ? 58 : 100, align: 'right' });
+      docPDF.fontSize(compact ? 11 : 14).text(`R ${totalAmount.toFixed(2)}`, tableRightTotalX, currentY, { width: compact ? 58 : 100, align: 'right' });
       
       // Footer
-      docPDF.fontSize(10).fillColor('#94a3b8').text('Thank you for your business!', 50, 720, { align: 'center', width: 500 });
+      docPDF.fontSize(compact ? 7.5 : 10).fillColor('#94a3b8').text('Thank you for your business!', left, footerY, { align: 'center', width: compact ? 340 : 500 });
       
       docPDF.end();
       console.log(`PDF generation completed for sale ${id}`);

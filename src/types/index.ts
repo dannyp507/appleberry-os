@@ -170,9 +170,15 @@ export interface Sale {
   id: string;
   company_id?: string | null;
   customer_id: string | null;
+  customer_name?: string | null;
+  customer_phone?: string | null;
+  external_invoice_number?: string | null;
+  ticket_number?: string | null;
+  device_name?: string | null;
   total_amount: number;
   profit: number;
   payment_method: 'cash' | 'card' | 'eft';
+  payment_methods?: string[];
   staff_id: string;
   created_at: string;
 }

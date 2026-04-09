@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, limit, orderBy, query } from 'firebase/firestore';
 import {
   ClipboardList,
   FileText,
@@ -407,26 +407,72 @@ async function searchRepairs(term: string, companyId: string | null): Promise<Se
 }
 
 async function searchSales(term: string, companyId: string | null): Promise<SearchResult[]> {
-  const snapshot = await getDocs(query(collection(db, 'sales'), orderBy('created_at', 'desc'), limit(60)));
-  const sales = filterByCompany(snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() } as Sale)), companyId);
+  const snapshot = await getDocs(query(collection(db, 'sales'), orderBy('created_at', 'desc'), limit(200)));
+  const sales = filterByCompany(snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() } as Sale & { external_invoice_number?: string | null; payments?: { method?: string }[] })), companyId);
+
+  const customerIds = Array.from(new Set(sales.map((sale) => sale.customer_id).filter(Boolean))) as string[];
+  const customerEntries = await Promise.all(
+    customerIds.map(async (customerId) => {
+      const customerSnap = await getDoc(doc(db, 'customers', customerId));
+      return [customerId, customerSnap.exists() ? ({ id: customerSnap.id, ...customerSnap.data() } as Customer) : null] as const;
+    })
+  );
+  const customerMap = new Map<string, Customer | null>(customerEntries);
+
+  const itemEntries = await Promise.all(
+    sales.slice(0, 120).map(async (sale) => {
+      try {
+        const itemsSnap = await getDocs(collection(db, `sales/${sale.id}/items`));
+        const itemNames = itemsSnap.docs
+          .map((itemDoc) => String(itemDoc.data().name || '').trim())
+          .filter(Boolean)
+          .slice(0, 4);
+        return [sale.id, itemNames] as [string, string[]];
+      } catch {
+        return [sale.id, [] as string[]] as [string, string[]];
+      }
+    })
+  );
+  const itemMap = new Map<string, string[]>(itemEntries);
+
   return sales
     .map((sale) => {
+      const customer = sale.customer_id ? customerMap.get(sale.customer_id) || null : null;
+      const itemNames = itemMap.get(sale.id) || [];
+      const paymentSummary = Array.isArray((sale as any).payments)
+        ? (sale as any).payments.map((payment: { method?: string }) => payment.method || '').filter(Boolean).join(' ')
+        : sale.payment_method || '';
       const score =
         scoreMatch(sale.id, term) +
-        scoreMatch(sale.customer_id || '', term) +
-        scoreMatch(sale.payment_method || '', term) +
-        scoreMatch(sale.created_at || '', term);
+        scoreMatch(sale.id.slice(0, 8), term) +
+        scoreMatch((sale as any).external_invoice_number || '', term) +
+        scoreMatch(sale.ticket_number || '', term) +
+        scoreMatch(sale.device_name || '', term) +
+        scoreMatch(sale.customer_name || '', term) +
+        scoreMatch(sale.customer_phone || '', term) +
+        scoreMatch(customer?.name || '', term) +
+        scoreMatch(customer?.phone || '', term) +
+        scoreMatch(customer?.email || '', term) +
+        scoreMatch(paymentSummary, term) +
+        itemNames.reduce((sum, itemName) => sum + scoreMatch(itemName, term), 0);
 
-      return { sale, score };
+      return { sale, customer, itemNames, score };
     })
     .filter(({ score }) => score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, 5)
-    .map(({ sale, score }) => ({
+    .map(({ sale, customer, itemNames, score }) => ({
       id: sale.id,
       category: 'sales',
-      title: `Invoice ${sale.id.slice(0, 8)}`,
-      subtitle: [safeFormatDate(sale.created_at, 'dd MMM yyyy'), sale.payment_method?.toUpperCase()].filter(Boolean).join(' • '),
+      title: (sale as any).external_invoice_number || `Invoice ${sale.id.slice(0, 8)}`,
+      subtitle: [
+        customer?.name || sale.customer_name || 'Walk-in customer',
+        sale.ticket_number || null,
+        sale.device_name || null,
+        itemNames[0],
+        itemNames.length > 1 ? `+${itemNames.length - 1} more` : null,
+        safeFormatDate(sale.created_at, 'dd MMM yyyy'),
+      ].filter(Boolean).join(' • '),
       meta: 'invoice',
       href: `/view-invoice/${sale.id}`,
       icon: FileText,
