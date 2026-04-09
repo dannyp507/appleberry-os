@@ -24,6 +24,7 @@ import Papa from 'papaparse';
 import { useDropzone } from 'react-dropzone';
 import { useTenant } from '../lib/tenant';
 import { filterByCompany, withCompanyId } from '../lib/companyData';
+import { useSearchParams } from 'react-router-dom';
 
 const PAGE_SIZE = 100;
 
@@ -94,8 +95,9 @@ const ProductRow = memo(function ProductRow({
 
 export default function Inventory() {
   const { companyId } = useTenant();
+  const [searchParams] = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(searchParams.get('search') || '');
   const deferredSearch = useDeferredValue(search);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -135,6 +137,10 @@ export default function Inventory() {
   useEffect(() => {
     fetchProducts();
   }, [companyId]);
+
+  useEffect(() => {
+    setSearch(searchParams.get('search') || '');
+  }, [searchParams]);
 
   async function fetchProducts() {
     setLoading(true);

@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   addDoc,
   collection,
@@ -93,10 +94,11 @@ function buildPoNumber() {
 
 export default function PurchaseOrders() {
   const { company } = useTenant();
+  const [searchParams] = useSearchParams();
   const companyId = company?.id || null;
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(searchParams.get('search') || '');
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isReceiveOpen, setIsReceiveOpen] = useState(false);
@@ -110,6 +112,10 @@ export default function PurchaseOrders() {
   useEffect(() => {
     fetchData();
   }, [companyId]);
+
+  useEffect(() => {
+    setSearch(searchParams.get('search') || '');
+  }, [searchParams]);
 
   async function fetchData() {
     setLoading(true);

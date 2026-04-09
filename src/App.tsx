@@ -46,6 +46,7 @@ const MarketingLanding = lazy(() => import('./pages/MarketingLanding'));
 
 // Components
 import Sidebar from './components/Sidebar';
+import GlobalSearch from './components/GlobalSearch';
 
 function RouteLoader() {
   return (
@@ -190,22 +191,30 @@ export default function App() {
             onCloseMobile={() => setMobileSidebarOpen(false)}
           />
           <main className="min-w-0 flex-1 overflow-y-auto p-3 pb-6 md:p-6 lg:p-8">
-            <div className="lg:hidden sticky top-0 z-30 mb-4">
+            <div className="sticky top-0 z-30 mb-4 space-y-3">
+              <div className="hidden lg:block">
+                <GlobalSearch profile={profile} />
+              </div>
+              <div className="lg:hidden">
               <div className="rounded-[22px] border border-[#dfcfbb] bg-[rgba(255,251,245,0.94)] px-4 py-3 shadow-[0_10px_30px_rgba(63,43,22,0.08)] backdrop-blur-xl">
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-[10px] uppercase tracking-[0.22em] text-[#8b6f51] font-semibold">Appleberry OS</p>
                     <p className="truncate text-sm font-semibold text-[#17242b]">{company?.name || profile?.full_name || 'Workspace'}</p>
                   </div>
-                  <button
-                    type="button"
-                    aria-label="Open navigation"
-                    onClick={() => setMobileSidebarOpen(true)}
-                    className="shrink-0 rounded-2xl border border-[#d7c5b0] bg-white/90 p-2.5 text-[#214e5f] shadow-sm"
-                  >
-                    <Menu className="h-5 w-5" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <GlobalSearch profile={profile} compact />
+                    <button
+                      type="button"
+                      aria-label="Open navigation"
+                      onClick={() => setMobileSidebarOpen(true)}
+                      className="shrink-0 rounded-2xl border border-[#d7c5b0] bg-white/90 p-2.5 text-[#214e5f] shadow-sm"
+                    >
+                      <Menu className="h-5 w-5" />
+                    </button>
+                  </div>
                 </div>
+              </div>
               </div>
             </div>
             <Suspense fallback={<RouteLoader />}>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { db } from '../lib/firebase';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { 
@@ -15,10 +15,12 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { useTenant } from '../lib/tenant';
 import { filterByCompany } from '../lib/companyData';
+import { useSearchParams } from 'react-router-dom';
 
 export default function IMEISearch() {
   const { companyId } = useTenant();
-  const [imei, setImei] = useState('');
+  const [searchParams] = useSearchParams();
+  const [imei, setImei] = useState(searchParams.get('query') || '');
   const [results, setResults] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
@@ -62,6 +64,50 @@ export default function IMEISearch() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const nextQuery = searchParams.get('query') || '';
+    setImei(nextQuery);
+  }, [searchParams]);
+
+  useEffect(() => {
+    const nextQuery = searchParams.get('query') || '';
+    if (!nextQuery) return;
+
+    const run = async () => {
+      setLoading(true);
+      try {
+        // 1. Search in Products (Inventory)
+        const productsRef = collection(db, 'products');
+        const productQuery = query(productsRef, where('imei', '==', nextQuery));
+        const productSnapshot = await getDocs(productQuery);
+        const scopedProducts = filterByCompany(productSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)), companyId);
+        const product = scopedProducts.length > 0 ? scopedProducts[0] : null;
+
+        // 2. Search in Repairs
+        const repairsRef = collection(db, 'repairs');
+        const repairsQuery = query(repairsRef, where('imei', '==', nextQuery), orderBy('created_at', 'desc'));
+        const repairsSnapshot = await getDocs(repairsQuery);
+        const repairs = filterByCompany(repairsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)), companyId);
+
+        let sales: any[] = [];
+        if (product) {
+          const saleItemsRef = collection(db, 'sale_items');
+          const salesQuery = query(saleItemsRef, where('product_id', '==', product.id));
+          const salesSnapshot = await getDocs(salesQuery);
+          sales = filterByCompany(salesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)), companyId);
+        }
+
+        setResults({ product, repairs: repairs || [], sales: sales || [] });
+      } catch (error: any) {
+        toast.error(error.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    run();
+  }, [searchParams, companyId]);
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">

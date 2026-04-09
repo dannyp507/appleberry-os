@@ -25,11 +25,13 @@ import Papa from 'papaparse';
 import { useDropzone } from 'react-dropzone';
 
 import { useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useTenant } from '../lib/tenant';
 import { filterByCompany, withCompanyId } from '../lib/companyData';
 
 export default function Repairs() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { company } = useTenant();
   const companyId = company?.id || null;
   const [repairs, setRepairs] = useState<Repair[]>([]);
@@ -38,7 +40,7 @@ export default function Repairs() {
   const [problems, setProblems] = useState<RepairProblem[]>([]);
   const [staff, setStaff] = useState<Profile[]>([]);
   
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(searchParams.get('search') || '');
   const [statusFilter, setStatusFilter] = useState('All Statuses');
   const [technicianFilter, setTechnicianFilter] = useState('All Technicians');
   
@@ -82,6 +84,10 @@ export default function Repairs() {
 
     return () => unsubscribe();
   }, [companyId]);
+
+  useEffect(() => {
+    setSearch(searchParams.get('search') || '');
+  }, [searchParams]);
 
   async function fetchStatuses() {
     const querySnapshot = await getDocs(query(collection(db, 'repair_status_options'), orderBy('order_index')));

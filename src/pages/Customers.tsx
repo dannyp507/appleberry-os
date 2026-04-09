@@ -25,6 +25,7 @@ import { useDropzone } from 'react-dropzone';
 import { cn } from '../lib/utils';
 import { useTenant } from '../lib/tenant';
 import { filterByCompany, withCompanyId } from '../lib/companyData';
+import { useSearchParams } from 'react-router-dom';
 
 const CustomerCard = memo(function CustomerCard({
   customer,
@@ -97,8 +98,9 @@ const CustomerCard = memo(function CustomerCard({
 
 export default function Customers() {
   const { companyId } = useTenant();
+  const [searchParams] = useSearchParams();
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(searchParams.get('search') || '');
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -137,6 +139,10 @@ export default function Customers() {
   useEffect(() => {
     fetchCustomers();
   }, [companyId]);
+
+  useEffect(() => {
+    setSearch(searchParams.get('search') || '');
+  }, [searchParams]);
 
   async function fetchCustomers() {
     setLoading(true);

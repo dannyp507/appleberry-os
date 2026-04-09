@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import { Search, FileText, Download, Eye, Receipt, CreditCard, AlertCircle } from 'lucide-react';
 import { db } from '../lib/firebase';
@@ -31,14 +31,19 @@ type InvoiceRow = {
 
 export default function Invoices() {
   const { companyId } = useTenant();
+  const [searchParams] = useSearchParams();
   const [rows, setRows] = useState<InvoiceRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(searchParams.get('search') || '');
   const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'partial' | 'unpaid'>('all');
 
   useEffect(() => {
     fetchInvoices();
   }, [companyId]);
+
+  useEffect(() => {
+    setSearch(searchParams.get('search') || '');
+  }, [searchParams]);
 
   async function fetchInvoices() {
     setLoading(true);
