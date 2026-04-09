@@ -50,6 +50,28 @@ export interface Product {
   created_at: string;
 }
 
+export interface DeviceInventoryItem {
+  id: string;
+  company_id?: string | null;
+  name: string;
+  brand?: string | null;
+  model?: string | null;
+  imei: string;
+  serial_number?: string | null;
+  condition?: string | null;
+  status: 'in_stock' | 'reserved' | 'sold' | 'repair' | 'trade_in' | 'archived';
+  source?: string | null;
+  color?: string | null;
+  storage?: string | null;
+  buy_price?: number | null;
+  sell_price?: number | null;
+  notes?: string | null;
+  acquired_at?: string | null;
+  sold_at?: string | null;
+  created_at: string;
+  updated_at?: string;
+}
+
 export interface Customer {
   id: string;
   company_id?: string | null;

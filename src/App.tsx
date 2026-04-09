@@ -43,6 +43,7 @@ const StockTake = lazy(() => import('./pages/StockTake'));
 const PurchaseOrders = lazy(() => import('./pages/PurchaseOrders'));
 const InventoryTransfer = lazy(() => import('./pages/InventoryTransfer'));
 const MarketingLanding = lazy(() => import('./pages/MarketingLanding'));
+const DevicesInventory = lazy(() => import('./pages/DevicesInventory'));
 
 // Components
 import Sidebar from './components/Sidebar';
@@ -234,7 +235,7 @@ export default function App() {
                 <Route path="/invoices" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'invoices.view') ? <Invoices /> : <Navigate to="/" replace />} />
                 <Route path="/purchase-orders" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'purchase_orders.view') ? <PurchaseOrders /> : <Navigate to="/" replace />} />
                 <Route path="/orders" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'orders.view') ? <PlaceholderPage title="Orders" /> : <Navigate to="/" replace />} />
-                <Route path="/devices" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'devices.view') ? <PlaceholderPage title="Devices Inventory" /> : <Navigate to="/" replace />} />
+                <Route path="/devices" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'devices.view') ? <DevicesInventory /> : <Navigate to="/" replace />} />
                 <Route path="/stock-take" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'stock_take.view') ? <StockTake /> : <Navigate to="/" replace />} />
                 <Route path="/expenses" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'expenses.view') ? <Expenses /> : <Navigate to="/" replace />} />
                 <Route path="/transfer" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'transfer.view') ? <InventoryTransfer /> : <Navigate to="/" replace />} />

@@ -299,6 +299,26 @@ export default function Repairs() {
     });
   }, [repairs, customers, statuses, staff, problems]);
 
+  const uniqueStatuses = useMemo(() => {
+    const seen = new Set<string>();
+    return statuses.filter((status) => {
+      const key = (status.name || '').trim().toLowerCase();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [statuses]);
+
+  const uniqueStaff = useMemo(() => {
+    const seen = new Set<string>();
+    return staff.filter((member) => {
+      const key = (member.full_name || '').trim().toLowerCase();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [staff]);
+
   const filteredRepairs = useMemo(() => {
     return enrichedRepairs.filter(r => {
       const matchesSearch = 
@@ -368,7 +388,7 @@ export default function Repairs() {
             onChange={(e) => setStatusFilter(e.target.value)}
           >
             <option>All Statuses</option>
-            {statuses.map(s => (
+            {uniqueStatuses.map(s => (
               <option key={s.id} value={s.name}>{s.name}</option>
             ))}
           </select>
@@ -379,7 +399,7 @@ export default function Repairs() {
             onChange={(e) => setTechnicianFilter(e.target.value)}
           >
             <option>All Technicians</option>
-            {staff.map(s => (
+            {uniqueStaff.map(s => (
               <option key={s.id} value={s.full_name || ''}>{s.full_name}</option>
             ))}
           </select>
