@@ -1,0 +1,183 @@
+{
+  "entities": {
+    "repair_status_options": {
+      "title": "Repair Status Options",
+      "description": "Available statuses for repair jobs",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Status name" },
+        "color": { "type": "string", "description": "Hex color code" },
+        "order_index": { "type": "number", "description": "Display order" }
+      },
+      "required": ["name", "color", "order_index"]
+    },
+    "customers": {
+      "title": "Customers",
+      "description": "Customer information",
+      "type": "object",
+      "properties": {
+        "external_id": { "type": "string" },
+        "first_name": { "type": "string" },
+        "last_name": { "type": "string" },
+        "name": { "type": "string", "description": "Full name (combined)" },
+        "phone": { "type": "string" },
+        "secondary_phone": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "offers_email": { "type": "boolean" },
+        "company": { "type": "string" },
+        "fax": { "type": "string" },
+        "customer_type": { "type": "string" },
+        "address_line1": { "type": "string" },
+        "address_line2": { "type": "string" },
+        "city": { "type": "string" },
+        "state": { "type": "string" },
+        "zip": { "type": "string" },
+        "country": { "type": "string" },
+        "checkbox": { "type": "boolean" },
+        "birthdate": { "type": "string", "format": "date" },
+        "created_by": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["first_name", "last_name", "phone"]
+    },
+    "products": {
+      "title": "Products",
+      "description": "Inventory items",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "sku": { "type": "string", "description": "Stock Keeping Unit" },
+        "barcode": { "type": "string", "description": "Product Barcode" },
+        "imei": { "type": "string" },
+        "cost_price": { "type": "number" },
+        "selling_price": { "type": "number" },
+        "stock": { "type": "number" },
+        "low_stock_threshold": { "type": "number" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "category", "cost_price", "selling_price", "stock"]
+    },
+    "sales": {
+      "title": "Sales",
+      "description": "Sales records",
+      "type": "object",
+      "properties": {
+        "customer_id": { "type": "string" },
+        "total_amount": { "type": "number" },
+        "profit": { "type": "number" },
+        "payment_method": { "type": "string", "enum": ["cash", "card", "eft"] },
+        "staff_id": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["total_amount", "profit", "payment_method", "staff_id"]
+    },
+    "sale_items": {
+      "title": "Sale Items",
+      "description": "Items within a sale",
+      "type": "object",
+      "properties": {
+        "sale_id": { "type": "string" },
+        "product_id": { "type": "string" },
+        "quantity": { "type": "number" },
+        "unit_price": { "type": "number" },
+        "total_price": { "type": "number" }
+      },
+      "required": ["sale_id", "product_id", "quantity", "unit_price", "total_price"]
+    },
+    "repairs": {
+      "title": "Repairs",
+      "description": "Repair job records",
+      "type": "object",
+      "properties": {
+        "customer_id": { "type": "string" },
+        "device_name": { "type": "string" },
+        "imei": { "type": "string" },
+        "issue_description": { "type": "string" },
+        "technician_id": { "type": "string" },
+        "cost": { "type": "number" },
+        "status_id": { "type": "string" },
+        "notes": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["customer_id", "device_name", "status_id"]
+    },
+    "repair_history": {
+      "title": "Repair History",
+      "description": "Timeline of status updates for repairs",
+      "type": "object",
+      "properties": {
+        "repair_id": { "type": "string" },
+        "status_id": { "type": "string" },
+        "notes": { "type": "string" },
+        "changed_by": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["repair_id", "status_id", "changed_by"]
+    },
+    "profiles": {
+      "title": "Profiles",
+      "description": "Staff profiles and roles",
+      "type": "object",
+      "properties": {
+        "full_name": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "staff"] },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["role"]
+    },
+    "expenses": {
+      "title": "Expenses",
+      "description": "Business expenses",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "amount": { "type": "number" },
+        "category": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "notes": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "amount", "category", "date"]
+    }
+  },
+  "firestore": {
+    "repair_status_options/{statusId}": {
+      "schema": "repair_status_options",
+      "description": "Collection of available repair statuses"
+    },
+    "customers/{customerId}": {
+      "schema": "customers",
+      "description": "Collection of customers"
+    },
+    "products/{productId}": {
+      "schema": "products",
+      "description": "Collection of inventory products"
+    },
+    "sales/{saleId}": {
+      "schema": "sales",
+      "description": "Collection of sales"
+    },
+    "sales/{saleId}/items/{itemId}": {
+      "schema": "sale_items",
+      "description": "Subcollection of items for a specific sale"
+    },
+    "repairs/{repairId}": {
+      "schema": "repairs",
+      "description": "Collection of repair jobs"
+    },
+    "repairs/{repairId}/history/{historyId}": {
+      "schema": "repair_history",
+      "description": "Subcollection of history for a specific repair"
+    },
+    "profiles/{profileId}": {
+      "schema": "profiles",
+      "description": "Collection of staff profiles"
+    },
+    "expenses/{expenseId}": {
+      "schema": "expenses",
+      "description": "Collection of business expenses"
+    }
+  }
+}
