@@ -61,6 +61,7 @@ export default function StaffManagement() {
   const [formData, setFormData] = useState(defaultForm);
   const [sendingInviteId, setSendingInviteId] = useState<string | null>(null);
   const [companyId, setCompanyId] = useState<string | null>(null);
+  const currentUserId = auth.currentUser?.uid || null;
 
   useEffect(() => {
     loadAdminCompany();
@@ -208,6 +209,9 @@ export default function StaffManagement() {
 
   const createTempPassword = () => `AB-${Math.random().toString(36).slice(2, 6).toUpperCase()}${Math.random().toString(10).slice(2, 6)}`;
 
+  const isLegacyProfile = (member: StaffProfile) => !member.company_id;
+  const isCurrentUser = (member: StaffProfile) => member.id === currentUserId || member.auth_uid === currentUserId;
+
   const sendInvite = async (member: StaffProfile, options?: { suppressErrorToast?: boolean }) => {
     if (!member.email) {
       toast.error('Add an email before sending an invite.');
@@ -307,6 +311,16 @@ export default function StaffManagement() {
   };
 
   const handleDelete = async (member: StaffProfile) => {
+    if (isCurrentUser(member)) {
+      toast.error('You cannot delete the account you are currently signed in with.');
+      return;
+    }
+
+    if (isLegacyProfile(member)) {
+      toast.error('Legacy admin profiles without a company cannot be deleted from the app yet.');
+      return;
+    }
+
     const confirmed = window.confirm(`Delete ${member.full_name || 'this staff member'} from staff management?`);
     if (!confirmed) return;
 
@@ -391,7 +405,19 @@ export default function StaffManagement() {
                   <tr key={member.id} className="border-b border-[#efe2d3] hover:bg-[#fbf4eb] transition-colors">
                     <td className="px-4 py-4">
                       <div>
-                        <p className="font-semibold text-[#18242b]">{member.full_name || 'Unnamed staff member'}</p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-semibold text-[#18242b]">{member.full_name || 'Unnamed staff member'}</p>
+                          {isCurrentUser(member) && (
+                            <span className="inline-flex px-2.5 py-1 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700">
+                              Current user
+                            </span>
+                          )}
+                          {isLegacyProfile(member) && (
+                            <span className="inline-flex px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700">
+                              Legacy profile
+                            </span>
+                          )}
+                        </div>
                         <p className="text-xs text-[#6d6862]">{member.title || 'General staff role'}</p>
                       </div>
                     </td>
@@ -434,6 +460,7 @@ export default function StaffManagement() {
                         <button
                           onClick={() => sendInvite(member)}
                           disabled={sendingInviteId === member.id || !member.email}
+                          title={member.email ? 'Send invite' : 'Add an email address before sending an invite'}
                           className="inline-flex items-center gap-1 px-3 py-2 text-xs font-semibold text-primary bg-primary/10 rounded-lg hover:bg-primary/20 disabled:opacity-50"
                         >
                           <Send className="w-3.5 h-3.5" />
@@ -441,7 +468,15 @@ export default function StaffManagement() {
                         </button>
                         <button
                           onClick={() => handleDelete(member)}
-                          className="inline-flex items-center gap-1 px-3 py-2 text-xs font-semibold text-red-600 bg-red-50 rounded-lg hover:bg-red-100"
+                          disabled={isCurrentUser(member) || isLegacyProfile(member)}
+                          title={
+                            isCurrentUser(member)
+                              ? 'You cannot delete the account you are currently signed in with'
+                              : isLegacyProfile(member)
+                                ? 'Legacy profiles must be cleaned up manually after admin migration'
+                                : 'Delete staff member'
+                          }
+                          className="inline-flex items-center gap-1 px-3 py-2 text-xs font-semibold text-red-600 bg-red-50 rounded-lg hover:bg-red-100 disabled:opacity-50"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                           Delete
