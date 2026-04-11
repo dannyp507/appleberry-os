@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, doc, getDoc, getDocs, limit, orderBy, query } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, limit, query } from 'firebase/firestore';
 import {
   ClipboardList,
   FileText,
@@ -349,7 +349,7 @@ async function searchWorkspace(term: string, companyId: string | null, profile: 
 }
 
 async function searchCustomers(term: string, companyId: string | null): Promise<SearchResult[]> {
-  const snapshot = await getDocs(query(collection(db, 'customers'), orderBy('first_name'), limit(60)));
+  const snapshot = await getDocs(query(collection(db, 'customers'), limit(300)));
   const customers = filterByCompany(snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() } as Customer)), companyId);
   return customers
     .map((customer) => {
@@ -379,7 +379,7 @@ async function searchCustomers(term: string, companyId: string | null): Promise<
 }
 
 async function searchRepairs(term: string, companyId: string | null): Promise<SearchResult[]> {
-  const snapshot = await getDocs(query(collection(db, 'repairs'), orderBy('updated_at', 'desc'), limit(60)));
+  const snapshot = await getDocs(query(collection(db, 'repairs'), limit(250)));
   const repairs = filterByCompany(snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() } as Repair)), companyId);
   return repairs
     .map((repair) => {
@@ -407,7 +407,7 @@ async function searchRepairs(term: string, companyId: string | null): Promise<Se
 }
 
 async function searchSales(term: string, companyId: string | null): Promise<SearchResult[]> {
-  const snapshot = await getDocs(query(collection(db, 'sales'), orderBy('created_at', 'desc'), limit(200)));
+  const snapshot = await getDocs(query(collection(db, 'sales'), limit(350)));
   const sales = filterByCompany(snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() } as Sale & { external_invoice_number?: string | null; payments?: { method?: string }[] })), companyId);
 
   const customerIds = Array.from(new Set(sales.map((sale) => sale.customer_id).filter(Boolean))) as string[];
@@ -481,7 +481,7 @@ async function searchSales(term: string, companyId: string | null): Promise<Sear
 }
 
 async function searchPurchaseOrders(term: string, companyId: string | null): Promise<SearchResult[]> {
-  const snapshot = await getDocs(query(collection(db, 'purchase_orders'), orderBy('created_at', 'desc'), limit(50)));
+  const snapshot = await getDocs(query(collection(db, 'purchase_orders'), limit(200)));
   const purchaseOrders = filterByCompany(
     snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() } as PurchaseOrderLike)),
     companyId
@@ -512,7 +512,7 @@ async function searchPurchaseOrders(term: string, companyId: string | null): Pro
 }
 
 async function searchOrders(term: string, companyId: string | null): Promise<SearchResult[]> {
-  const snapshot = await getDocs(query(collection(db, 'orders'), orderBy('created_at', 'desc'), limit(40)));
+  const snapshot = await getDocs(query(collection(db, 'orders'), limit(200)));
   const orders = filterByCompany(snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() } as OrderLike)), companyId);
   return orders
     .map((order) => {
@@ -540,7 +540,7 @@ async function searchOrders(term: string, companyId: string | null): Promise<Sea
 }
 
 async function searchProducts(term: string, companyId: string | null): Promise<SearchResult[]> {
-  const snapshot = await getDocs(query(collection(db, 'products'), orderBy('created_at', 'desc'), limit(80)));
+  const snapshot = await getDocs(query(collection(db, 'products'), limit(400)));
   const products = filterByCompany(snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() } as Product)), companyId);
   return products
     .map((product) => {

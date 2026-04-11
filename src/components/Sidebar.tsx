@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   Megaphone,
+  MessageSquareMore,
   ShoppingCart, 
   Package, 
   Wrench, 
@@ -26,6 +27,7 @@ import { PermissionKey, hasPermission } from '../lib/permissions';
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/', permission: 'dashboard.view' as PermissionKey },
   { icon: Megaphone, label: 'Campaigns', path: '/campaigns', permission: 'marketing.view' as PermissionKey },
+  { icon: MessageSquareMore, label: 'WhatsApp Studio', path: '/whatsapp-studio', permission: 'marketing.view' as PermissionKey },
   { icon: ShoppingCart, label: 'Cash Register', path: '/pos', permission: 'pos.use' as PermissionKey },
   { icon: Wrench, label: 'Repairs', path: '/repairs', permission: 'repairs.view' as PermissionKey },
   { icon: FileText, label: 'Invoices', path: '/invoices', permission: 'invoices.view' as PermissionKey },

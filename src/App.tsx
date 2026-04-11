@@ -21,6 +21,7 @@ const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
 const Onboarding = lazy(() => import('./pages/Onboarding'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const MarketingHub = lazy(() => import('./pages/MarketingHub'));
+const WhatsAppStudio = lazy(() => import('./pages/WhatsAppStudio'));
 const POS = lazy(() => import('./pages/POS'));
 const Inventory = lazy(() => import('./pages/Inventory'));
 const Repairs = lazy(() => import('./pages/Repairs'));
@@ -110,6 +111,10 @@ export default function App() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   useEffect(() => {
+    const loadingFallback = window.setTimeout(() => {
+      setLoading(false);
+    }, 4000);
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setLoading(true);
       setUser(user);
@@ -135,7 +140,10 @@ export default function App() {
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      window.clearTimeout(loadingFallback);
+      unsubscribe();
+    };
   }, []);
 
   if (loading) {
@@ -152,6 +160,7 @@ export default function App() {
         <Suspense fallback={<RouteLoader />}>
           <Routes>
             <Route path="/" element={<MarketingLanding />} />
+            <Route path="/whatsapp-studio" element={<WhatsAppStudio />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/verify-email" element={<VerifyEmail />} />
@@ -223,6 +232,7 @@ export default function App() {
                 <Route path="/onboarding" element={<Onboarding />} />
                 <Route path="/" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : <Dashboard profile={profile} />} />
                 <Route path="/campaigns" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'marketing.view') ? <MarketingHub /> : <Navigate to="/" replace />} />
+                <Route path="/whatsapp-studio" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'marketing.view') ? <WhatsAppStudio /> : <Navigate to="/" replace />} />
                 <Route path="/pos" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'pos.use') ? <POS /> : <Navigate to="/" replace />} />
                 <Route path="/view-invoice/:id" element={<InvoiceView />} />
                 <Route path="/inventory" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'inventory.view') ? <Inventory /> : <Navigate to="/" replace />} />

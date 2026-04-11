@@ -8,6 +8,7 @@ import PDFDocument from "pdfkit";
 import { initializeApp } from 'firebase/app';
 import { getFirestore, doc, getDoc, collection, getDocs } from 'firebase/firestore';
 import fs from 'fs';
+import { GoogleGenAI } from "@google/genai";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -28,6 +29,47 @@ async function startServer() {
   app.use(express.json());
   app.get("/health", (_req, res) => {
     res.status(200).json({ ok: true });
+  });
+
+  app.post("/api/whatsapp-studio/ai-preview", async (req, res) => {
+    const { message, flowName, aiInstruction, accountName, keywords, apiKey, aiTonePrompt } = req.body ?? {};
+    const effectiveApiKey = apiKey || process.env.GEMINI_API_KEY;
+
+    if (!effectiveApiKey) {
+      return res.status(400).json({ error: "GEMINI_API_KEY is not configured on the server." });
+    }
+
+    if (!message || !aiInstruction) {
+      return res.status(400).json({ error: "Message and AI instruction are required." });
+    }
+
+    try {
+      const ai = new GoogleGenAI({ apiKey: effectiveApiKey });
+      const prompt = [
+        "You are simulating a WhatsApp automation AI reply block for a business messaging studio.",
+        `WhatsApp account: ${accountName || "Unknown account"}`,
+        `Matched flow: ${flowName || "Unnamed flow"}`,
+        `Flow keywords: ${Array.isArray(keywords) ? keywords.join(", ") : ""}`,
+        `Bot settings prompt: ${aiTonePrompt || "Keep replies concise, friendly, and sales-aware."}`,
+        `AI block instruction: ${aiInstruction}`,
+        `Incoming customer message: ${message}`,
+        "Write one concise WhatsApp reply that follows the instruction and sounds natural, helpful, and ready to send.",
+      ].join("\n");
+
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: prompt,
+      });
+
+      return res.json({
+        success: true,
+        model: "gemini-2.5-flash",
+        text: response.text || "",
+      });
+    } catch (error: any) {
+      console.error("Gemini preview error:", error);
+      return res.status(500).json({ error: error?.message || "Failed to generate AI preview." });
+    }
   });
 
   // PDF Generation Route

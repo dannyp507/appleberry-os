@@ -329,6 +329,12 @@ export default function MarketingLanding() {
                   >
                     Explore the platform
                   </a>
+                  <Link
+                    to="/whatsapp-studio"
+                    className="inline-flex items-center justify-center rounded-2xl border border-[#f2a25f]/40 bg-[#1b2b33] px-6 py-4 text-base font-semibold text-[#f8d7b3] transition hover:bg-[#22353f]"
+                  >
+                    Open WhatsApp Studio demo
+                  </Link>
                 </div>
 
                 <div className="mt-6 flex flex-wrap gap-2">
