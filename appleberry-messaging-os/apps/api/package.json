@@ -14,6 +14,8 @@
     "prisma:seed": "dotenv -e ../../.env -- tsx ../../prisma/seed.ts"
   },
   "dependencies": {
+    "@appleberry/types": "workspace:*",
+    "@nestjs/bullmq": "^11.0.4",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^11.0.1",
@@ -24,7 +26,6 @@
     "@nestjs/throttler": "^6.2.1",
     "@nestjs/websockets": "^11.0.1",
     "@prisma/client": "^6.6.0",
-    "@appleberry/types": "workspace:*",
     "argon2": "^0.41.1",
     "axios": "^1.7.9",
     "bullmq": "^5.34.10",

@@ -13,6 +13,15 @@ export function WorkspaceShell({ children }: PropsWithChildren) {
   const setActiveWorkspaceId = useSessionStore((state) => state.setActiveWorkspaceId);
   const profileQuery = useProfile();
 
+  const memberships = user?.memberships ?? [];
+
+  // Move useEffect before early returns to comply with Rules of Hooks
+  useEffect(() => {
+    if (memberships.length && !activeWorkspaceId && memberships[0]?.workspace.id) {
+      setActiveWorkspaceId(memberships[0].workspace.id);
+    }
+  }, [activeWorkspaceId, memberships, setActiveWorkspaceId]);
+
   if (!accessToken) {
     return (
       <div className="flex min-h-screen items-center justify-center px-4">
@@ -29,14 +38,21 @@ export function WorkspaceShell({ children }: PropsWithChildren) {
     );
   }
 
-  const memberships = user?.memberships ?? [];
-  const resolvedWorkspaceId = activeWorkspaceId ?? memberships[0]?.workspace.id ?? null;
+  if (profileQuery.isError && !user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center px-4">
+        <div className="rounded-[28px] border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700 shadow-sm">
+          <p className="font-medium">Error loading profile</p>
+          <p className="text-xs mt-2">Please try logging in again</p>
+          <a href="/login" className="inline-block mt-3 text-xs font-medium underline hover:text-rose-900">
+            Go to login
+          </a>
+        </div>
+      </div>
+    );
+  }
 
-  useEffect(() => {
-    if (!activeWorkspaceId && memberships[0]?.workspace.id) {
-      setActiveWorkspaceId(memberships[0].workspace.id);
-    }
-  }, [activeWorkspaceId, memberships, setActiveWorkspaceId]);
+  const resolvedWorkspaceId = activeWorkspaceId ?? memberships[0]?.workspace.id ?? null;
 
   if (!memberships.length) {
     return (
@@ -52,6 +68,7 @@ export function WorkspaceShell({ children }: PropsWithChildren) {
     <>
       <div className="hidden">
         <select
+          aria-label="Switch workspace"
           value={resolvedWorkspaceId ?? memberships[0].workspace.id}
           onChange={(event) => setActiveWorkspaceId(event.target.value)}
         >

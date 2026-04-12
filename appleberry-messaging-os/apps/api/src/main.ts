@@ -11,6 +11,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, { cors: true });
   const config = app.get(ConfigService);
   const prefix = config.get<string>('app.apiPrefix', 'v1');
+  const host = config.get<string>('app.host', '0.0.0.0');
   const port = config.get<number>('app.port', 4000);
 
   app.setGlobalPrefix(prefix);
@@ -34,7 +35,7 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, swagger);
   SwaggerModule.setup('docs', app, document);
 
-  await app.listen(port);
+  await app.listen(port, host);
 }
 
 void bootstrap();

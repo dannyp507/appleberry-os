@@ -5,11 +5,17 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
 import { appConfig, validateEnv } from './config/env';
 import { SecurityModule } from './common/security/security.module';
+import { AdminModule } from './modules/admin/admin.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { ApiKeysModule } from './modules/api-keys/api-keys.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { AutorespondersModule } from './modules/autoresponders/autoresponders.module';
 import { CampaignsModule } from './modules/campaigns/campaigns.module';
 import { ContactsModule } from './modules/contacts/contacts.module';
 import { FlowsModule } from './modules/flows/flows.module';
 import { HealthModule } from './modules/health/health.module';
+import { InboxModule } from './modules/inbox/inbox.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ProviderRegistryModule } from './modules/provider-registry/provider-registry.module';
 import { TemplatesModule } from './modules/templates/templates.module';
 import { UsersModule } from './modules/users/users.module';
@@ -44,6 +50,12 @@ import { QueueModule } from './queues/queue.module';
     CampaignsModule,
     FlowsModule,
     HealthModule,
+    InboxModule,
+    AnalyticsModule,
+    AdminModule,
+    ApiKeysModule,
+    AutorespondersModule,
+    NotificationsModule,
   ],
   providers: [
     {

@@ -29,12 +29,18 @@ export function useProfile() {
   return useQuery({
     queryKey: ['auth', 'me'],
     queryFn: async () => {
-      const profile = await getProfile();
-      if (accessToken) {
-        setSession({ accessToken, user: profile });
+      try {
+        const profile = await getProfile();
+        if (accessToken) {
+          setSession({ accessToken, user: profile });
+        }
+        return profile;
+      } catch (error) {
+        console.error('[useProfile] Error fetching profile:', error);
+        throw error;
       }
-      return profile;
     },
     enabled: Boolean(accessToken),
+    retry: false,
   });
 }

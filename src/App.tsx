@@ -21,6 +21,7 @@ const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
 const Onboarding = lazy(() => import('./pages/Onboarding'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const MarketingHub = lazy(() => import('./pages/MarketingHub'));
+const MarketingLanding = lazy(() => import('./pages/MarketingLanding'));
 const WhatsAppStudio = lazy(() => import('./pages/WhatsAppStudio'));
 const POS = lazy(() => import('./pages/POS'));
 const Inventory = lazy(() => import('./pages/Inventory'));
@@ -30,20 +31,22 @@ const NewRepair = lazy(() => import('./pages/NewRepair'));
 const Customers = lazy(() => import('./pages/Customers'));
 const IMEISearch = lazy(() => import('./pages/IMEISearch'));
 const Expenses = lazy(() => import('./pages/Expenses'));
-const EndOfDay = lazy(() => import('./pages/EndOfDay'));
+const Appointments = lazy(() => import('./pages/Appointments'));
 const ManageData = lazy(() => import('./pages/ManageData'));
 const InvoiceView = lazy(() => import('./pages/InvoiceView'));
 const Invoices = lazy(() => import('./pages/Invoices'));
 const SalesReports = lazy(() => import('./pages/SalesReports'));
-const RepairsReports = lazy(() => import('./pages/RepairsReports'));
+const InventoryReports = lazy(() => import('./pages/InventoryReports'));
 const ActivityLog = lazy(() => import('./pages/ActivityLog'));
 const StaffManagement = lazy(() => import('./pages/StaffManagement'));
 const PlaceholderPage = lazy(() => import('./pages/PlaceholderPage'));
 const ActivateAccount = lazy(() => import('./pages/ActivateAccount'));
-const StockTake = lazy(() => import('./pages/StockTake'));
-const PurchaseOrders = lazy(() => import('./pages/PurchaseOrders'));
+const GettingStarted = lazy(() => import('./pages/GettingStarted'));
+const Orders = lazy(() => import('./pages/Orders'));
 const InventoryTransfer = lazy(() => import('./pages/InventoryTransfer'));
-const MarketingLanding = lazy(() => import('./pages/MarketingLanding'));
+const Website = lazy(() => import('./pages/Website'));
+const Setup = lazy(() => import('./pages/Setup'));
+const Integrations = lazy(() => import('./pages/Integrations'));
 const DevicesInventory = lazy(() => import('./pages/DevicesInventory'));
 
 // Components
@@ -244,23 +247,23 @@ export default function App() {
                 
                 <Route path="/invoices" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'invoices.view') ? <Invoices /> : <Navigate to="/" replace />} />
                 <Route path="/purchase-orders" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'purchase_orders.view') ? <PurchaseOrders /> : <Navigate to="/" replace />} />
-                <Route path="/orders" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'orders.view') ? <PlaceholderPage title="Orders" /> : <Navigate to="/" replace />} />
+                <Route path="/orders" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'orders.view') ? <Orders /> : <Navigate to="/" replace />} />
                 <Route path="/devices" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'devices.view') ? <DevicesInventory /> : <Navigate to="/" replace />} />
                 <Route path="/stock-take" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'stock_take.view') ? <StockTake /> : <Navigate to="/" replace />} />
                 <Route path="/expenses" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'expenses.view') ? <Expenses /> : <Navigate to="/" replace />} />
                 <Route path="/transfer" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'transfer.view') ? <InventoryTransfer /> : <Navigate to="/" replace />} />
                 <Route path="/end-of-day" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'end_of_day.view') ? <EndOfDay /> : <Navigate to="/" replace />} />
-                <Route path="/appointments" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'appointments.view') ? <PlaceholderPage title="Appointment Calendar" /> : <Navigate to="/" replace />} />
+                <Route path="/appointments" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'appointments.view') ? <Appointments /> : <Navigate to="/" replace />} />
                 <Route path="/staff" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'staff.manage') ? <StaffManagement /> : <Navigate to="/" replace />} />
-                <Route path="/website" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'website.view') ? <PlaceholderPage title="Website Management" /> : <Navigate to="/" replace />} />
+                <Route path="/website" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'website.view') ? <Website /> : <Navigate to="/" replace />} />
                 <Route path="/reports/sales" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'reports.sales') ? <SalesReports /> : <Navigate to="/" replace />} />
                 <Route path="/reports/repairs" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'reports.repairs') ? <RepairsReports /> : <Navigate to="/" replace />} />
-                <Route path="/reports/inventory" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'reports.inventory') ? <PlaceholderPage title="Inventory Reports" /> : <Navigate to="/" replace />} />
+                <Route path="/reports/inventory" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'reports.inventory') ? <InventoryReports /> : <Navigate to="/" replace />} />
                 <Route path="/activity" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'activity.view') ? <ActivityLog /> : <Navigate to="/" replace />} />
-                <Route path="/getting-started" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'getting_started.view') ? <PlaceholderPage title="Getting Started" /> : <Navigate to="/" replace />} />
+                <Route path="/getting-started" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'getting_started.view') ? <GettingStarted /> : <Navigate to="/" replace />} />
                 <Route path="/manage-data" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'manage_data.view') ? <ManageData /> : <Navigate to="/" replace />} />
-                <Route path="/setup" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'setup.view') ? <PlaceholderPage title="Setup" /> : <Navigate to="/" replace />} />
-                <Route path="/integrations" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'integrations.view') ? <PlaceholderPage title="Integrations" /> : <Navigate to="/" replace />} />
+                <Route path="/setup" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'setup.view') ? <Setup /> : <Navigate to="/" replace />} />
+                <Route path="/integrations" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'integrations.view') ? <Integrations /> : <Navigate to="/" replace />} />
 
                 <Route path="*" element={<Navigate to={requiresOnboarding ? "/onboarding" : "/"} replace />} />
               </Routes>

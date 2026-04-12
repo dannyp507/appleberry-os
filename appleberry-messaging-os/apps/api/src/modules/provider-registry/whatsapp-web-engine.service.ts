@@ -82,6 +82,10 @@ export class WhatsappWebEngineService implements OnModuleDestroy {
     return this.bootstrap(accountId, { clientId: `account-${accountId}` });
   }
 
+  getActiveClient(accountId: string): any | undefined {
+    return this.activeClients.get(accountId)?.client;
+  }
+
   async getSessionSnapshot(accountId: string) {
     const sessions = await this.prisma.whatsappSession.findMany({
       where: { whatsappAccountId: accountId },

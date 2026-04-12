@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  API_HOST: z.string().default('0.0.0.0'),
   API_PORT: z.coerce.number().default(4000),
   API_PREFIX: z.string().default('v1'),
   DATABASE_URL: z.string().min(1),
@@ -18,6 +19,7 @@ export function validateEnv(config: Record<string, unknown>) {
 
 export const appConfig = registerAs('app', () => ({
   nodeEnv: process.env.NODE_ENV,
+  host: process.env.API_HOST ?? '0.0.0.0',
   port: Number(process.env.API_PORT ?? 4000),
   apiPrefix: process.env.API_PREFIX ?? 'v1',
   databaseUrl: process.env.DATABASE_URL,

@@ -21,6 +21,18 @@ export type ProviderOperationResult = {
   metadata?: Record<string, unknown>;
 };
 
+export type SendMessagePayload = {
+  to: string;
+  type: 'text' | 'media' | 'button' | 'list' | 'template';
+  text?: string;
+  mediaUrl?: string;
+  mediaType?: string;
+  caption?: string;
+  buttons?: Array<{ id: string; title: string }>;
+  templateName?: string;
+  templateParams?: string[];
+};
+
 export interface ProviderAdapter {
   readonly providerType: ProviderType;
   verifyConnection(context: ProviderContext): Promise<ProviderOperationResult>;
@@ -30,4 +42,5 @@ export interface ProviderAdapter {
     context: ProviderContext,
     payload?: { to?: string; message?: string },
   ): Promise<ProviderOperationResult>;
+  sendMessage(context: ProviderContext, payload: SendMessagePayload): Promise<ProviderOperationResult>;
 }
