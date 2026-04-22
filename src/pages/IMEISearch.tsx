@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '../lib/firebase';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { where, getDocs, orderBy } from 'firebase/firestore';
 import { 
   Search, 
   Smartphone, 
@@ -14,8 +14,8 @@ import { formatCurrency, cn, safeFormatDate } from '../lib/utils';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { useTenant } from '../lib/tenant';
-import { filterByCompany } from '../lib/companyData';
 import { useSearchParams } from 'react-router-dom';
+import { companyQuery } from '../lib/db';
 
 export default function IMEISearch() {
   const { companyId } = useTenant();
@@ -31,27 +31,24 @@ export default function IMEISearch() {
 
     try {
       // 1. Search in Products (Inventory)
-      const productsRef = collection(db, 'products');
-      const productQuery = query(productsRef, where('imei', '==', imei));
+      const productQuery = companyQuery('products', companyId, where('imei', '==', imei));
       const productSnapshot = await getDocs(productQuery);
-      const scopedProducts = filterByCompany(productSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)), companyId);
+      const scopedProducts = productSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
       const product = scopedProducts.length > 0 ? scopedProducts[0] : null;
 
       // 2. Search in Repairs
-      const repairsRef = collection(db, 'repairs');
-      const repairsQuery = query(repairsRef, where('imei', '==', imei), orderBy('created_at', 'desc'));
+      const repairsQuery = companyQuery('repairs', companyId, where('imei', '==', imei), orderBy('created_at', 'desc'));
       const repairsSnapshot = await getDocs(repairsQuery);
-      const repairs = filterByCompany(repairsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)), companyId);
+      const repairs = repairsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
 
       // 3. Search in Sales (via sale_items)
       // Note: In Firebase, we'd need to fetch sale_items and then their parent sales.
       // Simplified for now: just fetch sale_items that match product_id if product found.
       let sales: any[] = [];
       if (product) {
-        const saleItemsRef = collection(db, 'sale_items');
-        const salesQuery = query(saleItemsRef, where('product_id', '==', product.id));
+        const salesQuery = companyQuery('sale_items', companyId, where('product_id', '==', product.id));
         const salesSnapshot = await getDocs(salesQuery);
-        sales = filterByCompany(salesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)), companyId);
+        sales = salesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
       }
 
       setResults({ product, repairs: repairs || [], sales: sales || [] });
@@ -78,24 +75,21 @@ export default function IMEISearch() {
       setLoading(true);
       try {
         // 1. Search in Products (Inventory)
-        const productsRef = collection(db, 'products');
-        const productQuery = query(productsRef, where('imei', '==', nextQuery));
+        const productQuery = companyQuery('products', companyId, where('imei', '==', nextQuery));
         const productSnapshot = await getDocs(productQuery);
-        const scopedProducts = filterByCompany(productSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)), companyId);
+        const scopedProducts = productSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
         const product = scopedProducts.length > 0 ? scopedProducts[0] : null;
 
         // 2. Search in Repairs
-        const repairsRef = collection(db, 'repairs');
-        const repairsQuery = query(repairsRef, where('imei', '==', nextQuery), orderBy('created_at', 'desc'));
+        const repairsQuery = companyQuery('repairs', companyId, where('imei', '==', nextQuery), orderBy('created_at', 'desc'));
         const repairsSnapshot = await getDocs(repairsQuery);
-        const repairs = filterByCompany(repairsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)), companyId);
+        const repairs = repairsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
 
         let sales: any[] = [];
         if (product) {
-          const saleItemsRef = collection(db, 'sale_items');
-          const salesQuery = query(saleItemsRef, where('product_id', '==', product.id));
+          const salesQuery = companyQuery('sale_items', companyId, where('product_id', '==', product.id));
           const salesSnapshot = await getDocs(salesQuery);
-          sales = filterByCompany(salesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)), companyId);
+          sales = salesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
         }
 
         setResults({ product, repairs: repairs || [], sales: sales || [] });

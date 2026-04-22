@@ -7,9 +7,8 @@ import {
   doc,
   getDocs,
   orderBy,
-  query,
+  runTransaction,
   updateDoc,
-  writeBatch,
 } from 'firebase/firestore';
 import {
   CheckCircle2,
@@ -26,7 +25,8 @@ import { Product } from '../types';
 import { formatCurrency, safeFormatDate } from '../lib/utils';
 import { toast } from 'sonner';
 import { useTenant } from '../lib/tenant';
-import { filterByCompany, withCompanyId } from '../lib/companyData';
+import { withCompanyId } from '../lib/companyData';
+import { companyQuery, requireCompanyId } from '../lib/db';
 
 type PurchaseOrderStatus = 'draft' | 'ordered' | 'partial' | 'received' | 'cancelled';
 
@@ -121,12 +121,12 @@ export default function PurchaseOrders() {
     setLoading(true);
     try {
       const [poSnapshot, productSnapshot] = await Promise.all([
-        getDocs(query(collection(db, 'purchase_orders'), orderBy('created_at', 'desc'))),
-        getDocs(query(collection(db, 'products'), orderBy('name'))),
+        getDocs(companyQuery('purchase_orders', companyId, orderBy('created_at', 'desc'))),
+        getDocs(companyQuery('products', companyId, orderBy('name'))),
       ]);
 
-      const poData = filterByCompany(poSnapshot.docs.map((poDoc) => ({ id: poDoc.id, ...poDoc.data() } as PurchaseOrder)), companyId);
-      const productData = filterByCompany(productSnapshot.docs.map((productDoc) => ({ id: productDoc.id, ...productDoc.data() } as Product)), companyId);
+      const poData = poSnapshot.docs.map((poDoc) => ({ id: poDoc.id, ...poDoc.data() } as PurchaseOrder));
+      const productData = productSnapshot.docs.map((productDoc) => ({ id: productDoc.id, ...productDoc.data() } as Product));
 
       setPurchaseOrders(poData);
       setProducts(productData);
@@ -281,7 +281,7 @@ export default function PurchaseOrders() {
         toast.success('Purchase order updated');
       } else {
         await addDoc(collection(db, 'purchase_orders'), {
-          ...withCompanyId(companyId, {}),
+          ...withCompanyId(requireCompanyId(companyId), {}),
           ...payload,
           po_number: buildPoNumber(),
           created_at: now,
@@ -335,38 +335,64 @@ export default function PurchaseOrders() {
 
     setReceiving(true);
     try {
+      const workspaceId = requireCompanyId(companyId);
       const now = new Date().toISOString();
-      const batch = writeBatch(db);
+      let fullyReceived = false;
 
-      const updatedItems = selectedOrder.items.map((item, index) => {
-        const receiveQuantity = Math.max(0, Number(receiveQuantities[index] || 0));
-        if (receiveQuantity <= 0) return item;
+      await runTransaction(db, async (transaction) => {
+        const productSnapshots = new Map<string, { stock: number; company_id?: string | null }>();
+        for (const { item, receiveQuantity } of receiveLines) {
+          const productRef = doc(db, 'products', item.product_id);
+          const productSnap = await transaction.get(productRef);
+          if (!productSnap.exists()) {
+            throw new Error(`${item.product_name} no longer exists`);
+          }
+          const product = productSnap.data() as { stock?: number; company_id?: string | null };
+          if (product.company_id !== workspaceId) {
+            throw new Error(`${item.product_name} does not belong to this workspace`);
+          }
+          productSnapshots.set(item.product_id, { stock: Number(product.stock || 0), company_id: product.company_id });
+        }
 
-        batch.update(doc(db, 'products', item.product_id), {
-          stock: Number(
-            (products.find((product) => product.id === item.product_id)?.stock || 0) + receiveQuantity
-          ),
-          updated_at: now,
+        const updatedItems = selectedOrder.items.map((item, index) => {
+          const receiveQuantity = Math.max(0, Number(receiveQuantities[index] || 0));
+          if (receiveQuantity <= 0) return item;
+
+          const product = productSnapshots.get(item.product_id);
+          transaction.update(doc(db, 'products', item.product_id), {
+            stock: Number(product?.stock || 0) + receiveQuantity,
+            updated_at: now,
+          });
+          transaction.set(doc(collection(db, 'inventory_movements')), withCompanyId(workspaceId, {
+            type: 'purchase_receive',
+            product_id: item.product_id,
+            product_name: item.product_name,
+            quantity: receiveQuantity,
+            purchase_order_id: selectedOrder.id,
+            purchase_order_number: selectedOrder.po_number,
+            reason: 'Purchase order received',
+            actor_id: auth.currentUser?.uid || null,
+            created_at: now,
+          }));
+
+          return {
+            ...item,
+            received_quantity: item.received_quantity + receiveQuantity,
+          };
         });
 
-        return {
-          ...item,
-          received_quantity: item.received_quantity + receiveQuantity,
-        };
+        const allReceived = updatedItems.every((item) => item.received_quantity >= item.ordered_quantity);
+        const hasReceived = updatedItems.some((item) => item.received_quantity > 0);
+        fullyReceived = allReceived;
+
+        transaction.update(doc(db, 'purchase_orders', selectedOrder.id), {
+          items: updatedItems,
+          status: allReceived ? 'received' : hasReceived ? 'partial' : selectedOrder.status,
+          received_at: allReceived ? now : selectedOrder.received_at || null,
+          updated_at: now,
+        });
       });
-
-      const allReceived = updatedItems.every((item) => item.received_quantity >= item.ordered_quantity);
-      const hasReceived = updatedItems.some((item) => item.received_quantity > 0);
-
-      batch.update(doc(db, 'purchase_orders', selectedOrder.id), {
-        items: updatedItems,
-        status: allReceived ? 'received' : hasReceived ? 'partial' : selectedOrder.status,
-        received_at: allReceived ? now : selectedOrder.received_at || null,
-        updated_at: now,
-      });
-
-      await batch.commit();
-      toast.success(allReceived ? 'Purchase order fully received' : 'Purchase order partially received');
+      toast.success(fullyReceived ? 'Purchase order fully received' : 'Purchase order partially received');
       setIsReceiveOpen(false);
       setReceiveQuantities({});
       await fetchData();

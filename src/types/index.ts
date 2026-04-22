@@ -202,6 +202,9 @@ export interface Sale {
   payment_method: 'cash' | 'card' | 'eft';
   payment_methods?: string[];
   staff_id: string;
+  refunded_amount?: number;
+  refund_status?: 'none' | 'partial' | 'full';
+  refunded_item_quantities?: Record<string, number>;
   created_at: string;
 }
 
@@ -210,10 +213,36 @@ export interface SaleItem {
   company_id?: string | null;
   sale_id: string;
   product_id: string;
+  name?: string;
   quantity: number;
   unit_price: number;
   total_price: number;
+  refunded_quantity?: number;
   product?: Product;
+}
+
+export type RefundType = 'full' | 'partial';
+
+export interface RefundItem {
+  sale_item_id?: string;
+  product_id: string | null;
+  name?: string | null;
+  quantity: number;
+  price: number;
+}
+
+export interface Refund {
+  id: string;
+  refund_id: string;
+  company_id: string;
+  sale_id: string;
+  customer_id: string | null;
+  refund_type: RefundType;
+  items: RefundItem[];
+  amount: number;
+  reason: string;
+  processed_by: string;
+  created_at: string;
 }
 
 export type MarketingChannel = 'whatsapp' | 'email';

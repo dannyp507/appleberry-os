@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { collection, getDocs, orderBy, query } from 'firebase/firestore';
-import { History, ShoppingCart, Wallet, Wrench, Package, Users } from 'lucide-react';
+import { getDocs, orderBy } from 'firebase/firestore';
+import { History, ShoppingCart, Wallet, Wrench, Package, Users, RotateCcw } from 'lucide-react';
 import { db } from '../lib/firebase';
-import { safeFormatDate } from '../lib/utils';
+import { formatCurrency, safeFormatDate } from '../lib/utils';
 import { useTenant } from '../lib/tenant';
-import { filterByCompany } from '../lib/companyData';
+import { companyQuery, companySubcollection } from '../lib/db';
 
 type ActivityItem = {
   id: string;
-  type: 'sale' | 'expense' | 'repair' | 'repair-history' | 'product' | 'customer';
+  type: 'sale' | 'refund' | 'expense' | 'repair' | 'repair-history' | 'product' | 'customer';
   title: string;
   description: string;
   createdAt: string;
@@ -37,23 +37,25 @@ export default function ActivityLog() {
   async function fetchActivity() {
     setLoading(true);
     try {
-      const [salesSnapshot, expensesSnapshot, productsSnapshot, customersSnapshot, repairsSnapshot] = await Promise.all([
-        getDocs(collection(db, 'sales')),
-        getDocs(collection(db, 'expenses')),
-        getDocs(collection(db, 'products')),
-        getDocs(collection(db, 'customers')),
-        getDocs(collection(db, 'repairs')),
+      const [salesSnapshot, refundsSnapshot, expensesSnapshot, productsSnapshot, customersSnapshot, repairsSnapshot] = await Promise.all([
+        getDocs(companyQuery('sales', companyId)),
+        getDocs(companyQuery('refunds', companyId)),
+        getDocs(companyQuery('expenses', companyId)),
+        getDocs(companyQuery('products', companyId)),
+        getDocs(companyQuery('customers', companyId)),
+        getDocs(companyQuery('repairs', companyId)),
       ]);
 
-      const salesDocs = filterByCompany(salesSnapshot.docs.map((saleDoc) => ({ id: saleDoc.id, ...saleDoc.data() } as any)), companyId);
-      const expensesDocs = filterByCompany(expensesSnapshot.docs.map((expenseDoc) => ({ id: expenseDoc.id, ...expenseDoc.data() } as any)), companyId);
-      const productsDocs = filterByCompany(productsSnapshot.docs.map((productDoc) => ({ id: productDoc.id, ...productDoc.data() } as any)), companyId);
-      const customersDocs = filterByCompany(customersSnapshot.docs.map((customerDoc) => ({ id: customerDoc.id, ...customerDoc.data() } as any)), companyId);
-      const repairRecords = filterByCompany(repairsSnapshot.docs.map((repairDoc) => ({ id: repairDoc.id, ...repairDoc.data() } as RepairRecord)), companyId);
+      const salesDocs = salesSnapshot.docs.map((saleDoc) => ({ id: saleDoc.id, ...saleDoc.data() } as any));
+      const refundDocs = refundsSnapshot.docs.map((refundDoc) => ({ id: refundDoc.id, ...refundDoc.data() } as any));
+      const expensesDocs = expensesSnapshot.docs.map((expenseDoc) => ({ id: expenseDoc.id, ...expenseDoc.data() } as any));
+      const productsDocs = productsSnapshot.docs.map((productDoc) => ({ id: productDoc.id, ...productDoc.data() } as any));
+      const customersDocs = customersSnapshot.docs.map((customerDoc) => ({ id: customerDoc.id, ...customerDoc.data() } as any));
+      const repairRecords = repairsSnapshot.docs.map((repairDoc) => ({ id: repairDoc.id, ...repairDoc.data() } as RepairRecord));
       const historySnapshots = await Promise.all(
         repairRecords.map(async (repair) => {
           try {
-            const historyQuery = query(collection(db, `repairs/${repair.id}/history`), orderBy('created_at', 'desc'));
+            const historyQuery = companySubcollection(`repairs/${repair.id}/history`, companyId, orderBy('created_at', 'desc'));
             const historySnapshot = await getDocs(historyQuery);
             return historySnapshot.docs.map((historyDoc) => ({ repairId: repair.id, id: historyDoc.id, ...historyDoc.data() }));
           } catch (error) {
@@ -71,6 +73,14 @@ export default function ActivityLog() {
           description: `Invoice #${saleDoc.id.slice(0, 8)} recorded in POS.`,
           createdAt: String(saleDoc.created_at || ''),
           actor: saleDoc.staff_id || 'POS',
+        })),
+        ...refundDocs.map((refundDoc: any) => ({
+          id: `refund-${refundDoc.id}`,
+          type: 'refund' as const,
+          title: `${refundDoc.refund_type === 'full' ? 'Full' : 'Partial'} refund processed`,
+          description: `Sale #${String(refundDoc.sale_id || '').slice(0, 8)} refunded for ${formatCurrency(Number(refundDoc.amount || 0))}. Reason: ${refundDoc.reason || 'No reason provided'}`,
+          createdAt: String(refundDoc.created_at || ''),
+          actor: refundDoc.processed_by || 'System',
         })),
         ...expensesDocs.map((expenseDoc: any) => ({
           id: `expense-${expenseDoc.id}`,
@@ -140,6 +150,7 @@ export default function ActivityLog() {
         >
           <option value="all">All activity</option>
           <option value="sale">Sales</option>
+          <option value="refund">Refunds</option>
           <option value="repair">Repairs</option>
           <option value="repair-history">Repair updates</option>
           <option value="expense">Expenses</option>
@@ -191,6 +202,7 @@ export default function ActivityLog() {
 function iconForType(type: ActivityItem['type']) {
   const className = 'w-5 h-5';
   if (type === 'sale') return <ShoppingCart className={`${className} text-blue-600`} />;
+  if (type === 'refund') return <RotateCcw className={`${className} text-red-600`} />;
   if (type === 'expense') return <Wallet className={`${className} text-red-600`} />;
   if (type === 'repair' || type === 'repair-history') return <Wrench className={`${className} text-amber-600`} />;
   if (type === 'product') return <Package className={`${className} text-violet-600`} />;
@@ -199,6 +211,7 @@ function iconForType(type: ActivityItem['type']) {
 
 function iconBg(type: ActivityItem['type']) {
   if (type === 'sale') return 'bg-blue-50';
+  if (type === 'refund') return 'bg-red-50';
   if (type === 'expense') return 'bg-red-50';
   if (type === 'repair' || type === 'repair-history') return 'bg-amber-50';
   if (type === 'product') return 'bg-violet-50';

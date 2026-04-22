@@ -1,177 +1,397 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function isAuthenticated() {
+    function signedIn() {
       return request.auth != null;
     }
 
+    function profile() {
+      return get(/databases/$(database)/documents/profiles/$(request.auth.uid));
+    }
+
+    function hasProfile() {
+      return signedIn() && exists(/databases/$(database)/documents/profiles/$(request.auth.uid));
+    }
+
+    function companyId() {
+      return profile().data.company_id;
+    }
+
+    function role() {
+      return profile().data.role;
+    }
+
+    function isOwnerOrAdmin() {
+      return hasProfile() && (role() == 'owner' || role() == 'admin');
+    }
+
+    function hasPermission(permission) {
+      return isStaff()
+        && profile().data.permissions is list
+        && profile().data.permissions.hasAny([permission]);
+    }
+
+    function canProcessRefunds() {
+      return isOwnerOrAdmin() || hasPermission('refunds.process');
+    }
+
+    function canAdjustInventory() {
+      return isOwnerOrAdmin() || hasPermission('inventory.adjust');
+    }
+
+    function canCreateInventoryMovement() {
+      return canCreateCompanyRecord()
+        && hasRequiredString('type')
+        && request.resource.data.quantity is number
+        && (
+          canAdjustInventory() ||
+          (request.resource.data.type == 'sale' && hasPermission('pos.use')) ||
+          (request.resource.data.type == 'refund' && canProcessRefunds())
+        );
+    }
+
     function isStaff() {
-      return isAuthenticated();
+      return hasProfile() && profile().data.status != 'disabled';
     }
 
-    function isAdmin() {
-      return isAuthenticated() &&
-        (request.auth.token.email == "foodbrus@gmail.com" ||
-         (exists(/databases/$(database)/documents/profiles/$(request.auth.uid)) &&
-          (get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role == 'admin' ||
-           get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role == 'owner')));
+    function inCompany(targetCompanyId) {
+      return isStaff() && targetCompanyId is string && companyId() == targetCompanyId;
     }
 
-    match /companies/{companyId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if isAdmin() ||
-        (isAuthenticated() && resource.data.owner_user_id == request.auth.uid);
+    function existingCompanyRecord() {
+      return inCompany(resource.data.company_id);
+    }
+
+    function incomingCompanyRecord() {
+      return inCompany(request.resource.data.company_id);
+    }
+
+    function keepsCompanyId() {
+      return request.resource.data.company_id == resource.data.company_id;
+    }
+
+    function canReadCompanyRecord() {
+      return existingCompanyRecord();
+    }
+
+    function canCreateCompanyRecord() {
+      return incomingCompanyRecord();
+    }
+
+    function canUpdateCompanyRecord() {
+      return existingCompanyRecord() && incomingCompanyRecord() && keepsCompanyId();
+    }
+
+    function hasRequiredString(field) {
+      return request.resource.data[field] is string && request.resource.data[field].size() > 0;
+    }
+
+    match /companies/{companyIdParam} {
+      allow get: if inCompany(companyIdParam);
+      allow list: if false;
+      allow create: if signedIn()
+        && request.resource.data.owner_user_id == request.auth.uid
+        && request.resource.data.owner_email == request.auth.token.email;
+      allow update: if inCompany(companyIdParam)
+        && (isOwnerOrAdmin() || resource.data.owner_user_id == request.auth.uid)
+        && request.resource.data.owner_user_id == resource.data.owner_user_id;
       allow delete: if false;
     }
 
-    match /repair_status_options/{statusId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
+    match /profiles/{profileId} {
+      allow get: if signedIn() && (
+        profileId == request.auth.uid ||
+        (hasProfile() && resource.data.company_id == companyId())
+      );
+      allow list: if signedIn() && (
+        resource.data.auth_uid == request.auth.uid ||
+        (hasProfile() && resource.data.company_id == companyId())
+      );
+      allow create: if (
+        signedIn()
+        && profileId == request.auth.uid
+        && request.resource.data.company_id is string
+        && request.resource.data.role == 'owner'
+        && request.resource.data.auth_uid == request.auth.uid
+      ) || (
+        isOwnerOrAdmin()
+        && incomingCompanyRecord()
+        && request.resource.data.role != 'owner'
+      );
+      allow update: if signedIn() && (
+        (
+          profileId == request.auth.uid
+          && resource.data.company_id == companyId()
+          && request.resource.data.company_id == resource.data.company_id
+          && request.resource.data.role == resource.data.role
+          && request.resource.data.permissions == resource.data.permissions
+        ) ||
+        (
+          isOwnerOrAdmin()
+          && resource.data.company_id == companyId()
+          && request.resource.data.company_id == resource.data.company_id
+          && (resource.data.role != 'owner' || role() == 'owner')
+        )
+      );
+      allow delete: if isOwnerOrAdmin()
+        && resource.data.company_id == companyId()
+        && resource.data.role != 'owner';
     }
 
-    match /repair_problems/{problemId} {
-      allow read: if isAuthenticated();
-      allow write: if isStaff();
+    match /staff_invites/{inviteId} {
+      allow get, list: if false;
+      allow create: if isOwnerOrAdmin() && incomingCompanyRecord();
+      allow update: if isOwnerOrAdmin() && canUpdateCompanyRecord();
+      allow delete: if isOwnerOrAdmin() && existingCompanyRecord();
+    }
+
+    match /settings/{settingId} {
+      allow get: if signedIn() && existingCompanyRecord();
+      allow list: if false;
+      allow create: if isOwnerOrAdmin() && incomingCompanyRecord();
+      allow update: if isOwnerOrAdmin() && canUpdateCompanyRecord();
+      allow delete: if false;
     }
 
     match /customers/{customerId} {
-      allow get: if true;
-      allow list: if isStaff();
-      allow create, update: if isStaff() &&
-        request.resource.data.first_name is string && request.resource.data.first_name.size() > 0;
-      allow delete: if isAdmin();
+      allow read: if canReadCompanyRecord();
+      allow create: if canCreateCompanyRecord() && hasRequiredString('first_name');
+      allow update: if canUpdateCompanyRecord() && hasRequiredString('first_name');
+      allow delete: if isOwnerOrAdmin() && existingCompanyRecord();
     }
 
     match /products/{productId} {
-      allow get: if true;
-      allow list: if isStaff();
-      allow create, update: if isStaff() &&
-        request.resource.data.name is string &&
-        request.resource.data.stock is number;
-      allow delete: if isAdmin();
+      allow read: if canReadCompanyRecord();
+      allow create: if canAdjustInventory()
+        && canCreateCompanyRecord()
+        && hasRequiredString('name')
+        && request.resource.data.stock is number
+        && request.resource.data.stock >= 0;
+      allow update: if (
+          canAdjustInventory() ||
+          (
+            canUpdateCompanyRecord()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'stock',
+              'updated_at',
+              'last_sold_at',
+              'last_received_at',
+              'last_transfer_out_at',
+              'last_transfer_in_at',
+              'last_stock_take_at',
+              'last_stock_take_session_key',
+              'last_stock_take_reference',
+              'stock_take_reversed_at',
+              'stock_take_reversed_session_key',
+              'stock_take_reversed_reference'
+            ])
+            && (
+              (hasPermission('pos.use') && request.resource.data.stock <= resource.data.stock) ||
+              canProcessRefunds()
+            )
+          )
+        )
+        && canUpdateCompanyRecord()
+        && hasRequiredString('name')
+        && request.resource.data.stock is number
+        && request.resource.data.stock >= 0;
+      allow delete: if isOwnerOrAdmin() && existingCompanyRecord();
     }
 
     match /sales/{saleId} {
-      allow get: if true;
-      allow list: if isStaff();
-      allow create: if isStaff() &&
-        request.resource.data.total_amount is number &&
-        request.resource.data.profit is number;
+      allow read: if canReadCompanyRecord();
+      allow create: if canCreateCompanyRecord()
+        && request.resource.data.total_amount is number
+        && request.resource.data.total_amount >= 0
+        && request.resource.data.profit is number;
+      allow update: if canProcessRefunds()
+        && canUpdateCompanyRecord()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'refunded_amount',
+          'refund_status',
+          'refunded_item_quantities',
+          'updated_at'
+        ])
+        && request.resource.data.refunded_amount is number
+        && request.resource.data.refunded_amount >= 0
+        && (!('refunded_amount' in resource.data) || request.resource.data.refunded_amount >= resource.data.refunded_amount)
+        && request.resource.data.refund_status in ['none', 'partial', 'full']
+        && request.resource.data.total_amount == resource.data.total_amount
+        && request.resource.data.company_id == resource.data.company_id;
+      allow delete: if false;
 
       match /items/{itemId} {
-        allow get, list: if true;
-        allow create: if isStaff();
+        allow read: if signedIn()
+          && exists(/databases/$(database)/documents/sales/$(saleId))
+          && get(/databases/$(database)/documents/sales/$(saleId)).data.company_id == companyId();
+        allow create: if incomingCompanyRecord()
+          && request.resource.data.sale_id == saleId;
+        allow update, delete: if false;
       }
     }
 
     match /sale_items/{itemId} {
-      allow read: if isStaff();
-      allow create: if isStaff();
+      allow read: if canReadCompanyRecord();
+      allow create: if canCreateCompanyRecord()
+        && request.resource.data.sale_id is string;
+      allow update, delete: if false;
+    }
+
+    match /refunds/{refundId} {
+      allow read: if canReadCompanyRecord();
+      allow create: if canProcessRefunds()
+        && canCreateCompanyRecord()
+        && request.resource.data.refund_id == refundId
+        && request.resource.data.sale_id is string
+        && exists(/databases/$(database)/documents/sales/$(request.resource.data.sale_id))
+        && get(/databases/$(database)/documents/sales/$(request.resource.data.sale_id)).data.company_id == companyId()
+        && request.resource.data.amount is number
+        && request.resource.data.amount > 0
+        && request.resource.data.refund_type in ['full', 'partial']
+        && request.resource.data.reason is string
+        && request.resource.data.reason.size() > 0
+        && request.resource.data.processed_by == request.auth.uid;
+      allow update, delete: if false;
     }
 
     match /repairs/{repairId} {
-      allow read: if isStaff();
-      allow create, update: if isStaff() &&
-        request.resource.data.customer_id is string &&
-        request.resource.data.device_name is string &&
-        request.resource.data.status_id is string;
+      allow read: if canReadCompanyRecord();
+      allow create: if canCreateCompanyRecord()
+        && hasRequiredString('customer_id')
+        && hasRequiredString('device_name')
+        && hasRequiredString('status_id');
+      allow update: if canUpdateCompanyRecord()
+        && hasRequiredString('customer_id')
+        && hasRequiredString('device_name')
+        && hasRequiredString('status_id');
+      allow delete: if isOwnerOrAdmin() && existingCompanyRecord();
 
       match /history/{historyId} {
-        allow read: if isStaff();
-        allow create: if isStaff() &&
-          request.resource.data.repair_id == repairId &&
-          request.resource.data.changed_by == request.auth.uid;
+        allow read: if signedIn()
+          && exists(/databases/$(database)/documents/repairs/$(repairId))
+          && get(/databases/$(database)/documents/repairs/$(repairId)).data.company_id == companyId();
+        allow create: if incomingCompanyRecord()
+          && request.resource.data.repair_id == repairId
+          && request.resource.data.changed_by == request.auth.uid;
+        allow update, delete: if false;
       }
 
       match /items/{itemId} {
-        allow read: if isStaff();
-        allow create, update, delete: if isStaff();
+        allow read: if signedIn()
+          && exists(/databases/$(database)/documents/repairs/$(repairId))
+          && get(/databases/$(database)/documents/repairs/$(repairId)).data.company_id == companyId();
+        allow create, update: if signedIn()
+          && exists(/databases/$(database)/documents/repairs/$(repairId))
+          && get(/databases/$(database)/documents/repairs/$(repairId)).data.company_id == companyId()
+          && request.resource.data.company_id == companyId();
+        allow delete: if signedIn()
+          && exists(/databases/$(database)/documents/repairs/$(repairId))
+          && get(/databases/$(database)/documents/repairs/$(repairId)).data.company_id == companyId()
+          && resource.data.company_id == companyId();
       }
     }
 
-    match /profiles/{profileId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() &&
-        (request.resource.data.role == 'staff' || request.resource.data.role == 'owner' || isAdmin());
-      allow update: if isAdmin() ||
-        (request.auth.uid == profileId && request.resource.data.role == resource.data.role) ||
-        (isAuthenticated() &&
-          resource.data.email is string &&
-          request.auth.token.email == resource.data.email &&
-          request.resource.data.role == resource.data.role);
+    match /repair_status_options/{statusId} {
+      allow read: if canReadCompanyRecord();
+      allow create, update: if isOwnerOrAdmin() && incomingCompanyRecord();
+      allow delete: if isOwnerOrAdmin() && existingCompanyRecord();
     }
 
-    match /staff_invites/{inviteId} {
-      allow read: if true;
-      allow create: if isAdmin();
-      allow update: if isAdmin() ||
-        (isAuthenticated() &&
-          resource.data.email is string &&
-          request.auth.token.email == resource.data.email);
+    match /repair_problems/{problemId} {
+      allow read: if canReadCompanyRecord();
+      allow create, update: if isStaff() && incomingCompanyRecord();
+      allow delete: if isOwnerOrAdmin() && existingCompanyRecord();
     }
 
-    match /marketing_templates/{templateId} {
-      allow read: if isStaff();
-      allow create, update: if isStaff();
-      allow delete: if isAdmin();
+    match /devices_inventory/{deviceId} {
+      allow read: if canReadCompanyRecord();
+      allow create: if canCreateCompanyRecord() && hasRequiredString('imei');
+      allow update: if canUpdateCompanyRecord() && hasRequiredString('imei');
+      allow delete: if isOwnerOrAdmin() && existingCompanyRecord();
     }
 
-    match /marketing_campaigns/{campaignId} {
-      allow read: if isStaff();
-      allow create, update: if isStaff();
-      allow delete: if isAdmin();
-    }
-
-    match /marketing_segments/{segmentId} {
-      allow read: if isStaff();
-      allow create, update: if isStaff();
-      allow delete: if isAdmin();
-    }
-
-    match /marketing_automations/{automationId} {
-      allow read: if isStaff();
-      allow create, update: if isStaff();
-      allow delete: if isAdmin();
-    }
-
-    match /marketing_deliveries/{deliveryId} {
-      allow read: if isStaff();
-      allow create: if isStaff();
-      allow update, delete: if isAdmin();
+    match /inventory_movements/{movementId} {
+      allow read: if canReadCompanyRecord();
+      allow create: if canCreateInventoryMovement();
+      allow update, delete: if false;
     }
 
     match /stock_takes/{entryId} {
-      allow read: if isStaff();
-      allow create: if isStaff();
-      allow update, delete: if isAdmin();
+      allow read: if canReadCompanyRecord();
+      allow create: if canAdjustInventory() && incomingCompanyRecord();
+      allow update, delete: if canAdjustInventory() && existingCompanyRecord();
     }
 
     match /purchase_orders/{orderId} {
-      allow read: if isStaff();
-      allow create, update: if isStaff();
-      allow delete: if isAdmin();
+      allow read: if canReadCompanyRecord();
+      allow create, update: if canAdjustInventory() && incomingCompanyRecord();
+      allow delete: if isOwnerOrAdmin() && existingCompanyRecord();
     }
 
     match /inventory_transfers/{transferId} {
-      allow read: if isStaff();
-      allow create, update: if isStaff();
-      allow delete: if isAdmin();
+      allow read: if canReadCompanyRecord();
+      allow create, update: if canAdjustInventory() && incomingCompanyRecord();
+      allow delete: if isOwnerOrAdmin() && existingCompanyRecord();
     }
 
     match /expenses/{expenseId} {
-      allow read: if isStaff();
-      allow create, update: if isStaff() &&
-        request.resource.data.title is string &&
-        request.resource.data.amount is number &&
-        request.resource.data.category is string;
-      allow delete: if isAdmin();
+      allow read: if canReadCompanyRecord();
+      allow create: if canCreateCompanyRecord()
+        && hasRequiredString('title')
+        && request.resource.data.amount is number
+        && request.resource.data.amount >= 0
+        && hasRequiredString('category');
+      allow update: if canUpdateCompanyRecord()
+        && hasRequiredString('title')
+        && request.resource.data.amount is number
+        && request.resource.data.amount >= 0
+        && hasRequiredString('category');
+      allow delete: if isOwnerOrAdmin() && existingCompanyRecord();
     }
 
-    match /settings/{settingId} {
-      allow get: if true;
-      allow list: if isStaff();
-      allow write: if isAdmin();
+    match /marketing_templates/{id} {
+      allow read: if canReadCompanyRecord();
+      allow create, update: if isStaff() && incomingCompanyRecord();
+      allow delete: if isOwnerOrAdmin() && existingCompanyRecord();
+    }
+    match /marketing_campaigns/{id} {
+      allow read: if canReadCompanyRecord();
+      allow create, update: if isStaff() && incomingCompanyRecord();
+      allow delete: if isOwnerOrAdmin() && existingCompanyRecord();
+    }
+    match /marketing_segments/{id} {
+      allow read: if canReadCompanyRecord();
+      allow create, update: if isStaff() && incomingCompanyRecord();
+      allow delete: if isOwnerOrAdmin() && existingCompanyRecord();
+    }
+    match /marketing_automations/{id} {
+      allow read: if canReadCompanyRecord();
+      allow create, update: if isStaff() && incomingCompanyRecord();
+      allow delete: if isOwnerOrAdmin() && existingCompanyRecord();
+    }
+    match /marketing_deliveries/{id} {
+      allow read: if canReadCompanyRecord();
+      allow create: if isStaff() && incomingCompanyRecord();
+      allow update, delete: if isOwnerOrAdmin() && existingCompanyRecord();
+    }
+
+    match /orders/{id} {
+      allow read: if canReadCompanyRecord();
+      allow create, update: if isStaff() && incomingCompanyRecord();
+      allow delete: if isOwnerOrAdmin() && existingCompanyRecord();
+    }
+
+    match /appointments/{id} {
+      allow read: if canReadCompanyRecord();
+      allow create, update: if isStaff() && incomingCompanyRecord();
+      allow delete: if isOwnerOrAdmin() && existingCompanyRecord();
+    }
+
+    match /activity_logs/{id} {
+      allow read: if canReadCompanyRecord();
+      allow create: if canCreateCompanyRecord()
+        && request.resource.data.actor_id == request.auth.uid;
+      allow update, delete: if false;
     }
   }
 }

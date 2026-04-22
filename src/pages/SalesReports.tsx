@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { BarChart, Bar, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis, PieChart, Pie, Cell } from 'recharts';
-import { collection, getDocs } from 'firebase/firestore';
+import { getDocs } from 'firebase/firestore';
 import { DollarSign, TrendingUp, ShoppingCart, CreditCard } from 'lucide-react';
 import { subDays } from 'date-fns';
 import { db } from '../lib/firebase';
 import { formatCurrency, safeFormatDate } from '../lib/utils';
 import { Profile } from '../types';
 import { useTenant } from '../lib/tenant';
-import { filterByCompany } from '../lib/companyData';
+import { companyQuery } from '../lib/db';
 
 type SaleRecord = {
   id: string;
@@ -38,14 +38,14 @@ export default function SalesReports() {
     setLoading(true);
     try {
       const [salesSnapshot, profilesSnapshot] = await Promise.all([
-        getDocs(collection(db, 'sales')),
-        getDocs(collection(db, 'profiles')),
+        getDocs(companyQuery('sales', companyId)),
+        getDocs(companyQuery('profiles', companyId)),
       ]);
 
-      setSales(filterByCompany(salesSnapshot.docs.map((saleDoc) => ({ id: saleDoc.id, ...saleDoc.data() } as SaleRecord)), companyId));
+      setSales(salesSnapshot.docs.map((saleDoc) => ({ id: saleDoc.id, ...saleDoc.data() } as SaleRecord)));
       setStaffMap(
         new Map(
-          filterByCompany(profilesSnapshot.docs.map((profileDoc) => ({ id: profileDoc.id, ...profileDoc.data() } as Profile)), companyId).map((profile) => {
+          profilesSnapshot.docs.map((profileDoc) => ({ id: profileDoc.id, ...profileDoc.data() } as Profile)).map((profile) => {
             return [profile.id, profile.full_name || 'Staff Member'];
           })
         )

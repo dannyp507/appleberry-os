@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import axios from 'axios';
 import { useTenant } from '../../lib/tenant';
 import { getCompanySettingsDocId } from '../../lib/company';
+import { getAuthHeaders } from '../../lib/authHeaders';
 
 interface InvoiceSummary {
   created_at: string;
@@ -99,9 +100,8 @@ export default function PostSaleModal({ isOpen, onClose, repair, customer, cart,
             content: pdfBase64
           }
         ],
-        settings: settings.email,
         companyId,
-      });
+      }, { headers: await getAuthHeaders() });
 
       if (response.data.success) {
         toast.success('Invoice sent via email');
@@ -134,6 +134,7 @@ export default function PostSaleModal({ isOpen, onClose, repair, customer, cart,
 
       const pdfUrl = saleId ? `${window.location.origin}/api/invoices/${saleId}.pdf?compact=1` : null;
       const isLocalUrl = pdfUrl ? /:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/i.test(pdfUrl) : false;
+      const shouldAttachPublicLink = settings.whatsapp.provider === 'official' && !isLocalUrl;
       const attachmentMessage = `Hello ${customer.name}, your invoice for repair ${repair?.ticket_number || 'Sale'} is attached.`;
       const linkMessage = `Hello ${customer.name}, your invoice for repair ${repair?.ticket_number || 'Sale'} is ready. You can view it here: ${window.location.origin}/view-invoice/${saleId || 'sale'}`;
 
@@ -144,12 +145,11 @@ export default function PostSaleModal({ isOpen, onClose, repair, customer, cart,
       const response = await axios.post('/api/send-whatsapp', {
         phone: normalizePhone(customer.phone),
         message: settings.whatsapp.provider === 'official' ? attachmentMessage : linkMessage,
-        pdfUrl: isLocalUrl ? null : pdfUrl,
+        pdfUrl: shouldAttachPublicLink ? pdfUrl : null,
         pdfBase64,
         pdfFilename,
-        settings: settings.whatsapp,
         companyId,
-      });
+      }, { headers: await getAuthHeaders() });
 
       if (response.data.success) {
         toast.success('WhatsApp notification sent');

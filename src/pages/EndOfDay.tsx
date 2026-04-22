@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../lib/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { where, getDocs } from 'firebase/firestore';
 import { 
   Moon, 
   Sun, 
@@ -15,7 +15,7 @@ import { formatCurrency, cn, safeFormatDate } from '../lib/utils';
 import { startOfDay, endOfDay, format } from 'date-fns';
 import { toast } from 'sonner';
 import { useTenant } from '../lib/tenant';
-import { filterByCompany } from '../lib/companyData';
+import { companyQuery } from '../lib/db';
 
 export default function EndOfDay() {
   const { companyId } = useTenant();
@@ -43,11 +43,9 @@ export default function EndOfDay() {
       const todayStart = startOfDay(new Date());
       const todayEnd = endOfDay(new Date());
 
-      // Fetch Sales
-      const salesRef = collection(db, 'sales');
-      const salesQuery = query(salesRef, where('created_at', '>=', todayStart.toISOString()), where('created_at', '<=', todayEnd.toISOString()));
+      const salesQuery = companyQuery('sales', companyId, where('created_at', '>=', todayStart.toISOString()), where('created_at', '<=', todayEnd.toISOString()));
       const salesSnapshot = await getDocs(salesQuery);
-      const salesDocs = filterByCompany(salesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)), companyId);
+      const salesDocs = salesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
       
       let totalSales = 0;
       let totalProfit = 0;
@@ -76,11 +74,9 @@ export default function EndOfDay() {
         }
       });
 
-      // Fetch Expenses
-      const expensesRef = collection(db, 'expenses');
-      const expensesQuery = query(expensesRef, where('date', '==', format(new Date(), 'yyyy-MM-dd')));
+      const expensesQuery = companyQuery('expenses', companyId, where('date', '==', format(new Date(), 'yyyy-MM-dd')));
       const expensesSnapshot = await getDocs(expensesQuery);
-      const expenseDocs = filterByCompany(expensesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)), companyId);
+      const expenseDocs = expensesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
       const totalExpenses = expenseDocs.reduce((acc, doc) => acc + Number(doc.amount), 0);
 
       setData({

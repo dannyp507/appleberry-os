@@ -1,11 +1,12 @@
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from 'react';
-import { addDoc, collection, deleteDoc, doc, getDocs, orderBy, query, updateDoc, where } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDocs, orderBy, updateDoc, where } from 'firebase/firestore';
 import { Edit2, Plus, Search, Smartphone, Trash2 } from 'lucide-react';
 import Fuse from 'fuse.js';
 import { toast } from 'sonner';
 import { db } from '../lib/firebase';
 import { useTenant } from '../lib/tenant';
-import { filterByCompany, withCompanyId } from '../lib/companyData';
+import { withCompanyId } from '../lib/companyData';
+import { companyQuery, requireCompanyId } from '../lib/db';
 import { DeviceInventoryItem } from '../types';
 import { cn, formatCurrency, safeFormatDate } from '../lib/utils';
 
@@ -56,8 +57,8 @@ export default function DevicesInventory() {
   async function fetchDevices() {
     setLoading(true);
     try {
-      const snapshot = await getDocs(query(collection(db, 'devices_inventory'), orderBy('created_at', 'desc')));
-      setDevices(filterByCompany(snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() } as DeviceInventoryItem)), companyId));
+      const snapshot = await getDocs(companyQuery('devices_inventory', companyId, orderBy('created_at', 'desc')));
+      setDevices(snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() } as DeviceInventoryItem)));
     } catch (error: any) {
       toast.error(error.message || 'Failed to load devices inventory');
     } finally {
@@ -100,14 +101,14 @@ export default function DevicesInventory() {
       return;
     }
 
-    const existing = await getDocs(query(collection(db, 'devices_inventory'), where('imei', '==', formData.imei.trim())));
+    const existing = await getDocs(companyQuery('devices_inventory', companyId, where('imei', '==', formData.imei.trim())));
     const duplicate = existing.docs.some((deviceDoc) => deviceDoc.id !== editingDevice?.id);
     if (duplicate) {
       toast.error('A device with this IMEI already exists');
       return;
     }
 
-    const payload = withCompanyId(companyId, {
+    const payload = withCompanyId(requireCompanyId(companyId), {
       name: formData.name.trim(),
       brand: formData.brand.trim() || null,
       model: formData.model.trim() || null,

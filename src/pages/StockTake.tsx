@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { collection, doc, getDoc, getDocs, limit, orderBy, query, where, writeBatch } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, limit, orderBy, query, runTransaction, where, writeBatch } from 'firebase/firestore';
 import { AlertTriangle, CheckCircle2, ClipboardList, FileSpreadsheet, Package, Search, Upload, X } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import Papa from 'papaparse';
@@ -7,7 +7,8 @@ import { auth, db } from '../lib/firebase';
 import { formatCurrency, safeFormatDate } from '../lib/utils';
 import { toast } from 'sonner';
 import { useTenant } from '../lib/tenant';
-import { filterByCompany, isCompanyScopedRecord, withCompanyId } from '../lib/companyData';
+import { withCompanyId } from '../lib/companyData';
+import { companyQuery, requireCompanyId } from '../lib/db';
 
 type StockTakeEntry = {
   id: string;
@@ -108,14 +109,14 @@ export default function StockTake() {
   async function fetchStockTakes() {
     setLoading(true);
     try {
-      const snapshot = await getDocs(query(collection(db, 'stock_takes'), orderBy('completed_at', 'desc')));
-      const data = filterByCompany(snapshot.docs.map((entryDoc) => {
+      const snapshot = await getDocs(companyQuery('stock_takes', companyId, orderBy('completed_at', 'desc')));
+      const data = snapshot.docs.map((entryDoc) => {
         const payload = entryDoc.data() as Partial<StockTakeEntry>;
         return {
           ...payload,
           id: entryDoc.id,
         } as StockTakeEntry;
-      }), companyId);
+      });
       setEntries(data);
       setSelectedSessionKey((current) => current || data[0]?.session_key || null);
     } catch (error: any) {
@@ -337,45 +338,90 @@ export default function StockTake() {
     try {
       const now = new Date().toISOString();
       const currentUserId = auth.currentUser?.uid || null;
-      let batch = writeBatch(db);
-      let writes = 0;
-
-      const commitBatchIfNeeded = async (force = false) => {
-        if (writes === 0) return;
-        if (force || writes >= 400) {
-          await batch.commit();
-          batch = writeBatch(db);
-          writes = 0;
-        }
-      };
+      const workspaceId = requireCompanyId(companyId);
 
       for (const [productId, target] of productTargets.entries()) {
-        batch.update(doc(db, 'products', productId), {
-          stock: target.counted,
-          updated_at: now,
-          last_stock_take_at: now,
-          last_stock_take_session_key: selectedSessionKey,
-          last_stock_take_reference: selectedSession?.sessionName || null,
+        const relatedRows = sessionRows.filter((row) => target.rowIds.includes(row.id));
+
+        await runTransaction(db, async (transaction) => {
+          const productRef = doc(db, 'products', productId);
+          const productSnap = await transaction.get(productRef);
+
+          if (!productSnap.exists()) {
+            throw new Error(`Matched product ${productId} no longer exists.`);
+          }
+
+          const productData = productSnap.data() as any;
+          if (productData.company_id !== workspaceId) {
+            throw new Error('A matched product does not belong to this company workspace.');
+          }
+
+          const previousStock = Number(productData.stock || 0);
+          const adjustmentQuantity = target.counted - previousStock;
+
+          transaction.update(productRef, {
+            stock: target.counted,
+            updated_at: now,
+            last_stock_take_at: now,
+            last_stock_take_session_key: selectedSessionKey,
+            last_stock_take_reference: selectedSession?.sessionName || null,
+          });
+
+          transaction.set(doc(collection(db, 'inventory_movements')), withCompanyId(workspaceId, {
+            type: 'stock_take_adjustment',
+            product_id: productId,
+            product_name: productData.name || relatedRows[0]?.product_name || 'Product',
+            quantity: adjustmentQuantity,
+            previous_stock: previousStock,
+            new_stock: target.counted,
+            reference_id: selectedSessionKey,
+            reference_type: 'stock_take',
+            created_at: now,
+            created_by: currentUserId,
+          }));
+
+          for (const row of relatedRows) {
+            transaction.update(doc(db, 'stock_takes', row.id), {
+              adjustment_processed_at: now,
+              adjustment_processed_by: currentUserId,
+              adjustment_status: 'posted',
+              posted_stock: row.counted,
+              reversal_processed_at: null,
+              reversal_processed_by: null,
+              reversed_stock: null,
+            });
+          }
         });
-        writes += 1;
-        await commitBatchIfNeeded();
       }
 
-      for (const row of sessionRows) {
-        batch.update(doc(db, 'stock_takes', row.id), {
-          adjustment_processed_at: now,
-          adjustment_processed_by: currentUserId,
-          adjustment_status: row.product_id ? 'posted' : 'skipped_unmatched',
-          posted_stock: row.product_id ? row.counted : null,
-          reversal_processed_at: null,
-          reversal_processed_by: null,
-          reversed_stock: null,
-        });
-        writes += 1;
-        await commitBatchIfNeeded();
-      }
+      const unmatchedRows = sessionRows.filter((row) => !row.product_id);
+      if (unmatchedRows.length > 0) {
+        let batch = writeBatch(db);
+        let writes = 0;
 
-      await commitBatchIfNeeded(true);
+        for (const row of unmatchedRows) {
+          batch.update(doc(db, 'stock_takes', row.id), {
+            adjustment_processed_at: now,
+            adjustment_processed_by: currentUserId,
+            adjustment_status: 'skipped_unmatched',
+            posted_stock: null,
+            reversal_processed_at: null,
+            reversal_processed_by: null,
+            reversed_stock: null,
+          });
+          writes += 1;
+
+          if (writes >= 400) {
+            await batch.commit();
+            batch = writeBatch(db);
+            writes = 0;
+          }
+        }
+
+        if (writes > 0) {
+          await batch.commit();
+        }
+      }
 
       const unmatchedCount = sessionRows.filter((entry) => !entry.product_id).length;
       toast.success(
@@ -442,42 +488,84 @@ export default function StockTake() {
     try {
       const now = new Date().toISOString();
       const currentUserId = auth.currentUser?.uid || null;
-      let batch = writeBatch(db);
-      let writes = 0;
-
-      const commitBatchIfNeeded = async (force = false) => {
-        if (writes === 0) return;
-        if (force || writes >= 400) {
-          await batch.commit();
-          batch = writeBatch(db);
-          writes = 0;
-        }
-      };
+      const workspaceId = requireCompanyId(companyId);
 
       for (const [productId, target] of productTargets.entries()) {
-        batch.update(doc(db, 'products', productId), {
-          stock: target.originalStock,
-          updated_at: now,
-          stock_take_reversed_at: now,
-          stock_take_reversed_session_key: selectedSessionKey,
-          stock_take_reversed_reference: selectedSession.sessionName,
+        const relatedRows = sessionRows.filter((row) => target.rowIds.includes(row.id));
+
+        await runTransaction(db, async (transaction) => {
+          const productRef = doc(db, 'products', productId);
+          const productSnap = await transaction.get(productRef);
+
+          if (!productSnap.exists()) {
+            throw new Error(`Matched product ${productId} no longer exists.`);
+          }
+
+          const productData = productSnap.data() as any;
+          if (productData.company_id !== workspaceId) {
+            throw new Error('A matched product does not belong to this company workspace.');
+          }
+
+          const previousStock = Number(productData.stock || 0);
+          const reversalQuantity = target.originalStock - previousStock;
+
+          transaction.update(productRef, {
+            stock: target.originalStock,
+            updated_at: now,
+            stock_take_reversed_at: now,
+            stock_take_reversed_session_key: selectedSessionKey,
+            stock_take_reversed_reference: selectedSession.sessionName,
+          });
+
+          transaction.set(doc(collection(db, 'inventory_movements')), withCompanyId(workspaceId, {
+            type: 'stock_take_reversal',
+            product_id: productId,
+            product_name: productData.name || relatedRows[0]?.product_name || 'Product',
+            quantity: reversalQuantity,
+            previous_stock: previousStock,
+            new_stock: target.originalStock,
+            reference_id: selectedSessionKey,
+            reference_type: 'stock_take',
+            created_at: now,
+            created_by: currentUserId,
+          }));
+
+          for (const row of relatedRows) {
+            transaction.update(doc(db, 'stock_takes', row.id), {
+              reversal_processed_at: now,
+              reversal_processed_by: currentUserId,
+              adjustment_status: 'reversed',
+              reversed_stock: row.current_stock,
+            });
+          }
         });
-        writes += 1;
-        await commitBatchIfNeeded();
       }
 
-      for (const row of sessionRows) {
-        batch.update(doc(db, 'stock_takes', row.id), {
-          reversal_processed_at: now,
-          reversal_processed_by: currentUserId,
-          adjustment_status: row.adjustment_status === 'posted' ? 'reversed' : row.adjustment_status,
-          reversed_stock: row.product_id && row.adjustment_status === 'posted' ? row.current_stock : null,
-        });
-        writes += 1;
-        await commitBatchIfNeeded();
-      }
+      const unmatchedRows = sessionRows.filter((row) => !row.product_id || row.adjustment_status !== 'posted');
+      if (unmatchedRows.length > 0) {
+        let batch = writeBatch(db);
+        let writes = 0;
 
-      await commitBatchIfNeeded(true);
+        for (const row of unmatchedRows) {
+          batch.update(doc(db, 'stock_takes', row.id), {
+            reversal_processed_at: now,
+            reversal_processed_by: currentUserId,
+            adjustment_status: row.adjustment_status,
+            reversed_stock: null,
+          });
+          writes += 1;
+
+          if (writes >= 400) {
+            await batch.commit();
+            batch = writeBatch(db);
+            writes = 0;
+          }
+        }
+
+        if (writes > 0) {
+          await batch.commit();
+        }
+      }
       toast.success(`Reversed ${productTargets.size} stock adjustments successfully.`);
       await fetchStockTakes();
     } catch (error: any) {
@@ -498,12 +586,11 @@ export default function StockTake() {
         skipEmptyLines: true,
         complete: async (results) => {
           const rows = results.data as Record<string, string>[];
-          const productsSnapshot = await getDocs(collection(db, 'products'));
+          const productsSnapshot = await getDocs(companyQuery('products', companyId));
           const productMap = new Map<string, { id: string; name?: string }>();
 
           productsSnapshot.docs.forEach((productDoc) => {
             const product = productDoc.data() as any;
-            if (!isCompanyScopedRecord(product, companyId)) return;
             [product.sku, product.external_id, product.barcode]
               .filter(Boolean)
               .forEach((key) => productMap.set(String(key).trim().toLowerCase(), { id: productDoc.id, name: product.name }));
@@ -548,7 +635,7 @@ export default function StockTake() {
               const ref = doc(collection(db, 'stock_takes'));
               const { id: _previewId, ...rowData } = row;
               batch.set(ref, {
-                ...withCompanyId(companyId, {}),
+                ...withCompanyId(requireCompanyId(companyId), {}),
                 ...rowData,
                 imported: true,
                 created_at: new Date().toISOString(),

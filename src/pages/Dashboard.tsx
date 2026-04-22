@@ -1,27 +1,24 @@
 import { useEffect, useMemo, useState } from 'react';
 import { db } from '../lib/firebase';
-import { collection, doc, getDoc, getDocs, limit, orderBy, query, where } from 'firebase/firestore';
+import { doc, getDoc, getDocs, limit, orderBy, where } from 'firebase/firestore';
 import { Link } from 'react-router-dom';
 import { 
   TrendingUp, 
   DollarSign, 
   Package, 
   Wrench,
-  ArrowUpRight,
-  ArrowDownRight,
   Wallet,
   Truck,
   LayoutDashboard,
   Moon,
-  Calendar,
   Users,
-  Globe,
   PieChart,
   History,
-  PlayCircle,
   Database,
-  Settings,
-  Share2
+  AlertTriangle,
+  CheckCircle2,
+  ShoppingCart,
+  ArrowRight,
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -34,10 +31,11 @@ import {
 } from 'recharts';
 import { formatCurrency, safeFormatDate } from '../lib/utils';
 import { startOfDay, startOfMonth, subDays } from 'date-fns';
-import { Profile } from '../types';
+import { Product, Profile } from '../types';
 import { PermissionKey, hasPermission } from '../lib/permissions';
 import { useTenant } from '../lib/tenant';
-import { filterByCompany, isCompanyScopedRecord } from '../lib/companyData';
+import { isCompanyScopedRecord } from '../lib/companyData';
+import { companyQuery } from '../lib/db';
 
 type TopProductRow = {
   productId: string;
@@ -52,7 +50,8 @@ export default function Dashboard({ profile }: { profile: Profile | null }) {
     dailySales: 0,
     monthlyProfit: 0,
     activeRepairs: 0,
-    lowStock: 0
+    lowStock: 0,
+    overdueRepairs: 0
   });
   const [chartData, setChartData] = useState<Array<{ date: string; amount: number }>>([]);
   const [topProducts, setTopProducts] = useState<TopProductRow[]>([]);
@@ -69,41 +68,64 @@ export default function Dashboard({ profile }: { profile: Profile | null }) {
       const monthStart = startOfMonth(new Date());
       const sevenDaysAgo = startOfDay(subDays(new Date(), 6));
 
-      const salesRef = collection(db, 'sales');
-      const dailyQuery = query(salesRef, where('created_at', '>=', today.toISOString()));
-      const monthlyQuery = query(salesRef, where('created_at', '>=', monthStart.toISOString()));
-      const repairsRef = collection(db, 'repairs');
-      const productsRef = collection(db, 'products');
-      const lowStockQuery = query(productsRef, where('stock', '<', 5));
-      const chartQuery = query(salesRef, where('created_at', '>=', sevenDaysAgo.toISOString()));
-      const topItemsQuery = query(collection(db, 'sale_items'), orderBy('created_at', 'desc'), limit(200));
+      const dailyQuery = companyQuery('sales', companyId, where('created_at', '>=', today.toISOString()));
+      const monthlyQuery = companyQuery('sales', companyId, where('created_at', '>=', monthStart.toISOString()));
+      const repairsQuery = companyQuery('repairs', companyId);
+      const repairStatusesQuery = companyQuery('repair_status_options', companyId);
+      const productsQuery = companyQuery('products', companyId);
+      const chartQuery = companyQuery('sales', companyId, where('created_at', '>=', sevenDaysAgo.toISOString()));
+      const topItemsQuery = companyQuery('sale_items', companyId, orderBy('created_at', 'desc'), limit(200));
 
-      const [dailySnapshot, monthlySnapshot, repairsSnapshot, lowStockSnapshot, chartSnapshot, topItemsSnapshot] = await Promise.all([
+      const [dailySnapshot, monthlySnapshot, repairsSnapshot, repairStatusesSnapshot, productsSnapshot, chartSnapshot, topItemsSnapshot] = await Promise.all([
         getDocs(dailyQuery),
         getDocs(monthlyQuery),
-        getDocs(repairsRef),
-        getDocs(lowStockQuery),
+        getDocs(repairsQuery),
+        getDocs(repairStatusesQuery),
+        getDocs(productsQuery),
         getDocs(chartQuery),
         getDocs(topItemsQuery),
       ]);
 
-      const dailyDocs = filterByCompany(dailySnapshot.docs.map((snapshotDoc) => ({ id: snapshotDoc.id, ...snapshotDoc.data() } as any)), companyId);
-      const monthlyDocs = filterByCompany(monthlySnapshot.docs.map((snapshotDoc) => ({ id: snapshotDoc.id, ...snapshotDoc.data() } as any)), companyId);
-      const repairDocs = filterByCompany(repairsSnapshot.docs.map((snapshotDoc) => ({ id: snapshotDoc.id, ...snapshotDoc.data() } as any)), companyId);
-      const lowStockDocs = filterByCompany(lowStockSnapshot.docs.map((snapshotDoc) => ({ id: snapshotDoc.id, ...snapshotDoc.data() } as any)), companyId);
-      const chartDocs = filterByCompany(chartSnapshot.docs.map((snapshotDoc) => ({ id: snapshotDoc.id, ...snapshotDoc.data() } as any)), companyId);
-      const topItemDocs = filterByCompany(topItemsSnapshot.docs.map((snapshotDoc) => ({ id: snapshotDoc.id, ...snapshotDoc.data() } as any)), companyId);
+      const dailyDocs = dailySnapshot.docs.map((snapshotDoc) => ({ id: snapshotDoc.id, ...snapshotDoc.data() } as any));
+      const monthlyDocs = monthlySnapshot.docs.map((snapshotDoc) => ({ id: snapshotDoc.id, ...snapshotDoc.data() } as any));
+      const repairDocs = repairsSnapshot.docs.map((snapshotDoc) => ({ id: snapshotDoc.id, ...snapshotDoc.data() } as any));
+      const repairStatusDocs = repairStatusesSnapshot.docs.map((snapshotDoc) => ({ id: snapshotDoc.id, ...snapshotDoc.data() } as any));
+      const productDocs = productsSnapshot.docs.map((snapshotDoc) => ({ id: snapshotDoc.id, ...snapshotDoc.data() } as Product));
+      const chartDocs = chartSnapshot.docs.map((snapshotDoc) => ({ id: snapshotDoc.id, ...snapshotDoc.data() } as any));
+      const topItemDocs = topItemsSnapshot.docs.map((snapshotDoc) => ({ id: snapshotDoc.id, ...snapshotDoc.data() } as any));
 
       const dailyTotal = dailyDocs.reduce((acc, snapshotDoc: any) => acc + Number(snapshotDoc.total_amount || 0), 0);
       const monthlyProfitTotal = monthlyDocs.reduce((acc, snapshotDoc: any) => acc + Number(snapshotDoc.profit || 0), 0);
-      const activeRepairsCount = repairDocs.length;
-      const lowStockCount = lowStockDocs.length;
+      const terminalStatusIds = new Set(
+        repairStatusDocs
+          .filter((status: any) => ['collected', 'closed', 'cancelled', 'void'].includes(String(status.name || '').toLowerCase()))
+          .map((status: any) => status.id)
+      );
+      const activeRepairsCount = repairDocs.filter((repair: any) => {
+        const statusName = String(repair.status_name || repair.status || '').toLowerCase();
+        const statusId = String(repair.status_id || '');
+        return !terminalStatusIds.has(statusId) && !['collected', 'closed', 'cancelled', 'void'].includes(statusName);
+      }).length;
+      const overdueRepairsCount = repairDocs.filter((repair: any) => {
+        const statusName = String(repair.status_name || repair.status || '').toLowerCase();
+        const statusId = String(repair.status_id || '');
+        const isActive = !terminalStatusIds.has(statusId) && !['collected', 'closed', 'cancelled', 'void'].includes(statusName);
+        const updatedAt = new Date(repair.updated_at || repair.created_at || Date.now()).getTime();
+        const daysSinceUpdate = Number.isFinite(updatedAt) ? (Date.now() - updatedAt) / 86400000 : 0;
+        return isActive && (statusName.includes('overdue') || statusName.includes('blocked') || daysSinceUpdate >= 7);
+      }).length;
+      const lowStockCount = productDocs.filter((product) => {
+        const threshold = Number(product.low_stock_threshold ?? 5);
+        const stock = Number(product.stock ?? 0);
+        return Number.isFinite(stock) && Number.isFinite(threshold) && stock <= threshold;
+      }).length;
 
       setStats({
         dailySales: dailyTotal,
         monthlyProfit: monthlyProfitTotal,
         activeRepairs: activeRepairsCount,
-        lowStock: lowStockCount
+        lowStock: lowStockCount,
+        overdueRepairs: overdueRepairsCount
       });
 
       const dailyMap = new Map();
@@ -170,21 +192,15 @@ export default function Dashboard({ profile }: { profile: Profile | null }) {
 
   const moduleItems = useMemo(() => {
     const items = [
-      { icon: Wallet, label: 'Expenses', path: '/expenses', color: 'bg-[#0088B5]', permission: 'expenses.view' as PermissionKey },
-      { icon: Truck, label: 'Inventory Transfer', path: '/transfer', color: 'bg-[#0088B5]', permission: 'transfer.view' as PermissionKey },
-      { icon: LayoutDashboard, label: 'Dashboard', path: '/', color: 'bg-[#0088B5]', permission: 'dashboard.view' as PermissionKey },
-      { icon: Moon, label: 'End of Day', path: '/end-of-day', color: 'bg-[#0088B5]', permission: 'end_of_day.view' as PermissionKey },
-      { icon: Calendar, label: 'Appointment Calendar', path: '/appointments', color: 'bg-[#0088B5]', permission: 'appointments.view' as PermissionKey },
-      { icon: Users, label: 'Staff Employee', path: '/staff', color: 'bg-[#0088B5]', permission: 'staff.manage' as PermissionKey },
-      { icon: Globe, label: 'Website', path: '/website', color: 'bg-[#0088B5]', permission: 'website.view' as PermissionKey },
-      { icon: PieChart, label: 'Sales Reports', path: '/reports/sales', color: 'bg-[#0088B5]', permission: 'reports.sales' as PermissionKey },
-      { icon: PieChart, label: 'Repairs Reports', path: '/reports/repairs', color: 'bg-[#0088B5]', permission: 'reports.repairs' as PermissionKey },
-      { icon: PieChart, label: 'Inventory Reports', path: '/reports/inventory', color: 'bg-[#0088B5]', permission: 'reports.inventory' as PermissionKey },
-      { icon: History, label: 'Activity Log', path: '/activity', color: 'bg-[#0088B5]', permission: 'activity.view' as PermissionKey },
-      { icon: PlayCircle, label: 'Getting Started', path: '/getting-started', color: 'bg-[#0088B5]', permission: 'getting_started.view' as PermissionKey },
-      { icon: Database, label: 'Manage Data', path: '/manage-data', color: 'bg-[#0088B5]', permission: 'manage_data.view' as PermissionKey },
-      { icon: Settings, label: 'Setup', path: '/setup', color: 'bg-[#0088B5]', permission: 'setup.view' as PermissionKey },
-      { icon: Share2, label: 'Integrations', path: '/integrations', color: 'bg-[#0088B5]', permission: 'integrations.view' as PermissionKey },
+      { icon: Wallet, label: 'Expenses', path: '/expenses', color: 'text-[#3B82F6]', permission: 'expenses.view' as PermissionKey },
+      { icon: Truck, label: 'Inventory Transfer', path: '/transfer', color: 'text-[#3B82F6]', permission: 'transfer.view' as PermissionKey },
+      { icon: LayoutDashboard, label: 'Dashboard', path: '/', color: 'text-[#3B82F6]', permission: 'dashboard.view' as PermissionKey },
+      { icon: Moon, label: 'End of Day', path: '/end-of-day', color: 'text-[#F59E0B]', permission: 'end_of_day.view' as PermissionKey },
+      { icon: Users, label: 'Staff Employee', path: '/staff', color: 'text-[#3B82F6]', permission: 'staff.manage' as PermissionKey },
+      { icon: PieChart, label: 'Sales Reports', path: '/reports/sales', color: 'text-[#22C55E]', permission: 'reports.sales' as PermissionKey },
+      { icon: PieChart, label: 'Repairs Reports', path: '/reports/repairs', color: 'text-[#3B82F6]', permission: 'reports.repairs' as PermissionKey },
+      { icon: History, label: 'Activity Log', path: '/activity', color: 'text-[#A1A1AA]', permission: 'activity.view' as PermissionKey },
+      { icon: Database, label: 'Manage Data', path: '/manage-data', color: 'text-[#ed1978]', permission: 'manage_data.view' as PermissionKey },
     ];
 
     return items.filter((item) => hasPermission(profile, item.permission));
@@ -193,82 +209,141 @@ export default function Dashboard({ profile }: { profile: Profile | null }) {
   if (loading) {
     return <div className="animate-pulse space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[1, 2, 3, 4].map(i => <div key={i} className="h-32 section-card rounded-2xl"></div>)}
+        {[1, 2, 3, 4].map(i => <div key={i} className="h-32 section-card rounded-xl"></div>)}
       </div>
-      <div className="h-96 section-card rounded-2xl"></div>
+      <div className="h-96 section-card rounded-xl"></div>
     </div>;
   }
 
+  const attentionItems = [
+    hasPermission(profile, 'inventory.view') && {
+      title: stats.lowStock > 0 ? `${stats.lowStock} low-stock item${stats.lowStock === 1 ? '' : 's'}` : 'Stock position is clear',
+      message: stats.lowStock > 0 ? 'Review products below threshold before the next rush.' : 'No immediate stock alerts from current thresholds.',
+      cta: stats.lowStock > 0 ? 'Restock now' : 'View inventory',
+      to: '/inventory',
+      icon: Package,
+      tone: stats.lowStock > 0 ? 'warning' : 'success',
+    },
+    hasPermission(profile, 'repairs.view') && {
+      title: stats.overdueRepairs > 0 ? `${stats.overdueRepairs} overdue repair${stats.overdueRepairs === 1 ? '' : 's'}` : `${stats.activeRepairs} active repair${stats.activeRepairs === 1 ? '' : 's'}`,
+      message: stats.overdueRepairs > 0 ? 'Stale or blocked jobs need technician attention.' : stats.activeRepairs > 0 ? 'The workshop has jobs moving through the queue.' : 'No active jobs yet. Create an intake when a device arrives.',
+      cta: stats.activeRepairs > 0 || stats.overdueRepairs > 0 ? 'View queue' : 'Create job',
+      to: stats.activeRepairs > 0 || stats.overdueRepairs > 0 ? '/repairs?status=open' : '/repairs/new',
+      icon: stats.overdueRepairs > 0 ? AlertTriangle : Wrench,
+      tone: stats.overdueRepairs > 0 ? 'danger' : stats.activeRepairs > 0 ? 'info' : 'neutral',
+    },
+    hasPermission(profile, 'pos.use') && {
+      title: stats.dailySales > 0 ? 'Sales are moving today' : 'No sales yet today',
+      message: stats.dailySales > 0 ? 'Cash register activity is live. Keep checkout moving.' : 'Start the first sale from the register when the counter opens.',
+      cta: stats.dailySales > 0 ? 'Open POS' : 'Start new sale',
+      to: '/pos',
+      icon: ShoppingCart,
+      tone: stats.dailySales > 0 ? 'success' : 'info',
+    },
+  ].filter(Boolean) as Array<{
+    title: string;
+    message: string;
+    cta: string;
+    to: string;
+    icon: any;
+    tone: string;
+  }>;
+
+  const allClear = stats.lowStock === 0 && stats.overdueRepairs === 0;
+
   return (
     <div className="space-y-8">
-      <div className="hero-card rounded-[28px] p-6 md:p-8 overflow-hidden relative">
-        <div className="absolute inset-0 soft-grid opacity-50 pointer-events-none" />
+      <div className="hero-card rounded-xl p-6 md:p-8 overflow-hidden relative">
+        <div className="absolute inset-0 soft-grid opacity-35 pointer-events-none" />
+        <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-[#ed1978] to-[#f8a722]" />
         <div className="relative flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
-          <div>
-            <p className="text-[11px] uppercase tracking-[0.28em] text-[#7b5c3c] font-semibold mb-3">Appleberry OS</p>
-            <h1 className="display-font text-4xl md:text-5xl font-bold text-[#18242b] leading-none">Repair commerce, stock, and service in one place.</h1>
-            <p className="text-[#5d6468] mt-4 max-w-2xl">
-              Welcome back to Appleberry OS. Keep sales moving, repairs on schedule, and inventory under control from one operations desk.
-            </p>
-            {hasPermission(profile, 'repairs.view') && (
-              <div className="mt-5">
-                <Link
-                  to="/repairs?status=open"
-                  className="inline-flex items-center gap-2 rounded-2xl bg-[#214e5f] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
-                >
-                  <Wrench className="h-4 w-4" />
-                  Open Repairs
-                </Link>
-              </div>
-            )}
+          <div className="max-w-3xl">
+            <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500 font-semibold mb-3">Operations Desk</p>
+            <h1 className="text-3xl md:text-5xl font-black text-white leading-tight">Operations command center.</h1>
+            <p className="text-zinc-400 mt-4 max-w-2xl">Revenue, repair load, stock warnings, and the next best actions for the counter.</p>
           </div>
-          <div className="grid grid-cols-2 gap-3 lg:min-w-[260px]">
-            <div className="rounded-2xl bg-white/70 border border-white/70 px-4 py-4">
-              <p className="text-xs uppercase tracking-[0.18em] text-[#7b5c3c]">Today</p>
-              <p className="text-2xl font-bold text-[#18242b] mt-2">{formatCurrency(stats.dailySales)}</p>
-            </div>
-            <div className="rounded-2xl bg-[#18333d] text-white px-4 py-4">
-              <p className="text-xs uppercase tracking-[0.18em] text-white/60">Repairs</p>
-              <p className="text-2xl font-bold mt-2">{stats.activeRepairs}</p>
+          <div className={cn(
+            "rounded-xl border px-4 py-3 lg:min-w-[260px]",
+            allClear ? "border-[#22C55E]/25 bg-[#22C55E]/10" : "border-[#F59E0B]/30 bg-[#F59E0B]/10"
+          )}>
+            <div className="flex items-center gap-3">
+              <div className={cn("flex h-10 w-10 items-center justify-center rounded-lg", allClear ? "bg-[#22C55E]/15 text-[#86EFAC]" : "bg-[#F59E0B]/15 text-[#FCD34D]")}>
+                {allClear ? <CheckCircle2 className="h-5 w-5" /> : <AlertTriangle className="h-5 w-5" />}
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-[0.14em] text-zinc-500">Attention</p>
+                <p className="font-black text-white">{allClear ? 'No urgent blockers' : 'Action needed'}</p>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard 
-          title="Daily Sales" 
-          value={formatCurrency(stats.dailySales)} 
-          icon={DollarSign} 
-          trend="+12%" 
-          trendUp={true}
-          color="bg-blue-500"
+      <div className="grid grid-cols-1 xl:grid-cols-[1.35fr_1fr] gap-6">
+        <PrimaryKpiCard
+          to="/pos"
+          title="Today Revenue"
+          value={formatCurrency(stats.dailySales)}
+          empty={stats.dailySales <= 0}
+          emptyMessage="No sales yet today. Open the register to start the first sale."
+          cta={stats.dailySales > 0 ? 'Open cash register' : 'Start new sale'}
+          icon={DollarSign}
         />
-        <StatCard 
-          title="Monthly Profit" 
-          value={formatCurrency(stats.monthlyProfit)} 
-          icon={TrendingUp} 
-          trend="+8%" 
-          trendUp={true}
-          color="bg-green-500"
-        />
-        <StatCardLink
-          to="/repairs?status=open"
-          title="Active Repairs"
-          value={stats.activeRepairs.toString()}
-          icon={Wrench}
-          trend="-2"
-          trendUp={false}
-          color="bg-orange-500"
-        />
-        <StatCard 
-          title="Low Stock Items" 
-          value={stats.lowStock.toString()} 
-          icon={Package} 
-          trend={stats.lowStock > 0 ? "Action needed" : "All good"} 
-          trendUp={stats.lowStock === 0}
-          color="bg-pink-500"
-        />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <DashboardKpiLink
+            to="/repairs?status=open"
+            title="Active Repairs"
+            value={stats.activeRepairs.toString()}
+            empty={stats.activeRepairs <= 0}
+            emptyMessage="No active repairs"
+            cta={stats.activeRepairs > 0 ? 'View queue' : 'Create job'}
+            icon={Wrench}
+            tone="info"
+          />
+          <DashboardKpiCard
+            title="Monthly Profit"
+            value={formatCurrency(stats.monthlyProfit)}
+            empty={stats.monthlyProfit <= 0}
+            emptyMessage="No profit recorded this month"
+            icon={TrendingUp}
+            tone="success"
+          />
+          <DashboardKpiLink
+            to="/inventory"
+            title="Low Stock"
+            value={stats.lowStock.toString()}
+            empty={stats.lowStock <= 0}
+            emptyMessage="All good"
+            cta={stats.lowStock > 0 ? 'Restock now' : 'View stock'}
+            icon={Package}
+            tone={stats.lowStock > 0 ? 'warning' : 'success'}
+          />
+          <DashboardKpiLink
+            to="/repairs?status=open"
+            title="Overdue Repairs"
+            value={stats.overdueRepairs.toString()}
+            empty={stats.overdueRepairs <= 0}
+            emptyMessage="No overdue jobs"
+            cta={stats.overdueRepairs > 0 ? 'Escalate queue' : 'View repairs'}
+            icon={AlertTriangle}
+            tone={stats.overdueRepairs > 0 ? 'danger' : 'success'}
+          />
+        </div>
+      </div>
+
+      <div className="section-card rounded-xl border border-[#2A2A2E] p-5 md:p-6">
+        <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500 font-semibold">What Needs Attention</p>
+            <h2 className="mt-2 text-2xl font-black text-white">Next best actions</h2>
+          </div>
+          <p className="text-sm text-zinc-500">Jump straight into the work that moves the day forward.</p>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {attentionItems.map((item) => (
+            <ActionCard key={item.title} {...item} />
+          ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
@@ -277,58 +352,58 @@ export default function Dashboard({ profile }: { profile: Profile | null }) {
             key={i}
             to={item.path}
             className={cn(
-              "flex flex-col items-center justify-center p-4 rounded-2xl transition-all hover:-translate-y-0.5 section-card aspect-square text-center gap-3 border border-[#dbc8b2]"
+              "flex flex-col items-center justify-center p-4 rounded-xl transition-all hover:-translate-y-0.5 section-card aspect-square text-center gap-3"
             )}
           >
-            <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-sm", item.color)}>
+            <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center bg-[#101012] border border-[#2A2A2E] shadow-sm", item.color)}>
               <item.icon className="w-6 h-6" />
             </div>
-            <span className="text-xs font-bold leading-tight text-[#18242b]">{item.label}</span>
+            <span className="text-xs font-bold leading-tight text-white">{item.label}</span>
           </Link>
         ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 section-card p-6 rounded-[24px]">
-          <h3 className="display-font text-2xl font-bold mb-2 text-[#18242b]">Sales Performance</h3>
-          <p className="text-sm text-[#6a6f72] mb-6">Last 7 days of completed sales.</p>
+        <div className="lg:col-span-2 section-card p-6 rounded-xl">
+          <h3 className="text-2xl font-black mb-2 text-white">Sales Performance</h3>
+          <p className="text-sm text-zinc-400 mb-6">Last 7 days of completed sales.</p>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eadac8" />
-                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fill: '#9ca3af', fontSize: 12}} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#9ca3af', fontSize: 12}} tickFormatter={(val) => `R${val}`} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#2A2A2E" />
+                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fill: '#A1A1AA', fontSize: 12}} />
+                <YAxis axisLine={false} tickLine={false} tick={{fill: '#A1A1AA', fontSize: 12}} tickFormatter={(val) => `R${val}`} />
                 <Tooltip 
-                  contentStyle={{ borderRadius: '16px', border: '1px solid #eadac8', boxShadow: '0 10px 30px rgb(0 0 0 / 0.08)', background: '#fffaf3' }}
+                  contentStyle={{ borderRadius: '12px', border: '1px solid #2A2A2E', boxShadow: '0 16px 40px rgb(0 0 0 / 0.36)', background: '#141416', color: '#FFFFFF' }}
                   formatter={(val: number) => [formatCurrency(val), 'Sales']}
                 />
-                <Bar dataKey="amount" fill="#c65a22" radius={[8, 8, 0, 0]} barSize={40} />
+                <Bar dataKey="amount" fill="#22C55E" radius={[8, 8, 0, 0]} barSize={40} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        <div className="section-card p-6 rounded-[24px]">
-          <h3 className="display-font text-2xl font-bold mb-2 text-[#18242b]">Top Products</h3>
-          <p className="text-sm text-[#6a6f72] mb-6">Best performers from your recent sales flow.</p>
+        <div className="section-card p-6 rounded-xl">
+          <h3 className="text-2xl font-black mb-2 text-white">Top Products</h3>
+          <p className="text-sm text-zinc-400 mb-6">Best performers from your recent sales flow.</p>
           <div className="space-y-6">
             {topProducts.length > 0 ? topProducts.map((item, i) => (
               <div key={i} className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-[#efe0ce] flex items-center justify-center text-xs font-bold text-[#7b5c3c]">
+                  <div className="w-9 h-9 rounded-lg bg-[#101012] border border-[#2A2A2E] flex items-center justify-center text-xs font-bold text-[#f8a722]">
                     {i + 1}
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-900">{item.name}</p>
-                    <p className="text-xs text-gray-500">{item.quantity} sold</p>
+                    <p className="text-sm font-semibold text-white">{item.name}</p>
+                    <p className="text-xs text-zinc-500">{item.quantity} sold</p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-semibold text-gray-900">{formatCurrency(item.revenue)}</p>
+                  <p className="text-sm font-bold text-[#86EFAC]">{formatCurrency(item.revenue)}</p>
                 </div>
               </div>
             )) : (
-              <p className="text-sm text-gray-500 text-center py-8">No sales data yet.</p>
+              <p className="text-sm text-zinc-500 text-center py-8">No sales data yet.</p>
             )}
           </div>
         </div>
@@ -337,52 +412,118 @@ export default function Dashboard({ profile }: { profile: Profile | null }) {
   );
 }
 
-function StatCard({ title, value, icon: Icon, trend, trendUp, color }: any) {
+function getToneClasses(toneName: string) {
+  const tones: Record<string, { icon: string; value: string; card: string; button: string }> = {
+    success: {
+      icon: 'text-[#22C55E] border-[#22C55E]/30 bg-[#22C55E]/10',
+      value: 'text-[#86EFAC]',
+      card: 'border-[#22C55E]/25 bg-[#22C55E]/8',
+      button: 'border-[#22C55E]/35 bg-[#22C55E]/12 text-[#86EFAC] hover:bg-[#22C55E]/18',
+    },
+    info: {
+      icon: 'text-[#3B82F6] border-[#3B82F6]/30 bg-[#3B82F6]/10',
+      value: 'text-[#93C5FD]',
+      card: 'border-[#3B82F6]/25 bg-[#3B82F6]/8',
+      button: 'border-[#3B82F6]/35 bg-[#3B82F6]/12 text-[#93C5FD] hover:bg-[#3B82F6]/18',
+    },
+    warning: {
+      icon: 'text-[#F59E0B] border-[#F59E0B]/30 bg-[#F59E0B]/10',
+      value: 'text-[#FCD34D]',
+      card: 'border-[#F59E0B]/30 bg-[#F59E0B]/10',
+      button: 'border-[#F59E0B]/40 bg-[#F59E0B]/14 text-[#FCD34D] hover:bg-[#F59E0B]/20',
+    },
+    danger: {
+      icon: 'text-[#EF4444] border-[#EF4444]/30 bg-[#EF4444]/10',
+      value: 'text-[#FCA5A5]',
+      card: 'border-[#EF4444]/30 bg-[#EF4444]/10',
+      button: 'border-[#EF4444]/40 bg-[#EF4444]/14 text-[#FCA5A5] hover:bg-[#EF4444]/20',
+    },
+    neutral: {
+      icon: 'text-zinc-300 border-[#2A2A2E] bg-[#101012]',
+      value: 'text-white',
+      card: 'border-[#2A2A2E] bg-[#141416]',
+      button: 'border-[#2A2A2E] bg-[#101012] text-zinc-300 hover:bg-[#1C1C1F]',
+    },
+  };
+  return tones[toneName] || tones.info;
+}
+
+function PrimaryKpiCard({ to, title, value, empty, emptyMessage, cta, icon: Icon }: any) {
   return (
-    <div className="section-card p-6 rounded-[24px]">
-      <div className="flex items-center justify-between mb-4">
-        <div className={cn("p-3 rounded-2xl text-white shadow-sm", color)}>
-          <Icon className="w-5 h-5" />
+    <Link to={to} className="group overflow-hidden rounded-xl border border-[#22C55E]/25 bg-[#111512] p-6 transition-all hover:-translate-y-0.5 hover:border-[#22C55E]/45 hover:shadow-[0_0_34px_rgba(34,197,94,0.12)]">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#86EFAC]">{title}</p>
+          <p className="mt-3 text-5xl font-black leading-none text-[#22C55E] md:text-6xl">{value}</p>
+          <p className="mt-4 max-w-md text-sm text-zinc-400">{empty ? emptyMessage : 'Completed sales recorded since opening today.'}</p>
         </div>
-        <div className={cn(
-          "flex items-center text-xs font-medium px-2 py-1 rounded-full",
-          trendUp ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"
-        )}>
-          {trendUp ? <ArrowUpRight className="w-3 h-3 mr-1" /> : <ArrowDownRight className="w-3 h-3 mr-1" />}
-          {trend}
+        <div className="hidden h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#22C55E]/25 bg-[#22C55E]/10 text-[#86EFAC] sm:flex">
+          <Icon className="h-7 w-7" />
         </div>
       </div>
-      <div>
-        <p className="text-sm text-[#6a6f72] font-medium">{title}</p>
-        <p className="text-2xl font-bold text-[#18242b]">{value}</p>
+      <div className="mt-6 inline-flex items-center gap-2 rounded-lg bg-[#22C55E] px-4 py-2.5 text-sm font-black text-white transition-colors group-hover:bg-[#16A34A]">
+        {cta}
+        <ArrowRight className="h-4 w-4" />
       </div>
+    </Link>
+  );
+}
+
+function DashboardKpiCard({ title, value, empty, emptyMessage, icon: Icon, tone }: any) {
+  const toneClasses = getToneClasses(tone);
+  return (
+    <div className={cn("rounded-xl border p-5", toneClasses.card)}>
+      <div className="mb-4 flex items-center justify-between">
+        <div className={cn("rounded-xl border p-3", toneClasses.icon)}>
+          <Icon className="h-5 w-5" />
+        </div>
+        {empty && <span className="rounded-full border border-[#2A2A2E] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-zinc-500">Empty</span>}
+      </div>
+      <p className="text-sm font-bold text-zinc-400">{title}</p>
+      <p className={cn("mt-1 text-3xl font-black", toneClasses.value)}>{value}</p>
+      <p className="mt-3 text-xs text-zinc-500">{empty ? emptyMessage : 'Month-to-date from completed sales.'}</p>
     </div>
   );
 }
 
-function StatCardLink({ to, title, value, icon: Icon, trend, trendUp, color }: any) {
+function DashboardKpiLink({ to, title, value, empty, emptyMessage, cta, icon: Icon, tone }: any) {
+  const toneClasses = getToneClasses(tone);
   return (
-    <Link to={to} className="section-card block rounded-[24px] p-6 transition hover:-translate-y-0.5 hover:border-[#d3b494]">
+    <Link to={to} className={cn("group rounded-xl border p-5 transition-all hover:-translate-y-0.5", toneClasses.card)}>
       <div className="mb-4 flex items-center justify-between">
-        <div className={cn("rounded-2xl p-3 text-white shadow-sm", color)}>
+        <div className={cn("rounded-xl border p-3", toneClasses.icon)}>
           <Icon className="h-5 w-5" />
         </div>
-        <div className={cn(
-          "flex items-center rounded-full px-2 py-1 text-xs font-medium",
-          trendUp ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"
-        )}>
-          {trendUp ? <ArrowUpRight className="mr-1 h-3 w-3" /> : <ArrowDownRight className="mr-1 h-3 w-3" />}
-          {trend}
-        </div>
+        <span className="text-[10px] font-black uppercase tracking-[0.12em] text-zinc-500">{empty ? 'Clear' : 'Open'}</span>
       </div>
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <p className="text-sm font-medium text-[#6a6f72]">{title}</p>
-          <p className="text-2xl font-bold text-[#18242b]">{value}</p>
-        </div>
-        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8b6f51]">Open queue</span>
+      <p className="text-sm font-bold text-zinc-400">{title}</p>
+      <p className={cn("mt-1 text-3xl font-black", toneClasses.value)}>{value}</p>
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <p className="min-w-0 text-xs text-zinc-500">{empty ? emptyMessage : cta}</p>
+        <ArrowRight className="h-4 w-4 shrink-0 text-zinc-500 transition-transform group-hover:translate-x-0.5" />
       </div>
     </Link>
+  );
+}
+
+function ActionCard({ title, message, cta, to, icon: Icon, tone }: any) {
+  const toneClasses = getToneClasses(tone);
+  return (
+    <div className={cn("rounded-xl border p-4", toneClasses.card)}>
+      <div className="flex items-start gap-3">
+        <div className={cn("rounded-xl border p-3", toneClasses.icon)}>
+          <Icon className="h-5 w-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="font-black text-white">{title}</p>
+          <p className="mt-1 text-sm leading-5 text-zinc-400">{message}</p>
+          <Link to={to} className={cn("mt-4 inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-black transition-colors", toneClasses.button)}>
+            {cta}
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+      </div>
+    </div>
   );
 }
 

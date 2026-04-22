@@ -1,6 +1,6 @@
 import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { db } from '../lib/firebase';
-import { collection, query, getDocs, addDoc, updateDoc, doc, orderBy, writeBatch } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, doc, orderBy, writeBatch } from 'firebase/firestore';
 import { 
   Plus, 
   Search, 
@@ -24,8 +24,9 @@ import Papa from 'papaparse';
 import { useDropzone } from 'react-dropzone';
 import { cn } from '../lib/utils';
 import { useTenant } from '../lib/tenant';
-import { filterByCompany, withCompanyId } from '../lib/companyData';
+import { withCompanyId } from '../lib/companyData';
 import { useSearchParams } from 'react-router-dom';
+import { companyQuery, requireCompanyId } from '../lib/db';
 
 const CustomerCard = memo(function CustomerCard({
   customer,
@@ -147,11 +148,8 @@ export default function Customers() {
   async function fetchCustomers() {
     setLoading(true);
     try {
-      const querySnapshot = await getDocs(query(collection(db, 'customers'), orderBy('first_name')));
-      const data = filterByCompany(
-        querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer)),
-        companyId
-      );
+      const querySnapshot = await getDocs(companyQuery('customers', companyId, orderBy('first_name')));
+      const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
       setCustomers(data);
     } catch (error: any) {
       toast.error(error.message);
@@ -199,7 +197,7 @@ export default function Customers() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const customerData = withCompanyId(companyId, {
+    const customerData = withCompanyId(requireCompanyId(companyId), {
       first_name: formData.first_name,
       last_name: formData.last_name,
       name: `${formData.first_name} ${formData.last_name}`.trim(),
@@ -263,7 +261,7 @@ export default function Customers() {
 
             const newDoc = doc(customersCol);
             batch.set(newDoc, {
-              company_id: companyId || null,
+              company_id: requireCompanyId(companyId),
               first_name: firstName,
               last_name: lastName,
               name: `${firstName} ${lastName}`.trim(),

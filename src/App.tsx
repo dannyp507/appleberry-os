@@ -37,7 +37,6 @@ const SalesReports = lazy(() => import('./pages/SalesReports'));
 const RepairsReports = lazy(() => import('./pages/RepairsReports'));
 const ActivityLog = lazy(() => import('./pages/ActivityLog'));
 const StaffManagement = lazy(() => import('./pages/StaffManagement'));
-const PlaceholderPage = lazy(() => import('./pages/PlaceholderPage'));
 const ActivateAccount = lazy(() => import('./pages/ActivateAccount'));
 const StockTake = lazy(() => import('./pages/StockTake'));
 const PurchaseOrders = lazy(() => import('./pages/PurchaseOrders'));
@@ -52,7 +51,7 @@ import GlobalSearch from './components/GlobalSearch';
 function RouteLoader() {
   return (
     <div className="flex min-h-[40vh] items-center justify-center">
-      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
+      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#22C55E]" />
     </div>
   );
 }
@@ -141,7 +140,7 @@ export default function App() {
   if (loading) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-background">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#22C55E]"></div>
       </div>
     );
   }
@@ -197,11 +196,11 @@ export default function App() {
                 <GlobalSearch profile={profile} />
               </div>
               <div className="lg:hidden">
-              <div className="rounded-[22px] border border-[#dfcfbb] bg-[rgba(255,251,245,0.94)] px-4 py-3 shadow-[0_10px_30px_rgba(63,43,22,0.08)] backdrop-blur-xl">
+              <div className="rounded-xl border border-[#2A2A2E] bg-[#141416]/95 px-4 py-3 shadow-[0_14px_40px_rgba(0,0,0,0.4)] backdrop-blur-xl">
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-[10px] uppercase tracking-[0.22em] text-[#8b6f51] font-semibold">Appleberry OS</p>
-                    <p className="truncate text-sm font-semibold text-[#17242b]">{company?.name || profile?.full_name || 'Workspace'}</p>
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500 font-semibold">Appleberry OS</p>
+                    <p className="truncate text-sm font-semibold text-white">{company?.name || profile?.full_name || 'Workspace'}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <GlobalSearch profile={profile} compact />
@@ -209,7 +208,7 @@ export default function App() {
                       type="button"
                       aria-label="Open navigation"
                       onClick={() => setMobileSidebarOpen(true)}
-                      className="shrink-0 rounded-2xl border border-[#d7c5b0] bg-white/90 p-2.5 text-[#214e5f] shadow-sm"
+                      className="shrink-0 rounded-xl border border-[#2A2A2E] bg-[#1C1C1F] p-2.5 text-white shadow-sm"
                     >
                       <Menu className="h-5 w-5" />
                     </button>
@@ -234,23 +233,23 @@ export default function App() {
                 
                 <Route path="/invoices" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'invoices.view') ? <Invoices /> : <Navigate to="/" replace />} />
                 <Route path="/purchase-orders" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'purchase_orders.view') ? <PurchaseOrders /> : <Navigate to="/" replace />} />
-                <Route path="/orders" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'orders.view') ? <PlaceholderPage title="Orders" /> : <Navigate to="/" replace />} />
+                <Route path="/orders" element={<Navigate to="/" replace />} />
                 <Route path="/devices" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'devices.view') ? <DevicesInventory /> : <Navigate to="/" replace />} />
                 <Route path="/stock-take" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'stock_take.view') ? <StockTake /> : <Navigate to="/" replace />} />
                 <Route path="/expenses" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'expenses.view') ? <Expenses /> : <Navigate to="/" replace />} />
                 <Route path="/transfer" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'transfer.view') ? <InventoryTransfer /> : <Navigate to="/" replace />} />
                 <Route path="/end-of-day" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'end_of_day.view') ? <EndOfDay /> : <Navigate to="/" replace />} />
-                <Route path="/appointments" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'appointments.view') ? <PlaceholderPage title="Appointment Calendar" /> : <Navigate to="/" replace />} />
+                <Route path="/appointments" element={<Navigate to="/" replace />} />
                 <Route path="/staff" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'staff.manage') ? <StaffManagement /> : <Navigate to="/" replace />} />
-                <Route path="/website" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'website.view') ? <PlaceholderPage title="Website Management" /> : <Navigate to="/" replace />} />
+                <Route path="/website" element={<Navigate to="/" replace />} />
                 <Route path="/reports/sales" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'reports.sales') ? <SalesReports /> : <Navigate to="/" replace />} />
                 <Route path="/reports/repairs" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'reports.repairs') ? <RepairsReports /> : <Navigate to="/" replace />} />
-                <Route path="/reports/inventory" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'reports.inventory') ? <PlaceholderPage title="Inventory Reports" /> : <Navigate to="/" replace />} />
+                <Route path="/reports/inventory" element={<Navigate to="/" replace />} />
                 <Route path="/activity" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'activity.view') ? <ActivityLog /> : <Navigate to="/" replace />} />
-                <Route path="/getting-started" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'getting_started.view') ? <PlaceholderPage title="Getting Started" /> : <Navigate to="/" replace />} />
+                <Route path="/getting-started" element={<Navigate to="/" replace />} />
                 <Route path="/manage-data" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'manage_data.view') ? <ManageData /> : <Navigate to="/" replace />} />
-                <Route path="/setup" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'setup.view') ? <PlaceholderPage title="Setup" /> : <Navigate to="/" replace />} />
-                <Route path="/integrations" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'integrations.view') ? <PlaceholderPage title="Integrations" /> : <Navigate to="/" replace />} />
+                <Route path="/setup" element={<Navigate to="/" replace />} />
+                <Route path="/integrations" element={<Navigate to="/" replace />} />
 
                 <Route path="*" element={<Navigate to={requiresOnboarding ? "/onboarding" : "/"} replace />} />
               </Routes>

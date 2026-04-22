@@ -1,11 +1,19 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #c65a22;
-  --color-secondary: #214e5f;
-  --color-accent: #10242c;
-  --color-background: #f4ede4;
-  --color-foreground: #1b2327;
+  --color-primary: #22C55E;
+  --color-primary-hover: #16A34A;
+  --color-secondary: #3B82F6;
+  --color-warning: #F59E0B;
+  --color-danger: #EF4444;
+  --color-brand-raspberry: #ed1978;
+  --color-brand-tangerine: #f8a722;
+  --color-background: #0B0B0C;
+  --color-foreground: #FFFFFF;
+  --color-panel: #141416;
+  --color-surface: #1C1C1F;
+  --color-border: #2A2A2E;
+  --color-muted: #6B7280;
   
   --radius-lg: 0.75rem;
   --radius-md: 0.5rem;
@@ -14,25 +22,40 @@
 
 @layer base {
   :root {
-    color-scheme: light;
+    color-scheme: dark;
+    --app-bg: #0B0B0C;
+    --app-panel: #141416;
+    --app-surface: #1C1C1F;
+    --app-surface-2: #202024;
+    --app-border: #2A2A2E;
+    --app-border-strong: #34343A;
+    --app-text: #FFFFFF;
+    --app-text-secondary: #A1A1AA;
+    --app-text-muted: #6B7280;
+    --app-success: #22C55E;
+    --app-success-hover: #16A34A;
+    --app-warning: #F59E0B;
+    --app-danger: #EF4444;
+    --app-info: #3B82F6;
+    --brand-raspberry: #ed1978;
+    --brand-tangerine: #f8a722;
+    --shadow-panel: 0 20px 60px rgba(0, 0, 0, 0.38);
+    --shadow-control: 0 10px 28px rgba(0, 0, 0, 0.25);
   }
 
   html {
-    background:
-      radial-gradient(circle at top left, rgba(198, 90, 34, 0.14), transparent 28%),
-      radial-gradient(circle at top right, rgba(33, 78, 95, 0.12), transparent 24%),
-      linear-gradient(180deg, #f7f1e8 0%, #efe4d6 100%);
+    background: var(--app-bg);
   }
 
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
-    font-family: "Avenir Next", "Segoe UI", "Helvetica Neue", sans-serif;
+    font-family: Inter, "Avenir Next", "Segoe UI", "Helvetica Neue", sans-serif;
     min-height: 100vh;
     background:
-      radial-gradient(circle at top left, rgba(198, 90, 34, 0.12), transparent 24%),
-      radial-gradient(circle at bottom right, rgba(16, 36, 44, 0.08), transparent 28%),
-      linear-gradient(180deg, #f7f1e8 0%, #efe4d6 100%);
+      radial-gradient(circle at 8% -8%, rgba(237, 25, 120, 0.16), transparent 28rem),
+      radial-gradient(circle at 92% 0%, rgba(248, 167, 34, 0.11), transparent 24rem),
+      linear-gradient(180deg, #0B0B0C 0%, #0E0E10 48%, #0B0B0C 100%);
   }
 
   #root {
@@ -44,78 +67,392 @@
   h3,
   h4,
   .display-font {
-    font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
-    letter-spacing: -0.02em;
+    font-family: Inter, "Avenir Next", "Segoe UI", sans-serif;
+    letter-spacing: 0;
   }
 
   * {
     min-width: 0;
   }
+
+  ::selection {
+    background: rgba(34, 197, 94, 0.28);
+    color: #ffffff;
+  }
 }
 
-.appleberry-gradient {
-  background: linear-gradient(135deg, #c65a22 0%, #d98a3a 38%, #214e5f 100%);
+@layer components {
+  .app-shell {
+    background:
+      radial-gradient(circle at top left, rgba(237, 25, 120, 0.10), transparent 26rem),
+      radial-gradient(circle at top right, rgba(248, 167, 34, 0.08), transparent 24rem),
+      var(--app-bg);
+  }
+
+  .app-panel,
+  .section-card,
+  .hero-card,
+  .ops-panel {
+    background: linear-gradient(180deg, rgba(28, 28, 31, 0.96), rgba(20, 20, 22, 0.96));
+    border: 1px solid var(--app-border);
+    box-shadow: var(--shadow-panel);
+    color: var(--app-text);
+  }
+
+  .ops-card {
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
+    border-radius: 0.75rem;
+    box-shadow: var(--shadow-control);
+    color: var(--app-text);
+  }
+
+  .appleberry-gradient {
+    background: linear-gradient(135deg, var(--app-success) 0%, var(--app-success-hover) 100%);
+  }
+
+  .brand-badge {
+    background: linear-gradient(135deg, var(--brand-raspberry) 0%, var(--brand-tangerine) 100%);
+  }
+
+  .appleberry-text-gradient {
+    background: linear-gradient(135deg, var(--brand-raspberry) 0%, var(--brand-tangerine) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .app-sidebar {
+    background:
+      radial-gradient(circle at 20% 0%, rgba(237, 25, 120, 0.18), transparent 18rem),
+      linear-gradient(180deg, #111113 0%, #141416 55%, #0B0B0C 100%);
+    color: var(--app-text);
+  }
+
+  .app-sidebar::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(90deg, rgba(237, 25, 120, 0.18), transparent 22%),
+      radial-gradient(circle at bottom right, rgba(248, 167, 34, 0.08), transparent 18rem);
+    pointer-events: none;
+  }
+
+  .soft-grid {
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.75rem;
+    min-height: 2.625rem;
+    padding: 0.625rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 700;
+    transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, opacity 160ms ease, transform 160ms ease;
+  }
+
+  .btn:hover {
+    transform: translateY(-1px);
+  }
+
+  .btn-primary {
+    background: var(--app-success);
+    color: #031408;
+    border: 1px solid rgba(34, 197, 94, 0.55);
+    box-shadow: 0 12px 28px rgba(34, 197, 94, 0.22);
+  }
+
+  .btn-primary:hover {
+    background: var(--app-success-hover);
+  }
+
+  .btn-secondary {
+    background: #202024;
+    color: var(--app-text);
+    border: 1px solid var(--app-border-strong);
+  }
+
+  .btn-secondary:hover {
+    background: #26262B;
+    border-color: #3A3A42;
+  }
+
+  .btn-info {
+    background: rgba(59, 130, 246, 0.14);
+    color: #93C5FD;
+    border: 1px solid rgba(59, 130, 246, 0.34);
+  }
+
+  .btn-danger {
+    background: rgba(239, 68, 68, 0.14);
+    color: #FCA5A5;
+    border: 1px solid rgba(239, 68, 68, 0.42);
+  }
+
+  .btn-danger:hover {
+    background: rgba(239, 68, 68, 0.24);
+    color: #FEE2E2;
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--app-text-secondary);
+    border: 1px solid transparent;
+  }
+
+  .btn-ghost:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--app-text);
+  }
+
+  .form-field,
+  .input-dark,
+  .app-shell input,
+  .app-shell select,
+  .app-shell textarea {
+    background-color: #101012;
+    border: 1px solid var(--app-border);
+    color: var(--app-text);
+    border-radius: 0.75rem;
+  }
+
+  .app-shell input::placeholder,
+  .app-shell textarea::placeholder {
+    color: var(--app-text-muted);
+  }
+
+  .app-shell input:focus,
+  .app-shell select:focus,
+  .app-shell textarea:focus,
+  .form-field:focus,
+  .input-dark:focus {
+    outline: none;
+    border-color: rgba(59, 130, 246, 0.72);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
+  }
+
+  .ops-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    color: var(--app-text);
+  }
+
+  .ops-table thead,
+  .app-shell thead {
+    background: #17171A;
+    color: var(--app-text-secondary);
+  }
+
+  .ops-table th,
+  .app-shell th {
+    font-size: 0.6875rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--app-text-secondary);
+    border-bottom: 1px solid var(--app-border);
+  }
+
+  .ops-table td,
+  .app-shell td {
+    border-bottom: 1px solid rgba(42, 42, 46, 0.72);
+  }
+
+  .ops-table tbody tr,
+  .app-shell tbody tr {
+    transition: background-color 140ms ease;
+  }
+
+  .ops-table tbody tr:hover,
+  .app-shell tbody tr:hover {
+    background: rgba(255, 255, 255, 0.035);
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    border-radius: 999px;
+    padding: 0.25rem 0.625rem;
+    font-size: 0.75rem;
+    font-weight: 800;
+    line-height: 1rem;
+  }
+
+  .badge-success {
+    background: rgba(34, 197, 94, 0.13);
+    color: #86EFAC;
+    border: 1px solid rgba(34, 197, 94, 0.34);
+  }
+
+  .badge-info {
+    background: rgba(59, 130, 246, 0.13);
+    color: #93C5FD;
+    border: 1px solid rgba(59, 130, 246, 0.34);
+  }
+
+  .badge-warning {
+    background: rgba(245, 158, 11, 0.14);
+    color: #FCD34D;
+    border: 1px solid rgba(245, 158, 11, 0.36);
+  }
+
+  .badge-danger {
+    background: rgba(239, 68, 68, 0.14);
+    color: #FCA5A5;
+    border: 1px solid rgba(239, 68, 68, 0.36);
+  }
+
+  .badge-muted {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--app-text-secondary);
+    border: 1px solid var(--app-border);
+  }
 }
 
-.appleberry-text-gradient {
-  background: linear-gradient(135deg, #8f3910 0%, #c65a22 45%, #214e5f 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+@layer utilities {
+  .text-ui-primary {
+    color: var(--app-text);
+  }
+
+  .text-ui-secondary {
+    color: var(--app-text-secondary);
+  }
+
+  .text-ui-muted {
+    color: var(--app-text-muted);
+  }
+
+  .border-ui {
+    border-color: var(--app-border);
+  }
+
+  .surface-ui {
+    background: var(--app-surface);
+  }
 }
 
-.app-shell {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.48) 0%, rgba(255, 255, 255, 0.08) 100%),
-    linear-gradient(180deg, #f6efe6 0%, #efe4d7 100%);
+/* Compatibility pass for existing utility-heavy screens. */
+.app-shell .bg-white,
+.app-shell .bg-white\/80,
+.app-shell .bg-white\/85,
+.app-shell .bg-white\/90,
+.app-shell .bg-white\/70,
+.app-shell .bg-\[rgba\(255\,251\,245\,0\.92\)\],
+.app-shell .bg-\[rgba\(255\,251\,245\,0\.94\)\],
+.app-shell .bg-\[rgba\(255\,251\,245\,0\.98\)\],
+.app-shell .bg-\[\#fbf4eb\],
+.app-shell .bg-\[\#fcfaf7\],
+.app-shell .bg-\[\#f8f2ea\],
+.app-shell .bg-\[\#fff8ef\],
+.app-shell .bg-gray-50,
+.app-shell .bg-gray-100 {
+  background-color: var(--app-surface) !important;
 }
 
-.app-panel {
-  background: rgba(255, 252, 247, 0.88);
-  border: 1px solid rgba(141, 111, 77, 0.14);
-  box-shadow: 0 18px 40px rgba(71, 53, 33, 0.08);
-  backdrop-filter: blur(10px);
+.app-shell .bg-\[\#eef7ef\] {
+  background-color: rgba(34, 197, 94, 0.12) !important;
 }
 
-.app-sidebar {
-  background:
-    linear-gradient(180deg, rgba(18, 33, 39, 0.96) 0%, rgba(28, 53, 63, 0.94) 46%, rgba(198, 90, 34, 0.94) 100%);
-  color: #f8f2e8;
+.app-shell .bg-gray-200,
+.app-shell .bg-\[\#e2e8f0\],
+.app-shell .bg-\[\#f7efe5\] {
+  background-color: #202024 !important;
 }
 
-.app-sidebar::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(circle at top left, rgba(255, 255, 255, 0.16), transparent 26%),
-    radial-gradient(circle at bottom right, rgba(255, 210, 150, 0.12), transparent 24%);
-  pointer-events: none;
+.app-shell .text-gray-900,
+.app-shell .text-\[\#18242b\],
+.app-shell .text-\[\#17242b\],
+.app-shell .text-\[\#1e293b\],
+.app-shell .text-\[\#33434b\] {
+  color: var(--app-text) !important;
 }
 
-.brand-badge {
-  background: linear-gradient(135deg, #f3b45a 0%, #c65a22 48%, #214e5f 100%);
-  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.18);
+.app-shell .text-gray-700,
+.app-shell .text-gray-600,
+.app-shell .text-\[\#334047\],
+.app-shell .text-\[\#4b5357\],
+.app-shell .text-\[\#4f5a60\],
+.app-shell .text-\[\#5d6468\],
+.app-shell .text-\[\#6a6f72\],
+.app-shell .text-\[\#6d7478\],
+.app-shell .text-\[\#6c767b\],
+.app-shell .text-\[\#6d6862\] {
+  color: var(--app-text-secondary) !important;
 }
 
-.hero-card {
-  background:
-    radial-gradient(circle at top left, rgba(255, 214, 168, 0.3), transparent 26%),
-    linear-gradient(135deg, #fff9f2 0%, #f5e7d4 42%, #ead7c0 100%);
-  border: 1px solid rgba(141, 111, 77, 0.12);
-  box-shadow: 0 22px 50px rgba(66, 48, 26, 0.08);
+.app-shell .text-gray-500,
+.app-shell .text-gray-400,
+.app-shell .text-\[\#8b6f51\],
+.app-shell .text-\[\#7b5c3c\] {
+  color: var(--app-text-muted) !important;
 }
 
-.section-card {
-  background: rgba(255, 251, 245, 0.92);
-  border: 1px solid rgba(141, 111, 77, 0.12);
-  box-shadow: 0 16px 34px rgba(79, 56, 30, 0.06);
+.app-shell .text-\[\#315f3a\] {
+  color: #86EFAC !important;
 }
 
-.soft-grid {
-  background-image:
-    linear-gradient(rgba(33, 78, 95, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(33, 78, 95, 0.05) 1px, transparent 1px);
-  background-size: 18px 18px;
+.app-shell .border-gray-50,
+.app-shell .border-gray-100,
+.app-shell .border-gray-200,
+.app-shell .border-\[\#dbc8b2\],
+.app-shell .border-\[\#dfcfbb\],
+.app-shell .border-\[\#ddcbb7\],
+.app-shell .border-\[\#eadaca\],
+.app-shell .border-\[\#e6d7c6\],
+.app-shell .border-\[\#e4d2bd\],
+.app-shell .border-\[\#d7c5b0\] {
+  border-color: var(--app-border) !important;
+}
+
+.app-shell .hover\:bg-gray-50:hover,
+.app-shell .hover\:bg-gray-50\/80:hover,
+.app-shell .hover\:bg-gray-100:hover,
+.app-shell .hover\:bg-gray-200:hover,
+.app-shell .hover\:bg-white:hover {
+  background-color: rgba(255, 255, 255, 0.055) !important;
+}
+
+.app-shell .text-primary {
+  color: var(--app-success) !important;
+}
+
+.app-shell .bg-primary,
+.app-shell .bg-green-500 {
+  background-color: var(--app-success) !important;
+}
+
+.app-shell .bg-blue-500,
+.app-shell .bg-\[\#0088B5\],
+.app-shell .bg-\[\#214e5f\],
+.app-shell .bg-\[\#334155\] {
+  background-color: var(--app-info) !important;
+}
+
+.app-shell .bg-orange-500,
+.app-shell .bg-\[\#f97316\] {
+  background-color: var(--app-warning) !important;
+}
+
+.app-shell .bg-pink-500 {
+  background-color: var(--brand-raspberry) !important;
+}
+
+.app-shell .text-red-600,
+.app-shell .text-red-500 {
+  color: #FCA5A5 !important;
+}
+
+.app-shell .bg-red-50 {
+  background-color: rgba(239, 68, 68, 0.14) !important;
 }
 
 @media (max-width: 1023px) {

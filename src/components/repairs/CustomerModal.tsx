@@ -6,6 +6,7 @@ import { collection, addDoc } from 'firebase/firestore';
 import { toast } from 'sonner';
 import { Customer } from '../../types';
 import { withCompanyId } from '../../lib/companyData';
+import { requireCompanyId } from '../../lib/db';
 
 interface CustomerModalProps {
   isOpen: boolean;
@@ -49,7 +50,7 @@ export default function CustomerModal({ isOpen, onClose, onSuccess, companyId = 
     setLoading(true);
     try {
       const customerData = {
-        ...withCompanyId(companyId, formData),
+        ...withCompanyId(requireCompanyId(companyId), formData),
         name: `${formData.first_name} ${formData.last_name}`.trim(),
         created_at: new Date().toISOString()
       };

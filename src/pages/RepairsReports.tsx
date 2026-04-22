@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { BarChart, Bar, CartesianGrid, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { collection, getDocs } from 'firebase/firestore';
+import { getDocs } from 'firebase/firestore';
 import { Clock, Wrench, TrendingUp, UserCircle2 } from 'lucide-react';
 import { differenceInCalendarDays } from 'date-fns';
 import { db } from '../lib/firebase';
 import { formatCurrency, safeFormatDate } from '../lib/utils';
 import { Profile, RepairStatus } from '../types';
 import { useTenant } from '../lib/tenant';
-import { filterByCompany } from '../lib/companyData';
+import { companyQuery } from '../lib/db';
 
 type RepairRecord = {
   id: string;
@@ -39,16 +39,16 @@ export default function RepairsReports() {
     setLoading(true);
     try {
       const [repairsSnapshot, statusesSnapshot, profilesSnapshot] = await Promise.all([
-        getDocs(collection(db, 'repairs')),
-        getDocs(collection(db, 'repair_status_options')),
-        getDocs(collection(db, 'profiles')),
+        getDocs(companyQuery('repairs', companyId)),
+        getDocs(companyQuery('repair_status_options', companyId)),
+        getDocs(companyQuery('profiles', companyId)),
       ]);
 
-      setRepairs(filterByCompany(repairsSnapshot.docs.map((repairDoc) => ({ id: repairDoc.id, ...repairDoc.data() } as RepairRecord)), companyId));
-      setStatuses(new Map(filterByCompany(statusesSnapshot.docs.map((statusDoc) => ({ id: statusDoc.id, ...statusDoc.data() } as RepairStatus)), companyId).map((status) => {
+      setRepairs(repairsSnapshot.docs.map((repairDoc) => ({ id: repairDoc.id, ...repairDoc.data() } as RepairRecord)));
+      setStatuses(new Map(statusesSnapshot.docs.map((statusDoc) => ({ id: statusDoc.id, ...statusDoc.data() } as RepairStatus)).map((status) => {
         return [status.id, status];
       })));
-      setStaffMap(new Map(filterByCompany(profilesSnapshot.docs.map((profileDoc) => ({ id: profileDoc.id, ...profileDoc.data() } as Profile)), companyId).map((profile) => {
+      setStaffMap(new Map(profilesSnapshot.docs.map((profileDoc) => ({ id: profileDoc.id, ...profileDoc.data() } as Profile)).map((profile) => {
         return [profile.id, profile.full_name || 'Staff Member'];
       })));
     } catch (error) {

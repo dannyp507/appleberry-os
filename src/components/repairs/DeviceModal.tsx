@@ -5,7 +5,7 @@ import { motion } from 'motion/react';
 interface DeviceModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (device: { name: string; imei: string }) => void;
+  onSuccess: (device: { name: string; imei: string; serial_number?: string; condition?: string }) => void;
 }
 
 export default function DeviceModal({ isOpen, onClose, onSuccess }: DeviceModalProps) {
@@ -20,7 +20,12 @@ export default function DeviceModal({ isOpen, onClose, onSuccess }: DeviceModalP
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name) return;
-    onSuccess({ name: formData.name, imei: formData.imei });
+    onSuccess({
+      name: formData.name.trim(),
+      imei: formData.imei.trim(),
+      serial_number: formData.serial_number.trim(),
+      condition: [formData.color, formData.model_number].filter(Boolean).join(' / '),
+    });
     onClose();
   };
 

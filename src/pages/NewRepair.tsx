@@ -5,10 +5,7 @@ import {
   collection, 
   addDoc, 
   getDocs, 
-  query, 
-  orderBy, 
-  where,
-  Timestamp 
+  orderBy
 } from 'firebase/firestore';
 import { 
   Plus, 
@@ -30,7 +27,9 @@ import { formatCurrency } from '../lib/utils';
 import CustomerModal from '../components/repairs/CustomerModal';
 import DeviceModal from '../components/repairs/DeviceModal';
 import { useTenant } from '../lib/tenant';
-import { filterByCompany, withCompanyId } from '../lib/companyData';
+import { withCompanyId } from '../lib/companyData';
+import { buildTicketNumber, roundMoney } from '../lib/business';
+import { companyQuery, requireCompanyId } from '../lib/db';
 
 export default function NewRepair() {
   const navigate = useNavigate();
@@ -57,7 +56,7 @@ export default function NewRepair() {
 
   // Form state
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [selectedDevice, setSelectedDevice] = useState<{ name: string; imei: string } | null>(null);
+  const [selectedDevice, setSelectedDevice] = useState<{ name: string; imei: string; serial_number?: string; condition?: string } | null>(null);
   const [selectedProblem, setSelectedProblem] = useState<string>('');
   const [selectedItems, setSelectedItems] = useState<any[]>([]);
   const [ticketDetails, setTicketDetails] = useState({
@@ -76,16 +75,16 @@ export default function NewRepair() {
   async function fetchData() {
     try {
       const [custSnap, prodSnap, probSnap, statSnap] = await Promise.all([
-        getDocs(query(collection(db, 'customers'), orderBy('created_at', 'desc'))),
-        getDocs(query(collection(db, 'products'), orderBy('name'))),
-        getDocs(query(collection(db, 'repair_problems'), orderBy('name'))),
-        getDocs(query(collection(db, 'repair_status_options'), orderBy('order_index')))
+        getDocs(companyQuery('customers', companyId, orderBy('created_at', 'desc'))),
+        getDocs(companyQuery('products', companyId, orderBy('name'))),
+        getDocs(companyQuery('repair_problems', companyId, orderBy('name'))),
+        getDocs(companyQuery('repair_status_options', companyId, orderBy('order_index')))
       ]);
 
-      setCustomers(filterByCompany(custSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer)), companyId));
-      setProducts(filterByCompany(prodSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product)), companyId));
-      setProblems(filterByCompany(probSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as RepairProblem)), companyId));
-      setStatuses(filterByCompany(statSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as RepairStatus)), companyId));
+      setCustomers(custSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer)));
+      setProducts(prodSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product)));
+      setProblems(probSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as RepairProblem)));
+      setStatuses(statSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as RepairStatus)));
     } catch (error) {
       console.error('Error fetching data:', error);
     }
@@ -144,36 +143,73 @@ export default function NewRepair() {
     setLoading(true);
     try {
       const user = auth.currentUser;
+      const workspaceId = requireCompanyId(companyId);
       const initialStatus = statuses.find(s => s.order_index === 0) || statuses[0];
+      const now = new Date().toISOString();
 
       const repairData = {
-        ...withCompanyId(companyId, {}),
+        ...withCompanyId(workspaceId, {}),
+        ticket_number: buildTicketNumber(),
         customer_id: selectedCustomer.id,
         device_name: selectedDevice.name,
         imei: selectedDevice.imei,
+        serial_number: selectedDevice.serial_number || null,
+        condition_notes: selectedDevice.condition || null,
         problem_id: selectedProblem,
         issue_description: problems.find(p => p.id === selectedProblem)?.name || '',
         technician_id: user?.uid || null,
-        cost: totalCost,
+        cost: roundMoney(totalCost),
+        subtotal: roundMoney(totalCost),
+        global_discount: 0,
+        total_amount: roundMoney(totalCost),
+        paid_amount: 0,
         status_id: initialStatus?.id || '',
         services_and_parts: selectedItems,
         ticket_details: ticketDetails,
+        intake_checklist: {
+          powers_on: null,
+          screen_condition: '',
+          body_condition: '',
+          accessories_received: '',
+          liquid_damage_seen: null,
+        },
+        warranty_notes: '',
+        notification_hooks: {
+          intake_sent: false,
+          ready_sent: false,
+          collected_sent: false,
+        },
         form_type: formType,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        created_by: user?.uid || null,
+        created_at: now,
+        updated_at: now
       };
 
       const docRef = await addDoc(collection(db, 'repairs'), repairData);
 
       // Add initial history
       await addDoc(collection(db, `repairs/${docRef.id}/history`), {
-        company_id: companyId,
+        company_id: workspaceId,
         repair_id: docRef.id,
         status_id: initialStatus?.id || '',
         changed_by: user?.uid || 'system',
         notes: 'Repair ticket created',
-        created_at: new Date().toISOString()
+        created_at: now
       });
+
+      for (const item of selectedItems) {
+        await addDoc(collection(db, `repairs/${docRef.id}/items`), {
+          company_id: workspaceId,
+          product_id: item.type === 'part' ? item.id : null,
+          name: item.name,
+          type: item.type,
+          quantity: item.quantity,
+          unit_price: roundMoney(item.price),
+          discount: 0,
+          total_price: roundMoney(item.price * item.quantity),
+          created_at: now,
+        });
+      }
 
       toast.success('Repair ticket created successfully');
       navigate('/repairs');
@@ -648,7 +684,7 @@ export default function NewRepair() {
                     try {
                       const price = parseFloat(priceInput.value) || 0;
                       const docRef = await addDoc(collection(db, 'repair_problems'), {
-                        ...withCompanyId(companyId, {}),
+                        ...withCompanyId(requireCompanyId(companyId), {}),
                         name: nameInput.value,
                         default_price: price,
                         created_at: new Date().toISOString()

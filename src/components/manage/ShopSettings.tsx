@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { Store, Save, Upload, Trash2, Globe, Phone, Mail, FileText } from 'lucide-react';
 import { useTenant } from '../../lib/tenant';
 import { getCompanySettingsDocId } from '../../lib/company';
+import { requireCompanyId } from '../../lib/db';
 
 export default function ShopSettings() {
   const { companyId } = useTenant();
@@ -28,7 +29,7 @@ export default function ShopSettings() {
 
   async function fetchSettings() {
     try {
-      const docId = getCompanySettingsDocId('shop', companyId || 'global');
+      const docId = getCompanySettingsDocId('shop', requireCompanyId(companyId));
       const docSnap = await getDoc(doc(db, 'settings', docId));
       if (docSnap.exists()) {
         setSettings(docSnap.data() as ShopSettingsType);
@@ -44,8 +45,9 @@ export default function ShopSettings() {
   async function handleSave() {
     setSaving(true);
     try {
-      const docId = getCompanySettingsDocId('shop', companyId || 'global');
-      await setDoc(doc(db, 'settings', docId), { ...settings, company_id: companyId || null }, { merge: true });
+      const workspaceId = requireCompanyId(companyId);
+      const docId = getCompanySettingsDocId('shop', workspaceId);
+      await setDoc(doc(db, 'settings', docId), { ...settings, company_id: workspaceId }, { merge: true });
       toast.success('Shop settings saved successfully');
     } catch (error) {
       console.error('Error saving shop settings:', error);

@@ -6,8 +6,10 @@ export type PermissionKey =
   | 'pos.use'
   | 'repairs.view'
   | 'invoices.view'
+  | 'refunds.process'
   | 'customers.view'
   | 'inventory.view'
+  | 'inventory.adjust'
   | 'imei.view'
   | 'expenses.view'
   | 'end_of_day.view'
@@ -39,8 +41,10 @@ export const PERMISSION_GROUPS: Array<{ title: string; items: Array<{ key: Permi
       { key: 'pos.use', label: 'Cash Register', description: 'Create sales, take payments, and complete checkout.' },
       { key: 'repairs.view', label: 'Repairs', description: 'View and manage repair tickets.' },
       { key: 'invoices.view', label: 'Invoices', description: 'View invoices and invoice history.' },
+      { key: 'refunds.process', label: 'Refunds', description: 'Process full and partial refunds.' },
       { key: 'customers.view', label: 'Customers', description: 'View and manage customer records.' },
       { key: 'inventory.view', label: 'Products', description: 'View and manage stock and products.' },
+      { key: 'inventory.adjust', label: 'Stock Adjustments', description: 'Create products, adjust stock, receive purchase orders, and transfer inventory.' },
       { key: 'imei.view', label: 'IMEI Search', description: 'Search device and IMEI history.' },
     ],
   },
@@ -85,8 +89,10 @@ export const PRESET_PERMISSIONS: Record<Exclude<PermissionPreset, 'custom'>, Per
     'pos.use',
     'repairs.view',
     'invoices.view',
+    'refunds.process',
     'customers.view',
     'inventory.view',
+    'inventory.adjust',
     'imei.view',
     'expenses.view',
     'end_of_day.view',

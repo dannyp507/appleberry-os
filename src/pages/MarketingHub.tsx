@@ -8,6 +8,7 @@ import axios from 'axios';
 import { useTenant } from '../lib/tenant';
 import { filterByCompany, isCompanyScopedRecord, withCompanyId } from '../lib/companyData';
 import { getCompanySettingsDocId } from '../lib/company';
+import { companyQuery, requireCompanyId } from '../lib/db';
 
 type MarketingDelivery = {
   id: string;
@@ -150,19 +151,19 @@ export default function MarketingHub() {
     setLoading(true);
     try {
       const [templateSnap, campaignSnap, segmentSnap, automationSnap, deliverySnap] = await Promise.all([
-        getDocs(query(collection(db, 'marketing_templates'), orderBy('created_at', 'desc'))),
-        getDocs(query(collection(db, 'marketing_campaigns'), orderBy('created_at', 'desc'))),
-        getDocs(query(collection(db, 'marketing_segments'), orderBy('created_at', 'desc'))),
-        getDocs(query(collection(db, 'marketing_automations'), orderBy('created_at', 'desc'))),
-        getDocs(query(collection(db, 'marketing_deliveries'), orderBy('sent_at', 'desc'))),
+        getDocs(companyQuery('marketing_templates', companyId, orderBy('created_at', 'desc'))),
+        getDocs(companyQuery('marketing_campaigns', companyId, orderBy('created_at', 'desc'))),
+        getDocs(companyQuery('marketing_segments', companyId, orderBy('created_at', 'desc'))),
+        getDocs(companyQuery('marketing_automations', companyId, orderBy('created_at', 'desc'))),
+        getDocs(companyQuery('marketing_deliveries', companyId, orderBy('sent_at', 'desc'))),
       ]);
-      const customerSnap = await getDocs(query(collection(db, 'customers'), orderBy('first_name')));
+      const customerSnap = await getDocs(companyQuery('customers', companyId, orderBy('first_name')));
 
-      setTemplates(filterByCompany(templateSnap.docs.map((templateDoc) => ({ id: templateDoc.id, ...templateDoc.data() } as MarketingTemplate)), companyId));
-      setCampaigns(filterByCompany(campaignSnap.docs.map((campaignDoc) => ({ id: campaignDoc.id, ...campaignDoc.data() } as MarketingCampaign)), companyId));
-      setSegments(filterByCompany(segmentSnap.docs.map((segmentDoc) => ({ id: segmentDoc.id, ...segmentDoc.data() } as MarketingSegment)), companyId));
-      setAutomations(filterByCompany(automationSnap.docs.map((automationDoc) => ({ id: automationDoc.id, ...automationDoc.data() } as MarketingAutomation)), companyId));
-      setCustomers(filterByCompany(customerSnap.docs.map((customerDoc) => ({ id: customerDoc.id, ...customerDoc.data() } as Customer)), companyId));
+      setTemplates(templateSnap.docs.map((templateDoc) => ({ id: templateDoc.id, ...templateDoc.data() } as MarketingTemplate)));
+      setCampaigns(campaignSnap.docs.map((campaignDoc) => ({ id: campaignDoc.id, ...campaignDoc.data() } as MarketingCampaign)));
+      setSegments(segmentSnap.docs.map((segmentDoc) => ({ id: segmentDoc.id, ...segmentDoc.data() } as MarketingSegment)));
+      setAutomations(automationSnap.docs.map((automationDoc) => ({ id: automationDoc.id, ...automationDoc.data() } as MarketingAutomation)));
+      setCustomers(customerSnap.docs.map((customerDoc) => ({ id: customerDoc.id, ...customerDoc.data() } as Customer)));
       setDeliveries(filterByCompany(deliverySnap.docs.map((deliveryDoc) => ({ id: deliveryDoc.id, ...deliveryDoc.data() } as MarketingDelivery)), companyId));
     } catch (error: any) {
       toast.error(error.message || 'Failed to load campaigns');
@@ -320,7 +321,7 @@ export default function MarketingHub() {
         await updateDoc(doc(db, 'marketing_templates', editingTemplateId), payload);
         toast.success('Template updated');
       } else {
-        await addDoc(collection(db, 'marketing_templates'), withCompanyId(companyId, {
+        await addDoc(collection(db, 'marketing_templates'), withCompanyId(requireCompanyId(companyId), {
           ...payload,
           created_at: new Date().toISOString(),
         }));
@@ -365,7 +366,7 @@ export default function MarketingHub() {
         await updateDoc(doc(db, 'marketing_campaigns', editingCampaignId), payload);
         toast.success('Campaign updated');
       } else {
-        await addDoc(collection(db, 'marketing_campaigns'), withCompanyId(companyId, {
+        await addDoc(collection(db, 'marketing_campaigns'), withCompanyId(requireCompanyId(companyId), {
           ...payload,
           created_at: new Date().toISOString(),
         }));
@@ -403,7 +404,7 @@ export default function MarketingHub() {
         await updateDoc(doc(db, 'marketing_segments', editingSegmentId), payload);
         toast.success('Segment updated');
       } else {
-        await addDoc(collection(db, 'marketing_segments'), withCompanyId(companyId, {
+        await addDoc(collection(db, 'marketing_segments'), withCompanyId(requireCompanyId(companyId), {
           ...payload,
           created_at: new Date().toISOString(),
         }));
@@ -441,7 +442,7 @@ export default function MarketingHub() {
         await updateDoc(doc(db, 'marketing_automations', editingAutomationId), payload);
         toast.success('Automation updated');
       } else {
-        await addDoc(collection(db, 'marketing_automations'), withCompanyId(companyId, {
+        await addDoc(collection(db, 'marketing_automations'), withCompanyId(requireCompanyId(companyId), {
           ...payload,
           created_at: new Date().toISOString(),
         }));
@@ -460,9 +461,9 @@ export default function MarketingHub() {
 
   const resolveCampaignRecipients = async (campaign: MarketingCampaign) => {
     const [customersSnap, repairsSnap, statusesSnap, shopSnap] = await Promise.all([
-      getDocs(collection(db, 'customers')),
-      getDocs(collection(db, 'repairs')),
-      getDocs(collection(db, 'repair_status_options')),
+      getDocs(companyQuery('customers', companyId)),
+      getDocs(companyQuery('repairs', companyId)),
+      getDocs(companyQuery('repair_status_options', companyId)),
       getDoc(doc(db, 'settings', getCompanySettingsDocId('shop', companyId || 'global'))),
     ]);
 
@@ -546,10 +547,10 @@ export default function MarketingHub() {
 
   const resolveAutomationRecipients = async (automation: MarketingAutomation) => {
     const [customersSnap, repairsSnap, statusesSnap, salesSnap, shopSnap] = await Promise.all([
-      getDocs(collection(db, 'customers')),
-      getDocs(collection(db, 'repairs')),
-      getDocs(collection(db, 'repair_status_options')),
-      getDocs(collection(db, 'sales')),
+      getDocs(companyQuery('customers', companyId)),
+      getDocs(companyQuery('repairs', companyId)),
+      getDocs(companyQuery('repair_status_options', companyId)),
+      getDocs(companyQuery('sales', companyId)),
       getDoc(doc(db, 'settings', getCompanySettingsDocId('shop', companyId || 'global'))),
     ]);
 
@@ -650,7 +651,7 @@ export default function MarketingHub() {
 
         sentCount += 1;
 
-        await addDoc(collection(db, 'marketing_deliveries'), withCompanyId(companyId, {
+        await addDoc(collection(db, 'marketing_deliveries'), withCompanyId(requireCompanyId(companyId), {
           automation_id: null,
           automation_name: null,
           campaign_id: campaign.id,
@@ -719,7 +720,7 @@ export default function MarketingHub() {
         const rendered = interpolateTemplate(template, recipient.values);
         await sendThroughChannel(settings, automation.channel, recipient.channelTarget, rendered.subject || automation.name, rendered.body);
 
-        await addDoc(collection(db, 'marketing_deliveries'), withCompanyId(companyId, {
+        await addDoc(collection(db, 'marketing_deliveries'), withCompanyId(requireCompanyId(companyId), {
           automation_id: automation.id,
           automation_name: automation.name,
           campaign_id: null,
@@ -808,7 +809,7 @@ export default function MarketingHub() {
         });
       }
 
-      await addDoc(collection(db, 'marketing_deliveries'), withCompanyId(companyId, {
+      await addDoc(collection(db, 'marketing_deliveries'), withCompanyId(requireCompanyId(companyId), {
         campaign_id: null,
         campaign_name: 'Test send',
         template_id: selectedTestTemplate.id,

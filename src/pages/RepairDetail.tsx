@@ -42,7 +42,9 @@ import { formatCurrency, cn, safeFormatDate } from '../lib/utils';
 import { toast } from 'sonner';
 import Fuse from 'fuse.js';
 import { useTenant } from '../lib/tenant';
-import { filterByCompany, isCompanyScopedRecord } from '../lib/companyData';
+import { isCompanyScopedRecord } from '../lib/companyData';
+import { companyQuery, companySubcollection, requireCompanyId } from '../lib/db';
+import { roundMoney } from '../lib/business';
 
 interface RepairItem {
   id: string;
@@ -105,7 +107,7 @@ export default function RepairDetail() {
 
     // Load Items
     const unsubscribeItems = onSnapshot(
-      query(collection(db, `repairs/${id}/items`), orderBy('created_at', 'asc')),
+      companySubcollection(`repairs/${id}/items`, companyId, orderBy('created_at', 'asc')),
       (snapshot) => {
         setItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RepairItem)));
       }
@@ -124,26 +126,30 @@ export default function RepairDetail() {
   }, [id, companyId, navigate]);
 
   async function fetchProducts() {
-    const q = query(collection(db, 'products'), orderBy('name'));
+    if (!companyId) return;
+    const q = companyQuery('products', companyId, orderBy('name'));
     const snapshot = await getDocs(q);
-    setProducts(filterByCompany(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product)), companyId));
+    setProducts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product)));
   }
 
   async function fetchStatuses() {
-    const q = query(collection(db, 'repair_status_options'), orderBy('order_index'));
+    if (!companyId) return;
+    const q = companyQuery('repair_status_options', companyId, orderBy('order_index'));
     const snapshot = await getDocs(q);
-    setStatuses(filterByCompany(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RepairStatus)), companyId));
+    setStatuses(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RepairStatus)));
   }
 
   async function fetchStaff() {
-    const q = query(collection(db, 'profiles'), where('role', 'in', ['admin', 'staff']));
+    if (!companyId) return;
+    const q = query(collection(db, 'profiles'), where('company_id', '==', companyId), where('role', 'in', ['admin', 'staff']));
     const snapshot = await getDocs(q);
-    setStaff(filterByCompany(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Profile)), companyId));
+    setStaff(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Profile)));
   }
 
   async function fetchProblems() {
-    const snapshot = await getDocs(collection(db, 'repair_problems'));
-    setProblems(filterByCompany(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RepairProblem)), companyId));
+    if (!companyId) return;
+    const snapshot = await getDocs(companyQuery('repair_problems', companyId, orderBy('name')));
+    setProblems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RepairProblem)));
   }
 
   const fuse = useMemo(() => {
@@ -161,8 +167,9 @@ export default function RepairDetail() {
   const addToRepair = async (product: Product) => {
     if (!id) return;
     try {
+      const workspaceId = requireCompanyId(companyId);
       await addDoc(collection(db, `repairs/${id}/items`), {
-        company_id: companyId,
+        company_id: workspaceId,
         product_id: product.id,
         name: product.name,
         quantity: 1,
@@ -190,7 +197,7 @@ export default function RepairDetail() {
     
     await updateDoc(doc(db, `repairs/${id}/items`, itemId), {
       quantity: newQty,
-      total_price: (item.unit_price - item.discount) * newQty
+      total_price: roundMoney(Math.max(0, item.unit_price - item.discount) * newQty)
     });
   };
 
@@ -201,7 +208,7 @@ export default function RepairDetail() {
     
     await updateDoc(doc(db, `repairs/${id}/items`, itemId), {
       unit_price: newPrice,
-      total_price: (newPrice - item.discount) * item.quantity
+      total_price: roundMoney(Math.max(0, newPrice - item.discount) * item.quantity)
     });
   };
 
@@ -212,15 +219,17 @@ export default function RepairDetail() {
     
     await updateDoc(doc(db, `repairs/${id}/items`, itemId), {
       discount: discount,
-      total_price: (item.unit_price - discount) * item.quantity
+      total_price: roundMoney(Math.max(0, item.unit_price - discount) * item.quantity)
     });
   };
 
   const handleUpdateRepair = async (updates: Partial<Repair>) => {
     if (!id) return;
     try {
+      const workspaceId = requireCompanyId(companyId);
       await updateDoc(doc(db, 'repairs', id), {
         ...updates,
+        company_id: workspaceId,
         updated_at: new Date().toISOString()
       });
       toast.success('Repair updated');
@@ -386,8 +395,9 @@ export default function RepairDetail() {
                           const existing = items.find(item => item.name === problem.name);
                           if (!existing) {
                             if (confirm(`This problem has a standard price of ${formatCurrency(problem.default_price)}. Would you like to add it to the repair items?`)) {
+                              const workspaceId = requireCompanyId(companyId);
                               await addDoc(collection(db, `repairs/${id}/items`), {
-                                company_id: companyId,
+                                company_id: workspaceId,
                                 product_id: `prob-${probId}`,
                                 name: problem.name,
                                 quantity: 1,

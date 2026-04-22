@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { 
   Upload, 
   FileText, 
@@ -15,7 +15,6 @@ import {
 } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import Papa from 'papaparse';
-import * as XLSX from 'xlsx';
 import { cn, formatCurrency } from '../../lib/utils';
 import { 
   ImportDataType, 
@@ -28,7 +27,8 @@ import { db } from '../../lib/firebase';
 import { collection, query, where, getDocs, writeBatch, doc } from 'firebase/firestore';
 import { toast } from 'sonner';
 import { useTenant } from '../../lib/tenant';
-import { isCompanyScopedRecord, withCompanyId } from '../../lib/companyData';
+import { withCompanyId } from '../../lib/companyData';
+import { companyQuery, requireCompanyId } from '../../lib/db';
 
 type Step = 'upload' | 'type' | 'mapping' | 'preview' | 'importing' | 'results';
 
@@ -91,84 +91,67 @@ export default function ImportSystem() {
     return String(rawValue).replace(/\u00a0/g, ' ').trim();
   };
 
+  const processRows = (rows: any[], fileHeaders: string[]) => {
+    setData(rows);
+    setHeaders(fileHeaders);
+
+    if (fileHeaders.includes('Offers Email') && fileHeaders.includes('Contact No')) {
+      setDataType('customers');
+      autoMap('customers', fileHeaders);
+      setStep('preview');
+      toast.success('CellStore Customer CSV detected. Fields were auto-mapped.');
+    } else if (fileHeaders.includes('Invoice #') && fileHeaders.includes('Qty Sold')) {
+      setDataType('sales');
+      autoMap('sales', fileHeaders);
+      setStep('preview');
+      toast.success('CellStore POS sales CSV detected. Historical sales are ready for preview.');
+    } else {
+      setStep('type');
+    }
+  };
+
   // 1. File Upload Handling
-  const onDrop = useCallback((acceptedFiles: File[]) => {
+  const onDrop = (acceptedFiles: File[]) => {
     const selectedFile = acceptedFiles[0];
     if (!selectedFile) return;
+
+    if (!selectedFile.name.toLowerCase().endsWith('.csv')) {
+      toast.error('Only CSV imports are supported in production mode. Export spreadsheets to CSV before importing.');
+      return;
+    }
 
     setFile(selectedFile);
     const reader = new FileReader();
 
     reader.onload = (e) => {
       const content = e.target?.result;
-      if (selectedFile.name.endsWith('.csv')) {
-        Papa.parse(content as string, {
-          header: true,
-          skipEmptyLines: true,
-          complete: (results) => {
-            setData(results.data);
-            const fileHeaders = results.meta.fields || [];
-            setHeaders(fileHeaders);
-            
-            // Auto-detect CellStore Customers
-            if (fileHeaders.includes('Offers Email') && fileHeaders.includes('Contact No')) {
-              setDataType('customers');
-              autoMap('customers', fileHeaders);
-              setStep('preview');
-              toast.success('CellStore Customer file detected! Auto-mapped all fields.');
-            } else if (fileHeaders.includes('Invoice #') && fileHeaders.includes('Qty Sold')) {
-              setDataType('sales');
-              autoMap('sales', fileHeaders);
-              setStep('preview');
-              toast.success('CellStore POS sales file detected! Historical sales are ready for preview.');
-            } else {
-              setStep('type');
-            }
+      Papa.parse(content as string, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+          if (results.errors.length > 0) {
+            toast.error(results.errors[0]?.message || 'CSV parsing failed.');
+            return;
           }
-        });
-      } else {
-        const workbook = XLSX.read(content, { type: 'binary' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
-        setData(jsonData);
-        if (jsonData.length > 0) {
-          const fileHeaders = Object.keys(jsonData[0] as object);
-          setHeaders(fileHeaders);
 
-          // Auto-detect CellStore Customers
-          if (fileHeaders.includes('Offers Email') && fileHeaders.includes('Contact No')) {
-            setDataType('customers');
-            autoMap('customers', fileHeaders);
-            setStep('preview');
-            toast.success('CellStore Customer file detected! Auto-mapped all fields.');
-          } else if (fileHeaders.includes('Invoice #') && fileHeaders.includes('Qty Sold')) {
-            setDataType('sales');
-            autoMap('sales', fileHeaders);
-            setStep('preview');
-            toast.success('CellStore POS sales file detected! Historical sales are ready for preview.');
-          } else {
-            setStep('type');
+          const fileHeaders = results.meta.fields || [];
+          if (fileHeaders.length === 0) {
+            toast.error('The CSV file has no header row.');
+            return;
           }
-        } else {
-          setStep('type');
+
+          processRows(results.data as any[], fileHeaders);
         }
-      }
+      });
     };
 
-    if (selectedFile.name.endsWith('.csv')) {
-      reader.readAsText(selectedFile);
-    } else {
-      reader.readAsBinaryString(selectedFile);
-    }
-  }, []);
+    reader.readAsText(selectedFile);
+  };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
       'text/csv': ['.csv'],
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
-      'application/vnd.ms-excel': ['.xls']
     } as any,
     multiple: false
   } as any);
@@ -280,7 +263,7 @@ export default function ImportSystem() {
             const docRef = doc(collection(db, dataType));
 
             let payload = {
-              ...withCompanyId(companyId, {}),
+              ...withCompanyId(requireCompanyId(companyId), {}),
               ...transformed,
               created_at: transformed.created_at || new Date().toISOString(),
               imported: true,
@@ -290,7 +273,7 @@ export default function ImportSystem() {
             if (dataType === 'customers') {
               const fullName = `${transformed.first_name || ''} ${transformed.last_name || ''}`.trim();
               payload = {
-                ...withCompanyId(companyId, {}),
+                ...withCompanyId(requireCompanyId(companyId), {}),
                 external_id: transformed.external_id || null,
                 created_at: transformed.created_at || new Date().toISOString(),
                 created_by: transformed.created_by || null,
@@ -362,15 +345,14 @@ export default function ImportSystem() {
       importResults.total = groupedSales.length;
 
       const [productsSnapshot, customersSnapshot] = await Promise.all([
-        getDocs(collection(db, 'products')),
-        getDocs(collection(db, 'customers')),
+        getDocs(companyQuery('products', companyId)),
+        getDocs(companyQuery('customers', companyId)),
       ]);
 
       const productBySku = new Map<string, any>();
       const productByName = new Map<string, any>();
       productsSnapshot.docs.forEach((productDoc) => {
         const product = { id: productDoc.id, ...productDoc.data() } as any;
-        if (!isCompanyScopedRecord(product, companyId)) return;
         const skuKey = normalizeText(product.sku || product.external_id);
         if (skuKey) productBySku.set(skuKey.toLowerCase(), product);
         const nameKey = normalizeText(product.name);
@@ -382,7 +364,6 @@ export default function ImportSystem() {
       const customerByName = new Map<string, any>();
       customersSnapshot.docs.forEach((customerDoc) => {
         const customer = { id: customerDoc.id, ...customerDoc.data() } as any;
-        if (!isCompanyScopedRecord(customer, companyId)) return;
         const emailKey = normalizeText(customer.email).toLowerCase();
         const phoneKey = normalizeText(customer.phone);
         const nameKey = normalizeText(customer.name).toLowerCase();
@@ -413,7 +394,7 @@ export default function ImportSystem() {
         if (!customer && customerName && customerName.toLowerCase() !== 'unassigned' && importMode === 'live' && batch) {
           const customerRef = doc(collection(db, 'customers'));
           const customerPayload = {
-            ...withCompanyId(companyId, {}),
+            ...withCompanyId(requireCompanyId(companyId), {}),
             first_name: customerName.split(' ')[0] || customerName,
             last_name: customerName.split(' ').slice(1).join(' ') || null,
             name: customerName,
@@ -454,7 +435,7 @@ export default function ImportSystem() {
         if (importMode === 'live' && batch) {
           const saleRef = doc(collection(db, 'sales'));
           batch.set(saleRef, {
-            ...withCompanyId(companyId, {}),
+            ...withCompanyId(requireCompanyId(companyId), {}),
             external_invoice_number: invoiceNumber,
             customer_id: customer?.id || null,
             customer_name: customerName && customerName.toLowerCase() !== 'unassigned' ? customerName : null,
@@ -467,6 +448,9 @@ export default function ImportSystem() {
             payments: [{ method: 'imported', amount: totalAmount, timestamp: createdAt }],
             staff_id: null,
             staff_name: staffName,
+            refunded_amount: 0,
+            refund_status: 'none',
+            refunded_item_quantities: {},
             created_at: createdAt,
             imported: true,
             import_batch: file?.name,
@@ -486,7 +470,7 @@ export default function ImportSystem() {
             const unitPrice = quantity > 0 ? lineTotal / quantity : lineTotal;
 
             const itemPayload = {
-              ...withCompanyId(companyId, {}),
+              ...withCompanyId(requireCompanyId(companyId), {}),
               sale_id: saleRef.id,
               product_id: product?.id || null,
               external_sku: sku || null,
@@ -610,7 +594,7 @@ export default function ImportSystem() {
             </div>
             <h3 className="text-lg font-bold text-gray-900 mb-2">Click or drag file to upload</h3>
             <p className="text-sm text-gray-500 max-w-xs mx-auto mb-6">
-              Support .csv, .xlsx, and .xls files. Maximum file size 10MB.
+              Support CSV files only. Export spreadsheets to CSV before importing. Maximum file size 10MB.
             </p>
             <div className="flex items-center justify-center gap-4 text-xs font-bold text-gray-400 uppercase tracking-widest">
               <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-green-500" /> Auto-detection</span>

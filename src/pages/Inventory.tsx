@@ -23,78 +23,87 @@ import { toast } from 'sonner';
 import Papa from 'papaparse';
 import { useDropzone } from 'react-dropzone';
 import { useTenant } from '../lib/tenant';
-import { filterByCompany, withCompanyId } from '../lib/companyData';
+import { withCompanyId } from '../lib/companyData';
 import { useSearchParams } from 'react-router-dom';
+import { companyQuery, requireCompanyId } from '../lib/db';
+import { hasPermission } from '../lib/permissions';
 
 const PAGE_SIZE = 100;
 
 const ProductRow = memo(function ProductRow({
   product,
   onEdit,
-  onDelete
+  onDelete,
+  canAdjustInventory,
 }: {
   product: Product;
   onEdit: (product: Product) => void;
   onDelete: (id: string) => void;
+  canAdjustInventory: boolean;
 }) {
   return (
-    <tr className="hover:bg-gray-50 transition-colors group">
+    <tr className="transition-colors group">
       <td className="px-6 py-4">
         <div>
-          <p className="font-semibold text-gray-900">{product.name}</p>
+          <p className="font-semibold text-white">{product.name}</p>
           <div className="flex flex-wrap gap-2 mt-1">
-            {product.sku && <p className="text-[10px] font-mono text-gray-400 bg-gray-100 px-1 rounded">SKU: {product.sku}</p>}
-            {product.barcode && <p className="text-[10px] font-mono text-gray-400 bg-gray-100 px-1 rounded">BC: {product.barcode}</p>}
-            {product.imei && <p className="text-[10px] font-mono text-gray-400 bg-gray-100 px-1 rounded">IMEI: {product.imei}</p>}
+            {product.sku && <p className="badge badge-muted rounded-md px-1 py-0 text-[10px] font-mono">SKU: {product.sku}</p>}
+            {product.barcode && <p className="badge badge-muted rounded-md px-1 py-0 text-[10px] font-mono">BC: {product.barcode}</p>}
+            {product.imei && <p className="badge badge-info rounded-md px-1 py-0 text-[10px] font-mono">IMEI: {product.imei}</p>}
           </div>
         </div>
       </td>
       <td className="px-6 py-4">
-        <span className="text-xs font-medium px-2 py-1 bg-gray-100 text-gray-600 rounded-full">
+        <span className="badge badge-muted">
           {product.category}
         </span>
       </td>
       <td className="px-6 py-4">
         <div className="text-sm">
-          <p className="font-bold text-gray-900">{formatCurrency(product.selling_price)}</p>
-          <p className="text-[10px] text-gray-400">Cost: {formatCurrency(product.cost_price)}</p>
+          <p className="font-bold text-white">{formatCurrency(product.selling_price)}</p>
+          <p className="text-[10px] text-zinc-500">Cost: {formatCurrency(product.cost_price)}</p>
         </div>
       </td>
       <td className="px-6 py-4">
         <div className="flex items-center gap-2">
           <span className={cn(
             "text-sm font-bold",
-            product.stock <= product.low_stock_threshold ? "text-red-600" : "text-gray-900"
+            product.stock <= product.low_stock_threshold ? "text-[#FCD34D]" : "text-white"
           )}>
             {product.stock}
           </span>
           {product.stock <= product.low_stock_threshold && (
-            <AlertTriangle className="w-4 h-4 text-red-500" />
+            <AlertTriangle className="w-4 h-4 text-[#F59E0B]" />
           )}
         </div>
       </td>
       <td className="px-6 py-4 text-right">
-        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button
-            onClick={() => onEdit(product)}
-            className="p-2 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-all"
-          >
-            <Edit2 className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => onDelete(product.id)}
-            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
+        {canAdjustInventory ? (
+          <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={() => onEdit(product)}
+              className="p-2 text-zinc-500 hover:text-[#3B82F6] hover:bg-[#3B82F6]/10 rounded-lg transition-all"
+            >
+              <Edit2 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => onDelete(product.id)}
+              className="p-2 text-zinc-500 hover:text-[#EF4444] hover:bg-[#EF4444]/10 rounded-lg transition-all"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        ) : (
+          <span className="text-xs text-zinc-500">View only</span>
+        )}
       </td>
     </tr>
   );
 });
 
 export default function Inventory() {
-  const { companyId } = useTenant();
+  const { companyId, profile } = useTenant();
+  const canAdjustInventory = hasPermission(profile, 'inventory.adjust');
   const [searchParams] = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState(searchParams.get('search') || '');
@@ -145,11 +154,8 @@ export default function Inventory() {
   async function fetchProducts() {
     setLoading(true);
     try {
-      const querySnapshot = await getDocs(query(collection(db, 'products'), orderBy('created_at', 'desc')));
-      const data = filterByCompany(
-        querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product)),
-        companyId
-      );
+      const querySnapshot = await getDocs(companyQuery('products', companyId, orderBy('created_at', 'desc')));
+      const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
       setProducts(data);
     } catch (error: any) {
       toast.error(error.message);
@@ -158,6 +164,11 @@ export default function Inventory() {
   }
 
   const handleOpenModal = (product?: Product) => {
+    if (!canAdjustInventory) {
+      toast.error('You do not have permission to adjust inventory.');
+      return;
+    }
+
     if (product) {
       setEditingProduct(product);
       setFormData({
@@ -190,10 +201,14 @@ export default function Inventory() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canAdjustInventory) {
+      toast.error('You do not have permission to adjust inventory.');
+      return;
+    }
     
     // IMEI Duplicate Check
     if (formData.imei) {
-      const q = query(collection(db, 'products'), where('imei', '==', formData.imei));
+      const q = companyQuery('products', companyId, where('imei', '==', formData.imei));
       const existing = await getDocs(q);
       
       const isDuplicate = existing.docs.some(d => d.id !== editingProduct?.id);
@@ -204,7 +219,8 @@ export default function Inventory() {
       }
     }
 
-    const payload = withCompanyId(companyId, {
+    const workspaceId = requireCompanyId(companyId);
+    const payload = withCompanyId(workspaceId, {
       ...formData,
       sku: formData.sku || null,
       barcode: formData.barcode || null,
@@ -233,6 +249,10 @@ export default function Inventory() {
 
   const handleImport = async () => {
     if (!selectedFile) return;
+    if (!canAdjustInventory) {
+      toast.error('You do not have permission to import inventory.');
+      return;
+    }
 
     setLoading(true);
     
@@ -265,7 +285,7 @@ export default function Inventory() {
 
             const newDoc = doc(productsCol);
             batch.set(newDoc, {
-              company_id: companyId || null,
+              company_id: requireCompanyId(companyId),
               name,
               category,
               sku,
@@ -317,6 +337,11 @@ export default function Inventory() {
   };
 
   const handleDelete = async (id: string) => {
+    if (!canAdjustInventory) {
+      toast.error('You do not have permission to delete products.');
+      return;
+    }
+
     if (!confirm('Are you sure you want to delete this product?')) return;
     
     try {
@@ -356,80 +381,84 @@ export default function Inventory() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.28em] text-[#7b5c3c] font-semibold mb-2">Stock Control</p>
-          <h1 className="display-font text-4xl font-bold text-[#18242b]">Products</h1>
-          <p className="text-[#5d6468] mt-2">Manage your products, pricing, and stock levels.</p>
+          <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500 font-semibold mb-2">Stock Control</p>
+          <h1 className="text-4xl font-black text-white">Products</h1>
+          <p className="text-zinc-400 mt-2">Manage products, pricing, stock levels, SKU, barcode, and IMEI tracking.</p>
         </div>
         <div className="flex gap-2">
-          <button 
-            onClick={() => setIsImportModalOpen(true)}
-            className="section-card text-[#4b5357] px-4 py-2 rounded-xl font-medium flex items-center gap-2 hover:bg-white transition-all"
-          >
-            <Upload className="w-4 h-4" />
-            Import CSV
-          </button>
-          <button 
-            onClick={() => handleOpenModal()}
-            className="appleberry-gradient text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 hover:opacity-90 transition-all shadow-sm"
-          >
-            <Plus className="w-5 h-5" />
-            Add Product
-          </button>
+          {canAdjustInventory && (
+            <>
+              <button 
+                onClick={() => setIsImportModalOpen(true)}
+                className="btn btn-secondary"
+              >
+                <Upload className="w-4 h-4" />
+                Import CSV
+              </button>
+              <button 
+                onClick={() => handleOpenModal()}
+                className="btn btn-primary"
+              >
+                <Plus className="w-5 h-5" />
+                Add Product
+              </button>
+            </>
+          )}
         </div>
       </div>
 
       {/* Filters & Search */}
-      <div className="section-card flex gap-4 p-4 rounded-[24px]">
+      <div className="section-card flex gap-4 p-4 rounded-xl">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
             type="text"
             placeholder="Search by name, SKU, barcode, or IMEI..."
-            className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-transparent rounded-lg focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+            className="w-full pl-10 pr-4 py-2 transition-all"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <button className="px-4 py-2 bg-gray-50 text-gray-600 rounded-lg border border-transparent hover:bg-white hover:border-gray-200 transition-all flex items-center gap-2">
+        <button className="btn btn-secondary">
           <Filter className="w-4 h-4" />
           Filters
         </button>
       </div>
 
-      <div className="flex items-center justify-between text-sm text-[#5d6468] px-1">
+      <div className="flex items-center justify-between text-sm text-zinc-400 px-1">
         <p>
-          Showing <span className="font-semibold text-[#18242b]">{visibleProducts.length}</span> of{' '}
-          <span className="font-semibold text-[#18242b]">{filteredProducts.length}</span> products
+          Showing <span className="font-semibold text-white">{visibleProducts.length}</span> of{' '}
+          <span className="font-semibold text-white">{filteredProducts.length}</span> products
         </p>
         {!!search.trim() && (
-          <p className="text-[#7b5c3c]">
+          <p className="text-zinc-500">
             Searching for <span className="font-semibold">“{search.trim()}”</span>
           </p>
         )}
       </div>
 
       {/* Product Table */}
-      <div className="section-card rounded-[24px] overflow-hidden">
-        <table className="w-full text-left border-collapse">
+      <div className="section-card rounded-xl overflow-hidden">
+        <table className="ops-table w-full text-left">
           <thead>
-            <tr className="bg-gray-50 border-b border-gray-100">
-              <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Product</th>
-              <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Category</th>
-              <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Price</th>
-              <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Stock</th>
-              <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Actions</th>
+            <tr>
+              <th className="px-6 py-4">Product</th>
+              <th className="px-6 py-4">Category</th>
+              <th className="px-6 py-4">Price</th>
+              <th className="px-6 py-4">Stock</th>
+              <th className="px-6 py-4 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
+          <tbody>
             {loading && products.length === 0 ? (
               [1,2,3,4,5].map(i => (
                 <tr key={i} className="animate-pulse">
-                  <td colSpan={5} className="px-6 py-4"><div className="h-4 bg-gray-100 rounded w-full"></div></td>
+                <td colSpan={5} className="px-6 py-4"><div className="h-4 bg-[#242429] rounded w-full"></div></td>
                 </tr>
               ))
             ) : filteredProducts.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
+                <td colSpan={5} className="px-6 py-12 text-center text-zinc-500">
                   <Package className="w-12 h-12 mx-auto mb-2 opacity-20" />
                   <p>No products found</p>
                 </td>
@@ -441,6 +470,7 @@ export default function Inventory() {
                   product={product}
                   onEdit={handleOpenModal}
                   onDelete={handleDelete}
+                  canAdjustInventory={canAdjustInventory}
                 />
               ))
             )}

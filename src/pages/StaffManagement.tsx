@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { ALL_PERMISSIONS, PERMISSION_GROUPS, PermissionKey, PermissionPreset, PRESET_PERMISSIONS, getDefaultPermissions, normalizePermissions } from '../lib/permissions';
 import { getCompanySettingsDocId } from '../lib/company';
 import axios from 'axios';
+import { companyQuery, requireCompanyId } from '../lib/db';
 
 type StaffStatus = 'active' | 'inactive';
 
@@ -86,13 +87,9 @@ export default function StaffManagement() {
   async function fetchStaff() {
     setLoading(true);
     try {
-      const snapshot = await getDocs(collection(db, 'profiles'));
+      const snapshot = await getDocs(companyQuery('profiles', companyId));
       const profiles = snapshot.docs
         .map((profileDoc) => ({ id: profileDoc.id, ...profileDoc.data() } as StaffProfile))
-        .filter((member) => {
-          if (!companyId) return true;
-          return member.company_id === companyId;
-        })
         .sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''));
       setStaff(profiles);
     } catch (error: any) {
@@ -151,7 +148,7 @@ export default function StaffManagement() {
       phone: formData.phone || null,
       branch: formData.branch || null,
       title: formData.title || null,
-      company_id: companyId,
+      company_id: requireCompanyId(companyId),
       status: formData.status,
       updated_at: new Date().toISOString(),
     };

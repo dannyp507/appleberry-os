@@ -1,16 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Database, 
-  Download, 
   Upload, 
-  Settings, 
-  Users, 
-  Package, 
-  Wrench, 
-  ShoppingCart, 
-  FileText, 
-  Wallet,
-  History,
   ChevronRight,
   MessageSquare
 } from 'lucide-react';
@@ -19,28 +10,16 @@ import ImportSystem from '../components/import/ImportSystem';
 import ManageProblems from '../components/manage/ManageProblems';
 import CommunicationSettings from '../components/manage/CommunicationSettings';
 import ShopSettings from '../components/manage/ShopSettings';
-import PlaceholderPage from './PlaceholderPage';
 
-type ManageSection = 'export' | 'import' | 'suppliers' | 'categories' | 'manufacturers' | 'problems' | 'models' | 'vendors' | 'expenses' | 'customer-types' | 'prices' | 'commissions' | 'gdpr' | 'communication' | 'shop';
+type ManageSection = 'import' | 'problems' | 'communication' | 'shop';
 
 export default function ManageData() {
   const [activeSection, setActiveSection] = useState<ManageSection>('import');
 
   const menuItems = [
     { id: 'shop', label: 'Shop Settings', icon: Store },
-    { id: 'export', label: 'Export Data', icon: Download },
     { id: 'import', label: 'Import Data', icon: Upload },
-    { id: 'suppliers', label: 'Manage Suppliers', icon: Truck },
-    { id: 'categories', label: 'Manage Product Categories', icon: Tag },
-    { id: 'manufacturers', label: 'Manage Manufacturers', icon: Factory },
     { id: 'problems', label: 'Manage Repair Problems', icon: AlertCircle },
-    { id: 'models', label: 'Manage Brand Models', icon: Smartphone },
-    { id: 'vendors', label: 'Manage Vendors', icon: Store },
-    { id: 'expenses', label: 'Manage Expense Type', icon: Wallet },
-    { id: 'customer-types', label: 'Manage Customer Type', icon: Users },
-    { id: 'prices', label: 'Manage Conditional Prices', icon: DollarSign },
-    { id: 'commissions', label: 'Manage Commissions', icon: Percent },
-    { id: 'gdpr', label: 'Manage EU GDPR', icon: ShieldCheck },
     { id: 'communication', label: 'Communication Settings', icon: MessageSquare },
   ];
 
@@ -75,29 +54,6 @@ export default function ManageData() {
             <ImportSystem />
           </div>
         );
-      case 'export':
-        return (
-          <div className="space-y-6">
-            <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Export Data</h2>
-              <p className="text-gray-500 mb-8">
-                Export your business data for backup, reporting, or migration purposes. Download your product inventory, customer records, sales history, and other critical information in various formats for external use or analysis.
-              </p>
-              <div className="flex gap-4 items-center p-6 bg-gray-50 rounded-xl border border-gray-200">
-                <select className="flex-1 bg-white border border-gray-200 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary/20 outline-none">
-                  <option>Choose data type to Export</option>
-                  <option>Customers</option>
-                  <option>Products</option>
-                  <option>Sales</option>
-                  <option>Repairs</option>
-                </select>
-                <button className="bg-green-500 text-white px-8 py-2 rounded-lg font-bold hover:bg-green-600 transition-all">
-                  Export
-                </button>
-              </div>
-            </div>
-          </div>
-        );
       case 'problems':
         return <ManageProblems />;
       case 'communication':
@@ -105,8 +61,7 @@ export default function ManageData() {
       case 'shop':
         return <ShopSettings />;
       default:
-        const item = menuItems.find(i => i.id === activeSection);
-        return <PlaceholderPage title={item?.label || 'Manage Data'} />;
+        return <ImportSystem />;
     }
   };
 
@@ -159,4 +114,4 @@ export default function ManageData() {
 }
 
 // Helper icons for the menu
-import { Truck, Tag, Factory, AlertCircle, Smartphone, Store, DollarSign, Percent, ShieldCheck } from 'lucide-react';
+import { AlertCircle, Store } from 'lucide-react';

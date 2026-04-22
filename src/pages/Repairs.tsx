@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { db, auth } from '../lib/firebase';
-import { collection, query, getDocs, addDoc, updateDoc, doc, orderBy, onSnapshot, writeBatch, where, setDoc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, doc, orderBy, onSnapshot, writeBatch } from 'firebase/firestore';
 import { 
   Plus, 
   Search, 
@@ -15,19 +15,72 @@ import {
   X,
   FileText,
   Download,
-  Filter
+  Filter,
+  AlertTriangle,
+  CheckCircle2
 } from 'lucide-react';
 import { Repair, RepairStatus, Customer, Profile, RepairProblem } from '../types';
 import { formatCurrency, cn, safeFormatDate } from '../lib/utils';
 import { toast } from 'sonner';
-import { format, formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import Papa from 'papaparse';
 import { useDropzone } from 'react-dropzone';
 
 import { useNavigate } from 'react-router-dom';
 import { useSearchParams } from 'react-router-dom';
 import { useTenant } from '../lib/tenant';
-import { filterByCompany, withCompanyId } from '../lib/companyData';
+import { withCompanyId } from '../lib/companyData';
+import { companyQuery, requireCompanyId } from '../lib/db';
+import { buildTicketNumber } from '../lib/business';
+
+const getStatusTone = (statusName?: string | null, updatedAt?: string) => {
+  const name = (statusName || '').toLowerCase();
+  const updatedTime = updatedAt ? new Date(updatedAt).getTime() : Date.now();
+  const daysSinceUpdate = Number.isFinite(updatedTime) ? (Date.now() - updatedTime) / 86400000 : 0;
+
+  if (
+    name.includes('overdue') ||
+    name.includes('problem') ||
+    name.includes('blocked') ||
+    name.includes('failed') ||
+    name.includes('cancel')
+  ) {
+    return 'danger';
+  }
+
+  if (name.includes('waiting') || name.includes('pending') || name.includes('parts') || name.includes('hold')) {
+    return 'warning';
+  }
+
+  if (
+    name.includes('ready') ||
+    name.includes('complete') ||
+    name.includes('completed') ||
+    name.includes('collected') ||
+    name.includes('paid')
+  ) {
+    return 'success';
+  }
+
+  if (daysSinceUpdate >= 7) {
+    return 'danger';
+  }
+
+  return 'info';
+};
+
+const getStatusClasses = (tone: string) => {
+  switch (tone) {
+    case 'success':
+      return 'border-[#22C55E]/35 bg-[#22C55E]/12 text-[#86EFAC] shadow-[0_0_22px_rgba(34,197,94,0.10)]';
+    case 'warning':
+      return 'border-[#F59E0B]/35 bg-[#F59E0B]/12 text-[#FCD34D] shadow-[0_0_22px_rgba(245,158,11,0.10)]';
+    case 'danger':
+      return 'border-[#EF4444]/35 bg-[#EF4444]/12 text-[#FCA5A5] shadow-[0_0_22px_rgba(239,68,68,0.10)]';
+    default:
+      return 'border-[#3B82F6]/35 bg-[#3B82F6]/12 text-[#93C5FD] shadow-[0_0_22px_rgba(59,130,246,0.10)]';
+  }
+};
 
 export default function Repairs() {
   const navigate = useNavigate();
@@ -72,12 +125,13 @@ export default function Repairs() {
     fetchStaff();
 
     // Real-time subscription
-    const q = query(collection(db, 'repairs'), orderBy('updated_at', 'desc'));
+    if (!companyId) return;
+    const q = companyQuery('repairs', companyId, orderBy('updated_at', 'desc'));
     const unsubscribe = onSnapshot(q, async (snapshot) => {
-      const data = filterByCompany(snapshot.docs.map((repairDoc) => ({
+      const data = snapshot.docs.map((repairDoc) => ({
         id: repairDoc.id,
         ...repairDoc.data()
-      } as Repair)), companyId);
+      } as Repair));
       
       setRepairs(data);
       setLoading(false);
@@ -92,25 +146,25 @@ export default function Repairs() {
   }, [searchParams]);
 
   async function fetchStatuses() {
-    const querySnapshot = await getDocs(query(collection(db, 'repair_status_options'), orderBy('order_index')));
-    const data = filterByCompany(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RepairStatus)), companyId);
+    const querySnapshot = await getDocs(companyQuery('repair_status_options', companyId, orderBy('order_index')));
+    const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RepairStatus));
     setStatuses(data);
   }
 
   async function fetchCustomers() {
-    const querySnapshot = await getDocs(query(collection(db, 'customers'), orderBy('name')));
-    const data = filterByCompany(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer)), companyId);
+    const querySnapshot = await getDocs(companyQuery('customers', companyId, orderBy('name')));
+    const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
     setCustomers(data);
   }
 
   async function fetchProblems() {
-    const querySnapshot = await getDocs(collection(db, 'repair_problems'));
-    setProblems(filterByCompany(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RepairProblem)), companyId));
+    const querySnapshot = await getDocs(companyQuery('repair_problems', companyId));
+    setProblems(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RepairProblem)));
   }
 
   async function fetchStaff() {
-    const querySnapshot = await getDocs(collection(db, 'profiles'));
-    setStaff(filterByCompany(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Profile)), companyId));
+    const querySnapshot = await getDocs(companyQuery('profiles', companyId));
+    setStaff(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Profile)));
   }
 
   const handleImport = async () => {
@@ -125,6 +179,7 @@ export default function Repairs() {
         try {
           const rows = results.data as any[];
           let importCount = 0;
+          const workspaceId = requireCompanyId(companyId);
           
           // Pre-fetch data for mapping
           const currentCustomers = [...customers];
@@ -147,7 +202,7 @@ export default function Repairs() {
 
             if (!customer) {
               const customerData = {
-                ...withCompanyId(companyId, {}),
+                ...withCompanyId(workspaceId, {}),
                 first_name: firstName,
                 last_name: lastName,
                 name: `${firstName} ${lastName}`.trim(),
@@ -176,7 +231,7 @@ export default function Repairs() {
             if (!status) {
               // Create status if not exists
               const statusData = {
-                ...withCompanyId(companyId, {}),
+                ...withCompanyId(workspaceId, {}),
                 name: statusName,
                 color: '#94a3b8',
                 order_index: currentStatuses.length
@@ -191,7 +246,7 @@ export default function Repairs() {
             const problemName = row['Problem'] || 'General Repair';
             let problem = currentProblems.find(p => p.name.toLowerCase() === problemName.toLowerCase());
             if (!problem) {
-              const problemData = { ...withCompanyId(companyId, {}), name: problemName, created_at: new Date().toISOString() };
+              const problemData = { ...withCompanyId(workspaceId, {}), name: problemName, created_at: new Date().toISOString() };
               const problemRef = await addDoc(collection(db, 'repair_problems'), problemData);
               problem = { id: problemRef.id, ...problemData } as RepairProblem;
               currentProblems.push(problem);
@@ -220,9 +275,9 @@ export default function Repairs() {
             const cost = parseFloat((row['Cost'] || row['Price'] || row['Total'] || row['Amount'] || '0').replace(/[^0-9.]/g, '')) || 0;
 
             const repairData = {
-              ...withCompanyId(companyId, {}),
+              ...withCompanyId(workspaceId, {}),
               customer_id: customer.id,
-              ticket_number: row['Ticket #'] || '',
+              ticket_number: row['Ticket #'] || buildTicketNumber(),
               device_name: `${row['Brand'] || ''} ${row['Model'] || ''}`.trim() || 'Unknown Device',
               imei: row['IMEI/Serial No.'] || '',
               issue_description: row['Problem'] || '',
@@ -266,13 +321,14 @@ export default function Repairs() {
     try {
       const repairRef = doc(db, 'repairs', repairId);
       await updateDoc(repairRef, { 
+        company_id: requireCompanyId(companyId),
         status_id: newStatusId, 
         updated_at: new Date().toISOString() 
       });
 
       // Add to history
       await addDoc(collection(db, `repairs/${repairId}/history`), {
-        company_id: companyId,
+        company_id: requireCompanyId(companyId),
         repair_id: repairId,
         status_id: newStatusId,
         changed_by: user.uid,
@@ -354,25 +410,81 @@ export default function Repairs() {
     }
   };
 
+  const queueSummary = useMemo(() => {
+    return enrichedRepairs.reduce(
+      (acc, repair) => {
+        const statusName = repair.status?.name || '';
+        const tone = getStatusTone(statusName, repair.updated_at);
+        const normalized = statusName.toLowerCase();
+        const isClosed =
+          normalized.includes('collected') ||
+          normalized.includes('cancelled') ||
+          normalized.includes('complete') ||
+          normalized.includes('completed');
+
+        if (!isClosed && tone !== 'warning' && tone !== 'danger') acc.open += 1;
+        if (tone === 'warning') acc.waiting += 1;
+        if (tone === 'success') acc.ready += 1;
+        if (tone === 'danger') acc.overdue += 1;
+
+        return acc;
+      },
+      { open: 0, waiting: 0, ready: 0, overdue: 0 }
+    );
+  }, [enrichedRepairs]);
+
+  const hasActiveFilters = Boolean(search || statusFilter !== 'All Statuses' || technicianFilter !== 'All Technicians');
+
+  const summaryCards = [
+    {
+      label: 'Open',
+      value: queueSummary.open,
+      icon: Wrench,
+      classes: 'border-[#3B82F6]/30 bg-[#3B82F6]/10 text-[#93C5FD]',
+      hint: 'Active bench jobs'
+    },
+    {
+      label: 'Waiting Parts',
+      value: queueSummary.waiting,
+      icon: Clock,
+      classes: 'border-[#F59E0B]/30 bg-[#F59E0B]/10 text-[#FCD34D]',
+      hint: 'Needs attention'
+    },
+    {
+      label: 'Ready',
+      value: queueSummary.ready,
+      icon: CheckCircle2,
+      classes: 'border-[#22C55E]/30 bg-[#22C55E]/10 text-[#86EFAC]',
+      hint: 'Ready or done'
+    },
+    {
+      label: 'Overdue',
+      value: queueSummary.overdue,
+      icon: AlertTriangle,
+      classes: 'border-[#EF4444]/30 bg-[#EF4444]/10 text-[#FCA5A5]',
+      hint: 'Blocked or stale'
+    }
+  ];
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <p className="text-[11px] uppercase tracking-[0.28em] text-[#7b5c3c] font-semibold mb-2">Workshop Flow</p>
-          <h1 className="display-font text-4xl font-bold text-[#18242b]">Repairs</h1>
-          <p className="text-[#5d6468] mt-2">Track active repair jobs, assignments, service issues, and workshop turnaround.</p>
+      <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+        <div className="max-w-3xl">
+          <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500 font-semibold mb-2">Workshop Flow</p>
+          <h1 className="text-4xl font-black text-white">Repairs</h1>
+          <p className="text-zinc-400 mt-2">Track active repair jobs, assignments, service issues, and workshop turnaround.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-3">
           <button 
             onClick={() => setIsImportModalOpen(true)}
-            className="section-card text-[#4b5357] px-4 py-2 rounded-xl font-medium flex items-center gap-2 hover:bg-white transition-all"
+            className="btn btn-secondary justify-center"
           >
             <Upload className="w-4 h-4" />
             Import CSV
           </button>
           <button 
             onClick={() => navigate('/repairs/new')}
-            className="appleberry-gradient text-white px-4 py-2 rounded-xl font-medium flex items-center gap-2 hover:opacity-90 transition-all shadow-sm"
+            className="btn btn-primary justify-center px-5 py-3 text-sm shadow-[0_0_28px_rgba(34,197,94,0.18)]"
           >
             <Plus className="w-5 h-5" />
             New Repair Job
@@ -380,22 +492,46 @@ export default function Repairs() {
         </div>
       </div>
 
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+        {summaryCards.map((item) => {
+          const Icon = item.icon;
+          return (
+            <div key={item.label} className={cn('rounded-xl border p-4', item.classes)}>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.16em] font-bold opacity-80">{item.label}</p>
+                  <p className="mt-2 text-3xl font-black text-white">{item.value}</p>
+                  <p className="mt-1 text-xs text-zinc-400">{item.hint}</p>
+                </div>
+                <div className="h-11 w-11 rounded-lg bg-black/25 flex items-center justify-center">
+                  <Icon className="w-5 h-5" />
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
       {/* Filters */}
-      <div className="section-card rounded-[24px] p-4 space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="section-card rounded-xl p-4 space-y-4 border border-[#2A2A2E]">
+        <div className="flex items-center gap-2 text-xs uppercase tracking-[0.16em] text-zinc-500 font-bold">
+          <Filter className="w-4 h-4 text-[#3B82F6]" />
+          Queue Controls
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr_1fr_auto] gap-3">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
             <input
               type="text"
-              placeholder="Search Repairs..."
-              className="w-full pl-9 pr-4 py-2.5 bg-white/90 border border-[#dbc8b2] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              placeholder="Search ticket, customer, device, IMEI..."
+              className="w-full pl-10 pr-4 py-3 text-sm"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
 
           <select
-            className="bg-white/90 border border-[#dbc8b2] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="px-3 py-3 text-sm"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
           >
@@ -407,7 +543,7 @@ export default function Repairs() {
           </select>
 
           <select
-            className="bg-white/90 border border-[#dbc8b2] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="px-3 py-3 text-sm"
             value={technicianFilter}
             onChange={(e) => setTechnicianFilter(e.target.value)}
           >
@@ -417,14 +553,15 @@ export default function Repairs() {
             ))}
           </select>
 
-          <div className="flex items-center justify-end gap-2">
+          <div className="flex items-center justify-end">
             <button 
               onClick={() => {
                 setSearch('');
                 setStatusFilter('All Statuses');
                 setTechnicianFilter('All Technicians');
               }}
-              className="text-xs text-gray-500 hover:text-primary font-medium"
+              className="px-3 py-2 text-xs text-zinc-500 hover:text-[#3B82F6] font-semibold transition-colors disabled:opacity-30 disabled:hover:text-zinc-500"
+              disabled={!hasActiveFilters}
             >
               Clear Filters
             </button>
@@ -433,72 +570,142 @@ export default function Repairs() {
       </div>
 
       {/* Repairs Table */}
-      <div className="section-card rounded-[24px] overflow-hidden">
+      <div className="section-card rounded-xl overflow-hidden border border-[#2A2A2E]">
+        <div className="flex flex-col gap-2 border-b border-[#2A2A2E] bg-[#141416] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-bold text-white">Workshop Queue</p>
+            <p className="text-xs text-zinc-500">
+              Showing {filteredRepairs.length} of {enrichedRepairs.length} repair jobs
+            </p>
+          </div>
+          <p className="text-xs text-zinc-500">Rows open full repair details</p>
+        </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-[#f7efe5] border-b border-[#e4d2bd] text-[#655b55] font-bold">
+          <table className="w-full min-w-[1080px] border-separate border-spacing-0 text-sm text-left">
+            <thead className="bg-[#101012]">
               <tr>
-                <th className="px-6 py-4">Name</th>
-                <th className="px-6 py-4">Ticket</th>
-                <th className="px-6 py-4">Device</th>
-                <th className="px-6 py-4">Tech</th>
-                <th className="px-6 py-4">Problem</th>
-                <th className="px-6 py-4">Created</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4 text-right">Last Update</th>
+                <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500">Ticket</th>
+                <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500">Customer</th>
+                <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500">Device</th>
+                <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500">Status</th>
+                <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500">Technician</th>
+                <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500">Problem</th>
+                <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500 text-right">Value</th>
+                <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500 text-right">Updated</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody>
               {loading && repairs.length === 0 ? (
                 [1,2,3,4,5].map(i => (
                   <tr key={i} className="animate-pulse">
-                    <td colSpan={8} className="px-6 py-4 h-16 bg-gray-50/50"></td>
+                    <td colSpan={8} className="px-5 py-3">
+                      <div className="h-16 rounded-lg bg-[#202024]/70" />
+                    </td>
                   </tr>
                 ))
               ) : filteredRepairs.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-gray-400 italic">
-                    No repair jobs found.
+                  <td colSpan={8} className="px-6 py-16">
+                    <div className="mx-auto max-w-md text-center">
+                      <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-[#2A2A2E] bg-[#141416] text-[#3B82F6]">
+                        <Wrench className="h-7 w-7" />
+                      </div>
+                      <h3 className="text-lg font-bold text-white">
+                        {hasActiveFilters ? 'No repair jobs match these filters' : 'No repair jobs in the queue'}
+                      </h3>
+                      <p className="mt-2 text-sm text-zinc-400">
+                        {hasActiveFilters
+                          ? 'Try clearing filters or searching by ticket, customer, device, or IMEI.'
+                          : 'Create the first repair job to start tracking intake, technician assignment, status, and customer updates.'}
+                      </p>
+                      <div className="mt-6 flex justify-center gap-3">
+                        {hasActiveFilters && (
+                          <button
+                            onClick={() => {
+                              setSearch('');
+                              setStatusFilter('All Statuses');
+                              setTechnicianFilter('All Technicians');
+                            }}
+                            className="btn btn-secondary"
+                          >
+                            Clear Filters
+                          </button>
+                        )}
+                        <button onClick={() => navigate('/repairs/new')} className="btn btn-primary">
+                          <Plus className="w-4 h-4" />
+                          New Repair Job
+                        </button>
+                      </div>
+                    </div>
                   </td>
                 </tr>
               ) : (
-                filteredRepairs.map(repair => (
+                filteredRepairs.map(repair => {
+                  const statusName = repair.status?.name || 'New';
+                  const statusTone = getStatusTone(statusName, repair.updated_at);
+                  const displayTicket = repair.ticket_number || `#${repair.id.substring(0, 8)}`;
+                  const problemText = repair.problem?.name || repair.issue_description || 'General repair';
+                  const customerName = repair.customer?.name || 'Unknown customer';
+                  const technicianName = repair.technician?.full_name || 'Unassigned';
+
+                  return (
                   <tr 
                     key={repair.id} 
-                    className="hover:bg-[#fbf4eb] transition-colors cursor-pointer"
+                    className="group cursor-pointer border-b border-[#2A2A2E] transition-colors hover:bg-[#1C1C1F]"
                     onClick={() => navigate(`/repairs/${repair.id}`)}
                   >
-                    <td className="px-6 py-4 font-medium text-gray-900">
-                      {repair.customer?.name || 'Unknown'}
+                    <td className="border-b border-[#2A2A2E] px-5 py-4 align-top">
+                      <div className="flex items-center gap-3">
+                        <div className={cn('h-10 w-10 shrink-0 rounded-lg border flex items-center justify-center', getStatusClasses(statusTone))}>
+                          <Wrench className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="font-mono text-sm font-black text-white">{displayTicket}</p>
+                          <p className="mt-1 text-[11px] uppercase tracking-[0.12em] text-zinc-500">
+                            {safeFormatDate(repair.created_at, 'dd MMM')}
+                          </p>
+                        </div>
+                      </div>
                     </td>
-                    <td className="px-6 py-4 font-mono text-xs text-gray-500">
-                      {repair.ticket_number || repair.id.substring(0, 8)}
+                    <td className="border-b border-[#2A2A2E] px-5 py-4 align-top">
+                      <p className="font-semibold text-white">{customerName}</p>
+                      <p className="mt-1 text-xs text-zinc-500">Customer record</p>
                     </td>
-                    <td className="px-6 py-4 text-gray-600">
-                      {repair.device_name}
+                    <td className="border-b border-[#2A2A2E] px-5 py-4 align-top">
+                      <div className="flex items-start gap-2">
+                        <Smartphone className="mt-0.5 h-4 w-4 shrink-0 text-zinc-500" />
+                        <div>
+                          <p className="font-semibold text-zinc-100">{repair.device_name || 'Unknown device'}</p>
+                          {repair.imei && <p className="mt-1 font-mono text-xs text-zinc-500">IMEI {repair.imei}</p>}
+                        </div>
+                      </div>
                     </td>
-                    <td className="px-6 py-4 text-gray-600">
-                      {repair.technician?.full_name || 'Unassigned'}
-                    </td>
-                    <td className="px-6 py-4 text-gray-600">
-                      {repair.problem?.name || repair.issue_description || 'General'}
-                    </td>
-                    <td className="px-6 py-4 text-gray-500 whitespace-nowrap">
-                      {safeFormatDate(repair.created_at, 'dd-MM-yyyy HH:mm')}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span 
-                        className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider text-white shadow-sm"
-                        style={{ backgroundColor: repair.status?.color || '#94a3b8' }}
-                      >
-                        {repair.status?.name || 'New'}
+                    <td className="border-b border-[#2A2A2E] px-5 py-4 align-top">
+                      <span className={cn('inline-flex items-center rounded-full border px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em]', getStatusClasses(statusTone))}>
+                        {statusName}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-right text-gray-400 text-xs whitespace-nowrap">
-                      {formatRelativeTime(repair.updated_at)}
+                    <td className="border-b border-[#2A2A2E] px-5 py-4 align-top">
+                      <div className="inline-flex max-w-[180px] items-center gap-2 rounded-lg border border-[#2A2A2E] bg-[#141416] px-3 py-2">
+                        <User className="h-4 w-4 shrink-0 text-[#3B82F6]" />
+                        <span className={cn('truncate text-sm font-semibold', repair.technician ? 'text-zinc-100' : 'text-[#F59E0B]')}>
+                          {technicianName}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="border-b border-[#2A2A2E] px-5 py-4 align-top">
+                      <p className="line-clamp-2 max-w-[260px] text-sm leading-5 text-zinc-300">{problemText}</p>
+                    </td>
+                    <td className="border-b border-[#2A2A2E] px-5 py-4 text-right align-top font-semibold text-zinc-100">
+                      {formatCurrency(repair.total_amount || repair.cost || 0)}
+                    </td>
+                    <td className="border-b border-[#2A2A2E] px-5 py-4 text-right align-top">
+                      <p className="text-xs font-semibold text-zinc-300 whitespace-nowrap">{formatRelativeTime(repair.updated_at)}</p>
+                      <p className="mt-1 text-[11px] text-zinc-500 whitespace-nowrap">{safeFormatDate(repair.updated_at, 'dd MMM HH:mm')}</p>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -507,16 +714,16 @@ export default function Repairs() {
 
       {/* Import Modal */}
       {isImportModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-          <div className="app-panel rounded-[28px] w-full max-w-2xl shadow-2xl overflow-hidden">
-            <div className="p-6 border-b border-[#e6d7c6] flex items-center justify-between bg-[#fbf4eb]">
-              <h2 className="text-xl font-bold">Import Repairs</h2>
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+          <div className="app-panel rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden border border-[#2A2A2E]">
+            <div className="p-6 border-b border-[#2A2A2E] flex items-center justify-between bg-[#141416]">
+              <h2 className="text-xl font-bold text-white">Import Repairs</h2>
               <button 
                 onClick={() => {
                   setIsImportModalOpen(false);
                   setSelectedFile(null);
                 }} 
-                className="text-gray-400 hover:text-gray-600"
+                className="text-zinc-500 hover:text-white"
               >
                 <X className="w-6 h-6" />
               </button>
@@ -525,16 +732,16 @@ export default function Repairs() {
               <div 
                 {...getRootProps()} 
                 className={cn(
-                  "border-2 border-dashed rounded-2xl p-12 text-center transition-all cursor-pointer",
-                  isDragActive ? "border-primary bg-primary/5" : "border-[#dbc8b2] hover:border-primary/50 hover:bg-[#fbf4eb]",
-                  selectedFile ? "border-green-500 bg-green-50" : ""
+                  "border-2 border-dashed rounded-2xl p-12 text-center transition-all cursor-pointer bg-[#141416]",
+                  isDragActive ? "border-[#3B82F6] bg-[#3B82F6]/10" : "border-[#2A2A2E] hover:border-[#3B82F6]/60",
+                  selectedFile ? "border-[#22C55E] bg-[#22C55E]/10" : ""
                 )}
               >
                 <input {...getInputProps()} />
                 <div className="flex flex-col items-center gap-4">
                   <div className={cn(
                     "w-16 h-16 rounded-full flex items-center justify-center",
-                    selectedFile ? "bg-green-100 text-green-600" : "bg-primary/10 text-primary"
+                    selectedFile ? "bg-[#22C55E]/15 text-[#86EFAC]" : "bg-[#3B82F6]/15 text-[#93C5FD]"
                   )}>
                     {selectedFile ? <FileText className="w-8 h-8" /> : <Upload className="w-8 h-8" />}
                   </div>
@@ -542,14 +749,14 @@ export default function Repairs() {
                     {selectedFile ? (
                       <>
                         <p className="font-bold text-gray-900">{selectedFile.name}</p>
-                        <p className="text-sm text-gray-500">{(selectedFile.size / 1024).toFixed(2)} KB</p>
+                        <p className="text-sm text-zinc-500">{(selectedFile.size / 1024).toFixed(2)} KB</p>
                       </>
                     ) : (
                       <>
-                        <p className="font-bold text-gray-900">
+                        <p className="font-bold text-white">
                           {isDragActive ? "Drop the file here" : "Click or drag CSV file to upload"}
                         </p>
-                        <p className="text-sm text-gray-500">Only .csv files are supported</p>
+                        <p className="text-sm text-zinc-500">Only .csv files are supported</p>
                       </>
                     )}
                   </div>
@@ -557,12 +764,12 @@ export default function Repairs() {
               </div>
 
               {selectedFile && (
-                <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-3">
-                  <div className="text-blue-600">
+                <div className="bg-[#3B82F6]/10 border border-[#3B82F6]/25 rounded-xl p-4 flex gap-3">
+                  <div className="text-[#93C5FD]">
                     <History className="w-5 h-5" />
                   </div>
-                  <div className="text-sm text-blue-800">
-                    <p className="font-bold mb-1">Ready to import</p>
+                  <div className="text-sm text-zinc-300">
+                    <p className="font-bold mb-1 text-white">Ready to import</p>
                     <p>The system will map your CSV columns to customers and repair jobs. This will create new customers if they don't exist.</p>
                   </div>
                 </div>
@@ -574,14 +781,14 @@ export default function Repairs() {
                     setIsImportModalOpen(false);
                     setSelectedFile(null);
                   }}
-                  className="flex-1 px-4 py-2 border border-[#d9c4ae] text-gray-600 rounded-lg font-medium hover:bg-[#fbf4eb] transition-all"
+                  className="btn btn-secondary flex-1 justify-center"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleImport}
                   disabled={loading || !selectedFile}
-                  className="flex-1 appleberry-gradient text-white px-4 py-2 rounded-lg font-medium hover:opacity-90 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="btn btn-primary flex-1 justify-center disabled:opacity-50"
                 >
                   {loading ? (
                     <>

@@ -6,6 +6,7 @@ import { CommunicationSettings } from '../../types';
 import { toast } from 'sonner';
 import { useTenant } from '../../lib/tenant';
 import { getCompanySettingsDocId } from '../../lib/company';
+import { requireCompanyId } from '../../lib/db';
 
 export default function CommunicationSettingsComponent() {
   const { companyId } = useTenant();
@@ -38,7 +39,7 @@ export default function CommunicationSettingsComponent() {
 
   async function fetchSettings() {
     try {
-      const docId = getCompanySettingsDocId('communication', companyId || 'global');
+      const docId = getCompanySettingsDocId('communication', requireCompanyId(companyId));
       const docSnap = await getDoc(doc(db, 'settings', docId));
       if (docSnap.exists()) {
         const saved = docSnap.data() as CommunicationSettings;
@@ -73,8 +74,9 @@ export default function CommunicationSettingsComponent() {
   async function handleSave() {
     setSaving(true);
     try {
-      const docId = getCompanySettingsDocId('communication', companyId || 'global');
-      await setDoc(doc(db, 'settings', docId), { ...settings, company_id: companyId || null }, { merge: true });
+      const workspaceId = requireCompanyId(companyId);
+      const docId = getCompanySettingsDocId('communication', workspaceId);
+      await setDoc(doc(db, 'settings', docId), { ...settings, company_id: workspaceId }, { merge: true });
       toast.success('Communication settings saved successfully');
     } catch (error: any) {
       toast.error(error.message);

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../../lib/firebase';
-import { collection, query, getDocs, addDoc, updateDoc, deleteDoc, doc, orderBy } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, orderBy } from 'firebase/firestore';
 import { Plus, Trash2, Save, X, AlertCircle } from 'lucide-react';
 import { RepairProblem } from '../../types';
 import { formatCurrency } from '../../lib/utils';
 import { toast } from 'sonner';
 import { useTenant } from '../../lib/tenant';
-import { filterByCompany, withCompanyId } from '../../lib/companyData';
+import { withCompanyId } from '../../lib/companyData';
+import { companyQuery, requireCompanyId } from '../../lib/db';
 
 export default function ManageProblems() {
   const { companyId } = useTenant();
@@ -22,9 +23,9 @@ export default function ManageProblems() {
 
   async function fetchProblems() {
     try {
-      const q = query(collection(db, 'repair_problems'), orderBy('name'));
+      const q = companyQuery('repair_problems', companyId, orderBy('name'));
       const snapshot = await getDocs(q);
-      setProblems(filterByCompany(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RepairProblem)), companyId));
+      setProblems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RepairProblem)));
     } catch (error) {
       console.error('Error fetching problems:', error);
     } finally {
@@ -37,12 +38,12 @@ export default function ManageProblems() {
     try {
       const price = parseFloat(newPrice) || 0;
       const docRef = await addDoc(collection(db, 'repair_problems'), {
-        ...withCompanyId(companyId, {}),
+        ...withCompanyId(requireCompanyId(companyId), {}),
         name: newName,
         default_price: price,
         created_at: new Date().toISOString()
       });
-      setProblems([...problems, { id: docRef.id, company_id: companyId || null, name: newName, default_price: price, created_at: new Date().toISOString() }].sort((a, b) => a.name.localeCompare(b.name)));
+      setProblems([...problems, { id: docRef.id, company_id: requireCompanyId(companyId), name: newName, default_price: price, created_at: new Date().toISOString() }].sort((a, b) => a.name.localeCompare(b.name)));
       setNewName('');
       setNewPrice('');
       setIsAdding(false);
@@ -54,7 +55,7 @@ export default function ManageProblems() {
 
   async function handleUpdate(id: string, updates: Partial<RepairProblem>) {
     try {
-      await updateDoc(doc(db, 'repair_problems', id), updates);
+      await updateDoc(doc(db, 'repair_problems', id), { ...updates, company_id: requireCompanyId(companyId) });
       setProblems(problems.map(p => p.id === id ? { ...p, ...updates } : p));
       toast.success('Problem updated');
     } catch (error: any) {

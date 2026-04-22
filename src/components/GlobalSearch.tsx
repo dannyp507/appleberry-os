@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, doc, getDoc, getDocs, limit, orderBy, query } from 'firebase/firestore';
+import { doc, getDoc, getDocs, limit, orderBy } from 'firebase/firestore';
 import {
   ClipboardList,
   FileText,
@@ -14,10 +14,10 @@ import {
 } from 'lucide-react';
 import { db } from '../lib/firebase';
 import { useTenant } from '../lib/tenant';
-import { filterByCompany } from '../lib/companyData';
 import { Customer, Product, Profile, Repair, Sale } from '../types';
 import { hasPermission } from '../lib/permissions';
 import { safeFormatDate } from '../lib/utils';
+import { companyQuery, companySubcollection } from '../lib/db';
 
 type SearchCategory = 'customers' | 'repairs' | 'sales' | 'purchase_orders' | 'orders' | 'products';
 
@@ -74,7 +74,7 @@ function highlightText(text: string, term: string) {
 
   return parts.map((part, index) =>
     regex.test(part) ? (
-      <mark key={`${part}-${index}`} className="rounded bg-[#f7d8b6] px-0.5 text-[#8d3e18]">
+      <mark key={`${part}-${index}`} className="rounded bg-[#f8a722]/20 px-0.5 text-[#f8a722]">
         {part}
       </mark>
     ) : (
@@ -107,6 +107,7 @@ export default function GlobalSearch({
   const [term, setTerm] = useState('');
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<SearchResult[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const handleKeydown = (event: KeyboardEvent) => {
@@ -131,14 +132,27 @@ export default function GlobalSearch({
     if (trimmed.length < 2) {
       setResults([]);
       setLoading(false);
+      setError(null);
+      return;
+    }
+
+    if (!companyId) {
+      setResults([]);
+      setLoading(false);
+      setError('Your company workspace is still loading. Close search and try again in a moment.');
       return;
     }
 
     const timeout = window.setTimeout(async () => {
       setLoading(true);
+      setError(null);
       try {
         const nextResults = await searchWorkspace(trimmed, companyId, profile);
         setResults(nextResults);
+      } catch (searchError: any) {
+        console.error('Global search failed:', searchError);
+        setResults([]);
+        setError(searchError?.message || 'Search failed. Please try again.');
       } finally {
         setLoading(false);
       }
@@ -168,18 +182,18 @@ export default function GlobalSearch({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className={`group flex items-center gap-3 rounded-2xl border border-[#ddcbb7] bg-[rgba(255,251,245,0.92)] text-left shadow-[0_8px_24px_rgba(63,43,22,0.06)] transition hover:bg-white ${compact ? 'px-2.5 py-2.5' : 'px-3 py-2.5'} ${className}`}
+        className={`group flex items-center gap-3 rounded-xl border border-[#2A2A2E] bg-[#141416]/92 text-left shadow-[0_12px_32px_rgba(0,0,0,0.32)] transition hover:border-[#3A3A42] hover:bg-[#1C1C1F] ${compact ? 'px-2.5 py-2.5' : 'px-3 py-2.5'} ${className}`}
       >
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#f2e3d1] text-[#214e5f]">
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#202024] text-[#3B82F6]">
           <Search className="h-4 w-4" />
         </div>
         {!compact && (
           <>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-[#17242b]">Global search</p>
-              <p className="truncate text-xs text-[#6d7478]">IMEI, customer, ticket, invoice, PO, or order</p>
+              <p className="text-sm font-semibold text-white">Global search</p>
+              <p className="truncate text-xs text-zinc-400">IMEI, customer, ticket, invoice, PO, or order</p>
             </div>
-            <div className="hidden rounded-xl border border-[#dfcfbb] bg-white/80 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#7b5c3c] sm:block">
+            <div className="hidden rounded-lg border border-[#2A2A2E] bg-[#1C1C1F] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500 sm:block">
               Ctrl K
             </div>
           </>
@@ -187,29 +201,32 @@ export default function GlobalSearch({
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-[80] flex items-start justify-center bg-[#0c1820]/55 p-3 pt-20 backdrop-blur-sm md:p-6 md:pt-24">
+        <div className="fixed inset-0 z-[80] flex items-start justify-center bg-black/72 p-3 pt-20 backdrop-blur-sm md:p-6 md:pt-24">
           <button
             type="button"
             aria-label="Close search"
             onClick={() => setOpen(false)}
             className="absolute inset-0"
           />
-          <div className="relative w-full max-w-3xl overflow-hidden rounded-[30px] border border-[#ddcbb7] bg-[rgba(255,251,245,0.98)] shadow-[0_24px_80px_rgba(17,34,41,0.24)]">
-            <div className="flex items-center gap-3 border-b border-[#eadaca] px-4 py-4 md:px-5">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#f2e3d1] text-[#214e5f]">
+          <div className="relative w-full max-w-3xl overflow-hidden rounded-2xl border border-[#2A2A2E] bg-[#141416] shadow-[0_24px_90px_rgba(0,0,0,0.58)]">
+            <div className="flex items-center gap-3 border-b border-[#2A2A2E] px-4 py-4 md:px-5">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#1C1C1F] text-[#3B82F6]">
                 <Search className="h-5 w-5" />
               </div>
               <input
                 autoFocus
                 value={term}
-                onChange={(event) => setTerm(event.target.value)}
+                onChange={(event) => {
+                  setTerm(event.target.value);
+                  setError(null);
+                }}
                 placeholder="Search IMEI, customer, t#, s#, p#, or o#"
-                className="w-full bg-transparent text-base font-medium text-[#17242b] outline-none placeholder:text-[#8a8f93]"
+                className="w-full border-0 bg-transparent text-base font-semibold text-white outline-none placeholder:text-zinc-500 focus:border-0 focus:shadow-none"
               />
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="rounded-xl border border-[#e2d3c2] bg-white/80 p-2 text-[#667278] hover:bg-white"
+                className="rounded-xl border border-[#2A2A2E] bg-[#1C1C1F] p-2 text-zinc-400 hover:bg-white/[0.06] hover:text-white"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -226,26 +243,42 @@ export default function GlobalSearch({
                     'Purchase order like p#',
                     'Order like o#',
                   ].map((hint) => (
-                    <div key={hint} className="rounded-2xl border border-[#eadaca] bg-white px-4 py-4 text-sm text-[#58646a]">
+                    <div key={hint} className="rounded-xl border border-[#2A2A2E] bg-[#1C1C1F] px-4 py-4 text-sm text-zinc-400">
                       {hint}
                     </div>
                   ))}
                 </div>
               )}
 
-              {loading && term.trim() && (
-                <div className="py-12 text-center text-sm text-[#6c767b]">Searching across the workspace...</div>
-              )}
-
-              {!loading && term.trim().length >= 2 && results.length === 0 && (
+              {term.trim().length === 1 && (
                 <div className="py-12 text-center">
-                  <Search className="mx-auto mb-3 h-10 w-10 text-[#c5b49f]" />
-                  <p className="text-sm font-semibold text-[#33434b]">No matching records found</p>
-                  <p className="mt-1 text-sm text-[#6c767b]">Try a name, IMEI, ticket number, or invoice id.</p>
+                  <Search className="mx-auto mb-3 h-10 w-10 text-[#3B82F6]" />
+                  <p className="text-sm font-semibold text-white">Keep typing to search</p>
+                  <p className="mt-1 text-sm text-zinc-400">Enter at least 2 characters, or use prefixes like t#, s#, p#, or o#.</p>
                 </div>
               )}
 
-              {!loading && results.length > 0 && (
+              {loading && term.trim() && (
+                <div className="py-12 text-center text-sm text-zinc-400">Searching across the workspace...</div>
+              )}
+
+              {!loading && error && (
+                <div className="py-12 text-center">
+                  <Search className="mx-auto mb-3 h-10 w-10 text-[#EF4444]" />
+                  <p className="text-sm font-semibold text-white">Search could not complete</p>
+                  <p className="mt-1 text-sm text-zinc-400">{error}</p>
+                </div>
+              )}
+
+              {!loading && !error && term.trim().length >= 2 && results.length === 0 && (
+                <div className="py-12 text-center">
+                  <Search className="mx-auto mb-3 h-10 w-10 text-zinc-600" />
+                  <p className="text-sm font-semibold text-white">No matching records found</p>
+                  <p className="mt-1 text-sm text-zinc-400">Try a name, IMEI, ticket number, or invoice id.</p>
+                </div>
+              )}
+
+              {!loading && !error && results.length > 0 && (
                 <div className="space-y-6">
                   <ResultGroup title="Customers" items={grouped.customers} onSelect={closeAndGo} term={term} />
                   <ResultGroup title="Repairs" items={grouped.repairs} onSelect={closeAndGo} term={term} />
@@ -279,8 +312,8 @@ function ResultGroup({
   return (
     <section>
       <div className="mb-3 flex items-center justify-between gap-3">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#7b5c3c]">{title}</p>
-        <span className="rounded-full border border-[#e5d6c5] bg-white px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#8b6f51]">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">{title}</p>
+        <span className="rounded-full border border-[#2A2A2E] bg-[#1C1C1F] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-400">
           {items.length}
         </span>
       </div>
@@ -290,17 +323,17 @@ function ResultGroup({
             key={`${item.category}-${item.id}`}
             type="button"
             onClick={() => onSelect(item.href)}
-            className="flex w-full items-start gap-3 rounded-2xl border border-[#eadaca] bg-white px-4 py-4 text-left transition hover:border-[#d3b494] hover:bg-[#fff8f0]"
+            className="flex w-full items-start gap-3 rounded-xl border border-[#2A2A2E] bg-[#1C1C1F] px-4 py-4 text-left transition hover:border-[#3A3A42] hover:bg-white/[0.04]"
           >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#f3e3d0] text-[#214e5f]">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#202024] text-[#3B82F6]">
               <item.icon className="h-5 w-5" />
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <p className="font-semibold text-[#17242b]">{highlightText(item.title, term)}</p>
-                {item.meta && <span className="text-xs uppercase tracking-[0.14em] text-[#8a714f]">{item.meta}</span>}
+                <p className="font-semibold text-white">{highlightText(item.title, term)}</p>
+                {item.meta && <span className="text-xs uppercase tracking-[0.12em] text-zinc-500">{item.meta}</span>}
               </div>
-              <p className="mt-1 text-sm text-[#627077]">{highlightText(item.subtitle, term)}</p>
+              <p className="mt-1 text-sm text-zinc-400">{highlightText(item.subtitle, term)}</p>
             </div>
           </button>
         ))}
@@ -310,6 +343,10 @@ function ResultGroup({
 }
 
 async function searchWorkspace(term: string, companyId: string | null, profile: Profile | null): Promise<SearchResult[]> {
+  if (!companyId) {
+    throw new Error('Your company workspace is still loading. Close search and try again in a moment.');
+  }
+
   const normalized = normalize(term);
   const isTicketSearch = normalized.startsWith('t#');
   const isInvoiceSearch = normalized.startsWith('s#');
@@ -344,13 +381,21 @@ async function searchWorkspace(term: string, companyId: string | null, profile: 
     requests.push(searchProducts(imeiSearch ? cleanTerm || normalized : normalized, companyId));
   }
 
-  const grouped = await Promise.all(requests);
-  return grouped.flat().slice(0, 18);
+  const settled = await Promise.allSettled(requests);
+  const failed = settled.filter((result) => result.status === 'rejected');
+  if (failed.length > 0) {
+    console.warn('Some global search sources failed:', failed);
+  }
+
+  return settled
+    .filter((result): result is PromiseFulfilledResult<SearchResult[]> => result.status === 'fulfilled')
+    .flatMap((result) => result.value)
+    .slice(0, 18);
 }
 
 async function searchCustomers(term: string, companyId: string | null): Promise<SearchResult[]> {
-  const snapshot = await getDocs(query(collection(db, 'customers'), orderBy('first_name'), limit(60)));
-  const customers = filterByCompany(snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() } as Customer)), companyId);
+  const snapshot = await getDocs(companyQuery('customers', companyId, limit(500)));
+  const customers = snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() } as Customer));
   return customers
     .map((customer) => {
       const score =
@@ -379,8 +424,8 @@ async function searchCustomers(term: string, companyId: string | null): Promise<
 }
 
 async function searchRepairs(term: string, companyId: string | null): Promise<SearchResult[]> {
-  const snapshot = await getDocs(query(collection(db, 'repairs'), orderBy('updated_at', 'desc'), limit(60)));
-  const repairs = filterByCompany(snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() } as Repair)), companyId);
+  const snapshot = await getDocs(companyQuery('repairs', companyId, limit(500)));
+  const repairs = snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() } as Repair));
   return repairs
     .map((repair) => {
       const score =
@@ -407,8 +452,8 @@ async function searchRepairs(term: string, companyId: string | null): Promise<Se
 }
 
 async function searchSales(term: string, companyId: string | null): Promise<SearchResult[]> {
-  const snapshot = await getDocs(query(collection(db, 'sales'), orderBy('created_at', 'desc'), limit(200)));
-  const sales = filterByCompany(snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() } as Sale & { external_invoice_number?: string | null; payments?: { method?: string }[] })), companyId);
+  const snapshot = await getDocs(companyQuery('sales', companyId, orderBy('created_at', 'desc'), limit(200)));
+  const sales = snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() } as Sale & { external_invoice_number?: string | null; payments?: { method?: string }[] }));
 
   const customerIds = Array.from(new Set(sales.map((sale) => sale.customer_id).filter(Boolean))) as string[];
   const customerEntries = await Promise.all(
@@ -422,7 +467,7 @@ async function searchSales(term: string, companyId: string | null): Promise<Sear
   const itemEntries = await Promise.all(
     sales.slice(0, 120).map(async (sale) => {
       try {
-        const itemsSnap = await getDocs(collection(db, `sales/${sale.id}/items`));
+        const itemsSnap = await getDocs(companySubcollection(`sales/${sale.id}/items`, companyId));
         const itemNames = itemsSnap.docs
           .map((itemDoc) => String(itemDoc.data().name || '').trim())
           .filter(Boolean)
@@ -481,11 +526,8 @@ async function searchSales(term: string, companyId: string | null): Promise<Sear
 }
 
 async function searchPurchaseOrders(term: string, companyId: string | null): Promise<SearchResult[]> {
-  const snapshot = await getDocs(query(collection(db, 'purchase_orders'), orderBy('created_at', 'desc'), limit(50)));
-  const purchaseOrders = filterByCompany(
-    snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() } as PurchaseOrderLike)),
-    companyId
-  );
+  const snapshot = await getDocs(companyQuery('purchase_orders', companyId, orderBy('created_at', 'desc'), limit(50)));
+  const purchaseOrders = snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() } as PurchaseOrderLike));
   return purchaseOrders
     .map((order) => {
       const score =
@@ -512,8 +554,8 @@ async function searchPurchaseOrders(term: string, companyId: string | null): Pro
 }
 
 async function searchOrders(term: string, companyId: string | null): Promise<SearchResult[]> {
-  const snapshot = await getDocs(query(collection(db, 'orders'), orderBy('created_at', 'desc'), limit(40)));
-  const orders = filterByCompany(snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() } as OrderLike)), companyId);
+  const snapshot = await getDocs(companyQuery('orders', companyId, orderBy('created_at', 'desc'), limit(40)));
+  const orders = snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() } as OrderLike));
   return orders
     .map((order) => {
       const score =
@@ -540,8 +582,8 @@ async function searchOrders(term: string, companyId: string | null): Promise<Sea
 }
 
 async function searchProducts(term: string, companyId: string | null): Promise<SearchResult[]> {
-  const snapshot = await getDocs(query(collection(db, 'products'), orderBy('created_at', 'desc'), limit(80)));
-  const products = filterByCompany(snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() } as Product)), companyId);
+  const snapshot = await getDocs(companyQuery('products', companyId, limit(500)));
+  const products = snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() } as Product));
   return products
     .map((product) => {
       const score =

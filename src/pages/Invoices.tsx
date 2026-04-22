@@ -1,12 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
-import { Search, FileText, Download, Eye, Receipt, CreditCard, AlertCircle } from 'lucide-react';
+import { doc, getDoc, getDocs } from 'firebase/firestore';
+import { Search, FileText, Download, Eye, Receipt, CreditCard, AlertCircle, RotateCcw } from 'lucide-react';
 import { db } from '../lib/firebase';
 import { formatCurrency, safeFormatDate } from '../lib/utils';
-import { Customer } from '../types';
+import { Customer, Sale } from '../types';
 import { useTenant } from '../lib/tenant';
-import { filterByCompany, isCompanyScopedRecord } from '../lib/companyData';
+import { isCompanyScopedRecord } from '../lib/companyData';
+import { companyQuery } from '../lib/db';
+import { getAuthHeaders } from '../lib/authHeaders';
+import RefundModal from '../components/pos/RefundModal';
+import { hasPermission } from '../lib/permissions';
 
 type SaleRecord = {
   id: string;
@@ -18,6 +22,9 @@ type SaleRecord = {
   created_at?: string;
   payments?: { method?: string; amount?: number; timestamp?: string }[];
   payment_method?: string;
+  refunded_amount?: number;
+  refund_status?: 'none' | 'partial' | 'full';
+  refunded_item_quantities?: Record<string, number>;
 };
 
 type InvoiceRow = {
@@ -30,12 +37,13 @@ type InvoiceRow = {
 };
 
 export default function Invoices() {
-  const { companyId } = useTenant();
+  const { companyId, profile } = useTenant();
   const [searchParams] = useSearchParams();
   const [rows, setRows] = useState<InvoiceRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState(searchParams.get('search') || '');
   const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'partial' | 'unpaid'>('all');
+  const [refundSale, setRefundSale] = useState<Sale | null>(null);
 
   useEffect(() => {
     fetchInvoices();
@@ -48,11 +56,8 @@ export default function Invoices() {
   async function fetchInvoices() {
     setLoading(true);
     try {
-      const salesSnapshot = await getDocs(collection(db, 'sales'));
-      const sales = filterByCompany(
-        salesSnapshot.docs.map((saleDoc) => ({ id: saleDoc.id, ...saleDoc.data() } as SaleRecord)),
-        companyId
-      );
+      const salesSnapshot = await getDocs(companyQuery('sales', companyId));
+      const sales = salesSnapshot.docs.map((saleDoc) => ({ id: saleDoc.id, ...saleDoc.data() } as SaleRecord));
 
       const customerIds = Array.from(new Set(sales.map((sale) => sale.customer_id).filter(Boolean))) as string[];
       const customerEntries = await Promise.all(
@@ -115,12 +120,31 @@ export default function Invoices() {
     return { totalInvoiced, totalPaid, outstanding, avgInvoice };
   }, [filteredRows]);
 
+  const downloadInvoicePdf = async (saleId: string) => {
+    try {
+      const response = await fetch(`/api/invoices/${saleId}.pdf`, {
+        headers: await getAuthHeaders(),
+      });
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank', 'noopener,noreferrer');
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (error: any) {
+      console.error('Invoice PDF download failed:', error);
+      alert(error.message || 'Failed to download invoice PDF.');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Invoices</h1>
-          <p className="text-gray-500">Track completed sales, balances, and customer invoice history.</p>
+          <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500 font-semibold mb-2">Sales Ledger</p>
+          <h1 className="text-3xl font-black text-white">Invoices</h1>
+          <p className="text-zinc-400">Track completed sales, balances, refunds, and customer invoice history.</p>
         </div>
       </div>
 
@@ -131,7 +155,7 @@ export default function Invoices() {
         <SummaryCard title="Outstanding" value={formatCurrency(summary.outstanding)} icon={AlertCircle} tone="red" />
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-4">
+      <div className="section-card rounded-xl p-4 space-y-4">
         <div className="flex flex-col lg:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -139,13 +163,13 @@ export default function Invoices() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by invoice id, customer name, or phone"
-              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              className="w-full pl-10 pr-4 py-2.5"
             />
           </div>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
-            className="px-4 py-2.5 border border-gray-200 rounded-xl bg-white"
+            className="px-4 py-2.5"
           >
             <option value="all">All statuses</option>
             <option value="paid">Paid</option>
@@ -155,13 +179,14 @@ export default function Invoices() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="ops-table w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 text-left text-gray-500 uppercase text-[11px] tracking-wider">
                 <th className="px-4 py-3">Invoice</th>
                 <th className="px-4 py-3">Customer</th>
                 <th className="px-4 py-3">Date</th>
                 <th className="px-4 py-3">Payment</th>
+                <th className="px-4 py-3">Refund</th>
                 <th className="px-4 py-3 text-right">Total</th>
                 <th className="px-4 py-3 text-right">Balance</th>
                 <th className="px-4 py-3 text-right">Actions</th>
@@ -171,12 +196,12 @@ export default function Invoices() {
               {loading ? (
                 Array.from({ length: 5 }).map((_, index) => (
                   <tr key={index} className="animate-pulse border-b border-gray-50">
-                    <td colSpan={7} className="px-4 py-4"><div className="h-4 bg-gray-100 rounded" /></td>
+                    <td colSpan={8} className="px-4 py-4"><div className="h-4 bg-gray-100 rounded" /></td>
                   </tr>
                 ))
               ) : filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-14 text-center text-gray-400">
+                  <td colSpan={8} className="px-4 py-14 text-center text-gray-400">
                     <Receipt className="w-10 h-10 mx-auto mb-3 opacity-30" />
                     <p>No invoices found</p>
                   </td>
@@ -199,26 +224,43 @@ export default function Invoices() {
                       <span className={statusPill(row.paymentStatus)}>{labelForStatus(row.paymentStatus)}</span>
                       <p className="text-xs text-gray-500 mt-1">{row.paymentSummary}</p>
                     </td>
+                    <td className="px-4 py-4">
+                      <span className={refundPill(row.sale.refund_status || 'none')}>
+                        {refundLabel(row.sale.refund_status || 'none')}
+                      </span>
+                      {Number(row.sale.refunded_amount || 0) > 0 && (
+                        <p className="text-xs text-red-600 mt-1">{formatCurrency(Number(row.sale.refunded_amount || 0))}</p>
+                      )}
+                    </td>
                     <td className="px-4 py-4 text-right font-semibold text-gray-900">{formatCurrency(Number(row.sale.total_amount || 0))}</td>
                     <td className="px-4 py-4 text-right font-semibold text-red-600">{formatCurrency(row.balance)}</td>
                     <td className="px-4 py-4">
                       <div className="flex items-center justify-end gap-2">
                         <Link
                           to={`/view-invoice/${row.sale.id}`}
-                          className="inline-flex items-center gap-1 px-3 py-2 text-xs font-semibold text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                          className="btn btn-secondary min-h-0 px-3 py-2 text-xs"
                         >
                           <Eye className="w-3.5 h-3.5" />
                           View
                         </Link>
-                        <a
-                          href={`/api/invoices/${row.sale.id}.pdf`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 px-3 py-2 text-xs font-semibold text-white bg-primary rounded-lg hover:opacity-90"
+                        <button
+                          type="button"
+                          onClick={() => downloadInvoicePdf(row.sale.id)}
+                          className="btn btn-primary min-h-0 px-3 py-2 text-xs"
                         >
                           <Download className="w-3.5 h-3.5" />
                           PDF
-                        </a>
+                        </button>
+                        {hasPermission(profile, 'refunds.process') && (row.sale.refund_status || 'none') !== 'full' && (
+                          <button
+                            type="button"
+                            onClick={() => setRefundSale(row.sale as Sale)}
+                            className="btn btn-danger min-h-0 px-3 py-2 text-xs"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            Refund
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -228,37 +270,56 @@ export default function Invoices() {
           </table>
         </div>
       </div>
+      <RefundModal
+        isOpen={Boolean(refundSale)}
+        sale={refundSale}
+        companyId={companyId}
+        onClose={() => setRefundSale(null)}
+        onComplete={fetchInvoices}
+      />
     </div>
   );
 }
 
 function SummaryCard({ title, value, icon: Icon, tone }: { title: string; value: string; icon: any; tone: 'blue' | 'amber' | 'green' | 'red' }) {
   const toneClasses = {
-    blue: 'bg-blue-50 text-blue-600',
-    amber: 'bg-amber-50 text-amber-600',
-    green: 'bg-green-50 text-green-600',
-    red: 'bg-red-50 text-red-600',
+    blue: 'bg-[#3B82F6]/10 text-[#93C5FD] border-[#3B82F6]/30',
+    amber: 'bg-[#F59E0B]/10 text-[#FCD34D] border-[#F59E0B]/30',
+    green: 'bg-[#22C55E]/10 text-[#86EFAC] border-[#22C55E]/30',
+    red: 'bg-[#EF4444]/10 text-[#FCA5A5] border-[#EF4444]/30',
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-      <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${toneClasses[tone]}`}>
+    <div className="section-card rounded-xl p-5">
+      <div className={`w-12 h-12 rounded-xl border flex items-center justify-center mb-4 ${toneClasses[tone]}`}>
         <Icon className="w-6 h-6" />
       </div>
-      <p className="text-sm text-gray-500">{title}</p>
-      <p className="text-2xl font-bold text-gray-900">{value}</p>
+      <p className="text-sm text-zinc-400">{title}</p>
+      <p className="text-2xl font-black text-white">{value}</p>
     </div>
   );
 }
 
 function statusPill(status: 'paid' | 'partial' | 'unpaid') {
-  if (status === 'paid') return 'inline-flex px-2.5 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-700';
-  if (status === 'partial') return 'inline-flex px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700';
-  return 'inline-flex px-2.5 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700';
+  if (status === 'paid') return 'badge badge-success';
+  if (status === 'partial') return 'badge badge-warning';
+  return 'badge badge-danger';
 }
 
 function labelForStatus(status: 'paid' | 'partial' | 'unpaid') {
   if (status === 'paid') return 'Paid';
   if (status === 'partial') return 'Partial';
   return 'Unpaid';
+}
+
+function refundPill(status: 'none' | 'partial' | 'full') {
+  if (status === 'full') return 'badge badge-danger';
+  if (status === 'partial') return 'badge badge-warning';
+  return 'badge badge-muted';
+}
+
+function refundLabel(status: 'none' | 'partial' | 'full') {
+  if (status === 'full') return 'Refunded';
+  if (status === 'partial') return 'Part refund';
+  return 'None';
 }

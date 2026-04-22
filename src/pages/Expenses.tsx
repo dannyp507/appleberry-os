@@ -14,6 +14,9 @@ import {
 import { formatCurrency, safeFormatDate } from '../lib/utils';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { useTenant } from '../lib/tenant';
+import { companyQuery, requireCompanyId } from '../lib/db';
+import { withCompanyId } from '../lib/companyData';
 
 interface Expense {
   id: string;
@@ -26,6 +29,7 @@ interface Expense {
 }
 
 export default function Expenses() {
+  const { companyId } = useTenant();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -44,12 +48,12 @@ export default function Expenses() {
 
   useEffect(() => {
     fetchExpenses();
-  }, []);
+  }, [companyId]);
 
   async function fetchExpenses() {
     setLoading(true);
     try {
-      const q = query(collection(db, 'expenses'), orderBy('date', 'desc'));
+      const q = companyQuery('expenses', companyId, orderBy('date', 'desc'));
       const snapshot = await getDocs(q);
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
       setExpenses(data);
@@ -88,12 +92,13 @@ export default function Expenses() {
       if (editingExpense) {
         await updateDoc(doc(db, 'expenses', editingExpense.id), {
           ...formData,
+          company_id: requireCompanyId(companyId),
           updated_at: new Date().toISOString()
         });
         toast.success('Expense updated');
       } else {
         await addDoc(collection(db, 'expenses'), {
-          ...formData,
+          ...withCompanyId(requireCompanyId(companyId), formData),
           created_at: new Date().toISOString()
         });
         toast.success('Expense added');

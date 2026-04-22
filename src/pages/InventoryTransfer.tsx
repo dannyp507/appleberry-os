@@ -6,9 +6,8 @@ import {
   doc,
   getDocs,
   orderBy,
-  query,
+  runTransaction,
   updateDoc,
-  writeBatch,
 } from 'firebase/firestore';
 import {
   ArrowRightLeft,
@@ -25,7 +24,8 @@ import { Product } from '../types';
 import { formatCurrency, safeFormatDate } from '../lib/utils';
 import { toast } from 'sonner';
 import { useTenant } from '../lib/tenant';
-import { filterByCompany, withCompanyId } from '../lib/companyData';
+import { withCompanyId } from '../lib/companyData';
+import { companyQuery, requireCompanyId } from '../lib/db';
 
 type TransferStatus = 'draft' | 'sent' | 'received' | 'cancelled';
 
@@ -109,12 +109,12 @@ export default function InventoryTransfer() {
     setLoading(true);
     try {
       const [transferSnapshot, productSnapshot] = await Promise.all([
-        getDocs(query(collection(db, 'inventory_transfers'), orderBy('created_at', 'desc'))),
-        getDocs(query(collection(db, 'products'), orderBy('name'))),
+        getDocs(companyQuery('inventory_transfers', companyId, orderBy('created_at', 'desc'))),
+        getDocs(companyQuery('products', companyId, orderBy('name'))),
       ]);
 
-      const transferData = filterByCompany(transferSnapshot.docs.map((transferDoc) => ({ id: transferDoc.id, ...transferDoc.data() } as InventoryTransfer)), companyId);
-      const productData = filterByCompany(productSnapshot.docs.map((productDoc) => ({ id: productDoc.id, ...productDoc.data() } as Product)), companyId);
+      const transferData = transferSnapshot.docs.map((transferDoc) => ({ id: transferDoc.id, ...transferDoc.data() } as InventoryTransfer));
+      const productData = productSnapshot.docs.map((productDoc) => ({ id: productDoc.id, ...productDoc.data() } as Product));
 
       setTransfers(transferData);
       setProducts(productData);
@@ -275,7 +275,7 @@ export default function InventoryTransfer() {
         toast.success('Inventory transfer updated');
       } else {
         await addDoc(collection(db, 'inventory_transfers'), {
-          ...withCompanyId(companyId, {}),
+          ...withCompanyId(requireCompanyId(companyId), {}),
           ...payload,
           transfer_number: buildTransferNumber(),
           created_at: now,
@@ -314,26 +314,50 @@ export default function InventoryTransfer() {
 
     setProcessing(true);
     try {
+      const workspaceId = requireCompanyId(companyId);
       const now = new Date().toISOString();
-      const batch = writeBatch(db);
 
-      for (const line of transfer.items) {
-        const product = products.find((item) => item.id === line.product_id);
-        batch.update(doc(db, 'products', line.product_id), {
-          stock: Math.max(0, Number(product?.stock || 0) - line.quantity),
+      await runTransaction(db, async (transaction) => {
+        for (const line of transfer.items) {
+          const productRef = doc(db, 'products', line.product_id);
+          const productSnap = await transaction.get(productRef);
+          if (!productSnap.exists()) {
+            throw new Error(`${line.product_name} no longer exists`);
+          }
+          const product = productSnap.data() as { stock?: number; company_id?: string | null };
+          if (product.company_id !== workspaceId) {
+            throw new Error(`${line.product_name} does not belong to this workspace`);
+          }
+          const stock = Number(product.stock || 0);
+          if (stock < line.quantity) {
+            throw new Error(`${line.product_name} has only ${stock} in stock`);
+          }
+          transaction.update(productRef, {
+            stock: stock - line.quantity,
+            updated_at: now,
+            last_transfer_out_at: now,
+            last_transfer_number: transfer.transfer_number,
+          });
+          transaction.set(doc(collection(db, 'inventory_movements')), withCompanyId(workspaceId, {
+            type: 'transfer_out',
+            product_id: line.product_id,
+            product_name: line.product_name,
+            quantity: -line.quantity,
+            transfer_id: transfer.id,
+            transfer_number: transfer.transfer_number,
+            branch: transfer.from_branch,
+            reason: `Transfer to ${transfer.to_branch}`,
+            actor_id: auth.currentUser?.uid || null,
+            created_at: now,
+          }));
+        }
+
+        transaction.update(doc(db, 'inventory_transfers', transfer.id), {
+          status: 'sent',
+          sent_at: now,
           updated_at: now,
-          last_transfer_out_at: now,
-          last_transfer_number: transfer.transfer_number,
         });
-      }
-
-      batch.update(doc(db, 'inventory_transfers', transfer.id), {
-        status: 'sent',
-        sent_at: now,
-        updated_at: now,
       });
-
-      await batch.commit();
       toast.success('Transfer sent and source stock reduced');
       await fetchData();
     } catch (error: any) {
@@ -354,26 +378,46 @@ export default function InventoryTransfer() {
 
     setProcessing(true);
     try {
+      const workspaceId = requireCompanyId(companyId);
       const now = new Date().toISOString();
-      const batch = writeBatch(db);
 
-      for (const line of transfer.items) {
-        const product = products.find((item) => item.id === line.product_id);
-        batch.update(doc(db, 'products', line.product_id), {
-          stock: Number(product?.stock || 0) + line.quantity,
+      await runTransaction(db, async (transaction) => {
+        for (const line of transfer.items) {
+          const productRef = doc(db, 'products', line.product_id);
+          const productSnap = await transaction.get(productRef);
+          if (!productSnap.exists()) {
+            throw new Error(`${line.product_name} no longer exists`);
+          }
+          const product = productSnap.data() as { stock?: number; company_id?: string | null };
+          if (product.company_id !== workspaceId) {
+            throw new Error(`${line.product_name} does not belong to this workspace`);
+          }
+          transaction.update(productRef, {
+            stock: Number(product.stock || 0) + line.quantity,
+            updated_at: now,
+            last_transfer_in_at: now,
+            last_transfer_number: transfer.transfer_number,
+          });
+          transaction.set(doc(collection(db, 'inventory_movements')), withCompanyId(workspaceId, {
+            type: 'transfer_in',
+            product_id: line.product_id,
+            product_name: line.product_name,
+            quantity: line.quantity,
+            transfer_id: transfer.id,
+            transfer_number: transfer.transfer_number,
+            branch: transfer.to_branch,
+            reason: `Transfer from ${transfer.from_branch}`,
+            actor_id: auth.currentUser?.uid || null,
+            created_at: now,
+          }));
+        }
+
+        transaction.update(doc(db, 'inventory_transfers', transfer.id), {
+          status: 'received',
+          received_at: now,
           updated_at: now,
-          last_transfer_in_at: now,
-          last_transfer_number: transfer.transfer_number,
         });
-      }
-
-      batch.update(doc(db, 'inventory_transfers', transfer.id), {
-        status: 'received',
-        received_at: now,
-        updated_at: now,
       });
-
-      await batch.commit();
       toast.success('Transfer received and destination stock updated');
       await fetchData();
     } catch (error: any) {

@@ -1,11 +1,10 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { collection, doc, getDocs, limit, query, setDoc, updateDoc, where } from 'firebase/firestore';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { AlertCircle, CheckCircle2, KeyRound, LockKeyhole, Mail } from 'lucide-react';
-import { auth, db } from '../lib/firebase';
+import { auth } from '../lib/firebase';
 import { toast } from 'sonner';
-import { getDefaultPermissions } from '../lib/permissions';
+import axios from 'axios';
 
 type StaffInvite = {
   id: string;
@@ -16,7 +15,6 @@ type StaffInvite = {
   company_id?: string | null;
   permissions?: string[] | null;
   profile_id?: string | null;
-  temp_password?: string | null;
   expires_at?: string | null;
   accepted_at?: string | null;
   phone?: string | null;
@@ -45,14 +43,11 @@ export default function ActivateAccount() {
       }
 
       try {
-        const snapshot = await getDocs(
-          query(collection(db, 'staff_invites'), where('token', '==', token), limit(1))
-        );
-
-        if (!snapshot.empty) {
-          const inviteDoc = snapshot.docs[0];
-          setInvite({ id: inviteDoc.id, ...inviteDoc.data() } as StaffInvite);
-        }
+        const response = await axios.get('/api/staff-invites/resolve', {
+          params: { token },
+          timeout: 15000,
+        });
+        setInvite(response.data.invite as StaffInvite);
       } catch (error) {
         console.error('Failed to load invite', error);
       } finally {
@@ -66,11 +61,6 @@ export default function ActivateAccount() {
   const handleActivate = async (e: FormEvent) => {
     e.preventDefault();
     if (!invite) return;
-
-    if (!tempPassword || tempPassword !== invite.temp_password) {
-      toast.error('The temporary password does not match the invite.');
-      return;
-    }
 
     if (password.length < 6) {
       toast.error('Password must be at least 6 characters long.');
@@ -94,41 +84,21 @@ export default function ActivateAccount() {
 
     setSubmitting(true);
     try {
-      const { user } = await createUserWithEmailAndPassword(auth, invite.email, password);
-      const canonicalProfilePayload = {
-        full_name: invite.full_name || 'Staff Member',
-        role: invite.role || 'staff',
-        company_id: invite.company_id || null,
-        permissions: invite.permissions || getDefaultPermissions(invite.role || 'staff'),
-        email: invite.email,
-        branch: invite.branch || null,
-        title: invite.title || null,
-        phone: invite.phone || null,
-        status: invite.status || 'active',
-        auth_uid: user.uid,
-        invite_accepted_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-
-      if (invite.profile_id) {
-        await updateDoc(doc(db, 'profiles', invite.profile_id), {
-          ...canonicalProfilePayload,
-        });
-      }
-
-      await setDoc(doc(db, 'profiles', user.uid), {
-        ...canonicalProfilePayload,
-        created_at: new Date().toISOString(),
-      }, { merge: true });
-
-      await updateDoc(doc(db, 'staff_invites', invite.id), {
-        accepted_at: new Date().toISOString(),
-        auth_uid: user.uid,
+      const response = await axios.post('/api/staff-invites/activate', {
+        token,
+        tempPassword,
+        password,
+      }, {
+        timeout: 20000,
       });
 
+      await signInWithEmailAndPassword(auth, response.data.email || invite.email, password);
       toast.success('Your account is ready. You are now signed in.');
     } catch (error: any) {
-      toast.error(error.message || 'Failed to activate account.');
+      const message = axios.isAxiosError(error)
+        ? (error.response?.data?.error || error.message)
+        : (error.message || 'Failed to activate account.');
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }

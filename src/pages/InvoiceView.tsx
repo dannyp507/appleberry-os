@@ -1,21 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { db } from '../lib/firebase';
-import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
-import { formatCurrency } from '../lib/utils';
-import { Printer, Download } from 'lucide-react';
+import { doc, getDoc, getDocs, orderBy } from 'firebase/firestore';
+import { formatCurrency, safeFormatDate } from '../lib/utils';
+import { Printer, Download, RotateCcw } from 'lucide-react';
 import { generateInvoicePDF } from '../lib/pdf';
-import { Repair, ShopSettings } from '../types';
+import { Refund, Repair, Sale, ShopSettings } from '../types';
 import { getCompanySettingsDocId } from '../lib/company';
 import { isCompanyScopedRecord } from '../lib/companyData';
+import { useTenant } from '../lib/tenant';
+import { companyQuery, companySubcollection } from '../lib/db';
+import { hasPermission } from '../lib/permissions';
+import RefundModal from '../components/pos/RefundModal';
 
 export default function InvoiceView() {
   const { id } = useParams();
-  const [sale, setSale] = useState<any>(null);
+  const { companyId, profile } = useTenant();
+  const [sale, setSale] = useState<Sale | null>(null);
   const [customer, setCustomer] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
+  const [refunds, setRefunds] = useState<Refund[]>([]);
   const [shop, setShop] = useState<ShopSettings | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refundOpen, setRefundOpen] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -27,7 +34,11 @@ export default function InvoiceView() {
     try {
       const saleSnap = await getDoc(doc(db, 'sales', id!));
       if (saleSnap.exists()) {
-        const saleData = saleSnap.data();
+        const saleData = { id: saleSnap.id, ...saleSnap.data() } as Sale;
+        if (companyId && saleData.company_id !== companyId) {
+          setSale(null);
+          return;
+        }
         setSale(saleData);
 
         if (saleData.customer_id) {
@@ -37,8 +48,13 @@ export default function InvoiceView() {
           }
         }
 
-        const itemsSnap = await getDocs(collection(db, `sales/${id}/items`));
+        const itemsSnap = await getDocs(companySubcollection(`sales/${id}/items`, saleData.company_id));
         setItems(itemsSnap.docs.map(doc => doc.data()));
+
+        const refundsSnap = await getDocs(companyQuery('refunds', saleData.company_id, orderBy('created_at', 'desc')));
+        setRefunds(refundsSnap.docs
+          .map((refundDoc) => ({ id: refundDoc.id, ...refundDoc.data() } as Refund))
+          .filter((refund) => refund.sale_id === id));
 
         const shopSnap = await getDoc(doc(db, 'settings', getCompanySettingsDocId('shop', saleData.company_id || 'global')));
         if (shopSnap.exists()) {
@@ -86,6 +102,11 @@ export default function InvoiceView() {
           <button onClick={handleDownload} className="p-2 hover:bg-white rounded-lg transition-all text-gray-600 flex items-center gap-2 text-sm font-bold">
             <Download className="w-4 h-4" /> Download
           </button>
+          {hasPermission(profile, 'refunds.process') && (sale.refund_status || 'none') !== 'full' && (
+            <button onClick={() => setRefundOpen(true)} className="p-2 hover:bg-white rounded-lg transition-all text-red-700 flex items-center gap-2 text-sm font-bold">
+              <RotateCcw className="w-4 h-4" /> Refund
+            </button>
+          )}
         </div>
 
         <div className="p-12">
@@ -166,7 +187,32 @@ export default function InvoiceView() {
                 <span>Total</span>
                 <span>{formatCurrency(sale.total_amount)}</span>
               </div>
+              {Number(sale.refunded_amount || 0) > 0 && (
+                <div className="flex justify-between text-sm text-red-600">
+                  <span>Refunded</span>
+                  <span className="font-bold">-{formatCurrency(Number(sale.refunded_amount || 0))}</span>
+                </div>
+              )}
             </div>
+          </div>
+
+          <div className="mt-12 rounded-2xl border border-gray-100 bg-gray-50 p-5 print:hidden">
+            <h3 className="mb-3 text-sm font-black uppercase tracking-wider text-gray-500">Refund History</h3>
+            {refunds.length === 0 ? (
+              <p className="text-sm text-gray-500">No refunds have been processed for this sale.</p>
+            ) : (
+              <div className="space-y-2">
+                {refunds.map((refund) => (
+                  <div key={refund.id} className="flex items-start justify-between rounded-xl bg-white p-3">
+                    <div>
+                      <p className="font-bold capitalize text-gray-900">{refund.refund_type} refund</p>
+                      <p className="text-xs text-gray-500">{refund.reason} • {safeFormatDate(refund.created_at, 'dd MMM yyyy HH:mm')}</p>
+                    </div>
+                    <p className="font-black text-red-600">{formatCurrency(refund.amount)}</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Footer */}
@@ -176,6 +222,13 @@ export default function InvoiceView() {
           </div>
         </div>
       </div>
+      <RefundModal
+        isOpen={refundOpen}
+        sale={sale}
+        companyId={companyId}
+        onClose={() => setRefundOpen(false)}
+        onComplete={fetchInvoiceData}
+      />
     </div>
   );
 }
