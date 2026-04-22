@@ -230,6 +230,7 @@ async function startServer() {
         email: String(data.email),
         password,
         displayName: data.full_name || undefined,
+        emailVerified: true,
         disabled: false,
       });
 
