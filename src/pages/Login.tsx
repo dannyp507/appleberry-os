@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { auth } from '../lib/firebase';
 import { 
   sendEmailVerification,
@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 type AuthMode = 'login' | 'reset';
 
 export default function Login() {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
@@ -52,22 +53,24 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    const normalizedEmail = email.trim();
 
     try {
       if (mode === 'login') {
-        const result = await signInWithEmailAndPassword(auth, email, password);
+        const result = await signInWithEmailAndPassword(auth, normalizedEmail, password);
         await result.user.reload();
 
         if (!result.user.emailVerified) {
           await sendEmailVerification(result.user);
           await auth.signOut();
           toast.error('Please verify your email first. We sent the verification email again.');
+          navigate(`/verify-email?email=${encodeURIComponent(normalizedEmail)}`);
           return;
         }
 
         toast.success('Logged in successfully');
       } else if (mode === 'reset') {
-        await sendPasswordResetEmail(auth, email);
+        await sendPasswordResetEmail(auth, normalizedEmail);
         toast.success('Password reset email sent');
         setMode('login');
       }
