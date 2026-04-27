@@ -7,7 +7,8 @@ import { Suspense, lazy, useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { auth, db } from './lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { collection, doc, getDoc, getDocs, limit, query, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, limit, query, setDoc, updateDoc, where } from 'firebase/firestore';
+import { ALL_PERMISSIONS } from './lib/permissions';
 import { Toaster } from 'sonner';
 import { Menu } from 'lucide-react';
 import { Company, Profile } from './types';
@@ -65,37 +66,128 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function scoreProfileCandidate(profile: Profile, user: User) {
+  let score = 0;
+
+  if (profile.id === user.uid) score += 100;
+  if ((profile as any).auth_uid === user.uid) score += 40;
+  if (profile.email && user.email && profile.email.toLowerCase() === user.email.toLowerCase()) score += 20;
+  if (profile.company_id) score += 30;
+  if (profile.role === 'owner') score += 25;
+  if (profile.role === 'admin') score += 15;
+
+  return score;
+}
+
+async function resolveCompanyForUser(user: User, profile: Profile | null): Promise<Company | null> {
+  const directCompanyId = profile?.company_id || null;
+  if (directCompanyId) {
+    const directCompanySnap = await getDoc(doc(db, 'companies', directCompanyId));
+    if (directCompanySnap.exists()) {
+      return { id: directCompanySnap.id, ...directCompanySnap.data() } as Company;
+    }
+  }
+
+  const companyLookups = await Promise.all([
+    getDocs(query(collection(db, 'companies'), where('owner_user_id', '==', user.uid), limit(1))),
+    ...(user.email ? [getDocs(query(collection(db, 'companies'), where('owner_email', '==', user.email), limit(1)))] : []),
+  ]);
+
+  for (const snapshot of companyLookups) {
+    if (!snapshot.empty) {
+      const matchedCompany = snapshot.docs[0];
+      return { id: matchedCompany.id, ...matchedCompany.data() } as Company;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * If the authenticated user is the company owner but their profile has a degraded role
+ * (e.g. 'staff'), promote it to 'owner' and persist the fix to Firestore so it is
+ * permanent across sessions.
+ */
+async function healOwnerProfile(user: User, profile: Profile, company: Company): Promise<Profile> {
+  const isOwner =
+    company.owner_user_id === user.uid ||
+    (user.email && company.owner_email && company.owner_email.toLowerCase() === user.email.toLowerCase());
+
+  if (!isOwner || profile.role === 'owner') return profile;
+
+  const healed: Profile = {
+    ...profile,
+    role: 'owner',
+    permissions: ALL_PERMISSIONS,
+    company_id: company.id,
+    auth_uid: user.uid,
+  };
+
+  try {
+    await updateDoc(doc(db, 'profiles', profile.id), {
+      role: 'owner',
+      permissions: ALL_PERMISSIONS,
+      company_id: company.id,
+      auth_uid: user.uid,
+      updated_at: new Date().toISOString(),
+    });
+  } catch {
+    // If the profile doc doesn't exist at the expected path, create it
+    try {
+      await setDoc(doc(db, 'profiles', user.uid), {
+        ...healed,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+    } catch {
+      // Carry on with in-memory healed profile even if write fails
+    }
+  }
+
+  return healed;
+}
+
 async function resolveProfileAndCompany(user: User): Promise<{ profile: Profile | null; company: Company | null }> {
   for (let attempt = 0; attempt < 6; attempt++) {
     const profileSnap = await getDoc(doc(db, 'profiles', user.uid));
     if (profileSnap.exists()) {
       const nextProfile = { id: profileSnap.id, ...profileSnap.data() } as Profile;
-      const nextCompany = nextProfile.company_id
-        ? await getDoc(doc(db, 'companies', nextProfile.company_id)).then((companySnap) =>
-            companySnap.exists() ? ({ id: companySnap.id, ...companySnap.data() } as Company) : null
-          )
-        : null;
+      const nextCompany = await resolveCompanyForUser(user, nextProfile);
 
-      return { profile: nextProfile, company: nextCompany };
+      const finalProfile = nextCompany
+        ? await healOwnerProfile(user, nextProfile.company_id ? nextProfile : { ...nextProfile, company_id: nextCompany.id }, nextCompany)
+        : nextProfile;
+
+      return { profile: finalProfile, company: nextCompany };
     }
 
     const fallbackQueries = [
-      getDocs(query(collection(db, 'profiles'), where('auth_uid', '==', user.uid), limit(1)))
+      getDocs(query(collection(db, 'profiles'), where('auth_uid', '==', user.uid))),
+      ...(user.email ? [getDocs(query(collection(db, 'profiles'), where('email', '==', user.email)))] : []),
     ];
+
+    const candidates = new Map<string, Profile>();
 
     for (const lookup of fallbackQueries) {
       const snapshot = await lookup;
-      if (!snapshot.empty) {
-        const matchedDoc = snapshot.docs[0];
-        const matchedProfile = { id: matchedDoc.id, ...matchedDoc.data() } as Profile;
-        const matchedCompany = matchedProfile.company_id
-          ? await getDoc(doc(db, 'companies', matchedProfile.company_id)).then((companySnap) =>
-              companySnap.exists() ? ({ id: companySnap.id, ...companySnap.data() } as Company) : null
-            )
-          : null;
-
-        return { profile: matchedProfile, company: matchedCompany };
+      for (const matchedDoc of snapshot.docs) {
+        candidates.set(matchedDoc.id, { id: matchedDoc.id, ...matchedDoc.data() } as Profile);
       }
+    }
+
+    if (candidates.size > 0) {
+      const matchedProfile = [...candidates.values()].sort((a, b) => scoreProfileCandidate(b, user) - scoreProfileCandidate(a, user))[0];
+      const matchedCompany = await resolveCompanyForUser(user, matchedProfile);
+
+      const resolvedProfile = matchedCompany && !matchedProfile.company_id
+        ? { ...matchedProfile, company_id: matchedCompany.id }
+        : matchedProfile;
+
+      const finalProfile = matchedCompany
+        ? await healOwnerProfile(user, resolvedProfile, matchedCompany)
+        : resolvedProfile;
+
+      return { profile: finalProfile, company: matchedCompany };
     }
 
     if (attempt < 5) {

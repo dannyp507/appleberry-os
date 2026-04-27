@@ -60,7 +60,10 @@ export default function VerifyEmail() {
     setResending(true);
     try {
       const result = await signInWithEmailAndPassword(auth, email, password);
-      await sendEmailVerification(result.user);
+      await sendEmailVerification(result.user, {
+        url: `${window.location.origin}/verify-email?email=${encodeURIComponent(email)}&verified=1`,
+        handleCodeInApp: false,
+      });
       await auth.signOut();
       toast.success('Verification email sent again.');
     } catch (error: any) {
