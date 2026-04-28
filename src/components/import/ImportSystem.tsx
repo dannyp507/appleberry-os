@@ -41,7 +41,7 @@ export default function ImportSystem() {
   const [headers, setHeaders] = useState<string[]>([]);
   const [dataType, setDataType] = useState<ImportDataType>('customers');
   const [mapping, setMapping] = useState<ColumnMapping>({});
-  const [importMode, setImportMode] = useState<'dry' | 'live'>('dry');
+  const [importMode, setImportMode] = useState<'dry' | 'live'>('live');
   const [progress, setProgress] = useState(0);
   const [results, setResults] = useState<ImportResult | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -817,17 +817,17 @@ export default function ImportSystem() {
               <h3 className="text-lg font-bold text-gray-900">Preview (First 20 Rows)</h3>
               <div className="flex items-center gap-4">
                 <div className="flex bg-gray-100 p-1 rounded-lg">
-                  <button 
+                  <button
                     onClick={() => setImportMode('dry')}
-                    className={cn("px-4 py-1.5 text-xs font-bold rounded-md transition-all", importMode === 'dry' ? "bg-white text-primary shadow-sm" : "text-gray-500")}
+                    className={cn("px-4 py-1.5 text-xs font-bold rounded-md transition-all", importMode === 'dry' ? "bg-white text-orange-600 shadow-sm" : "text-gray-500")}
                   >
-                    Dry Run
+                    Test Only (no save)
                   </button>
-                  <button 
+                  <button
                     onClick={() => setImportMode('live')}
-                    className={cn("px-4 py-1.5 text-xs font-bold rounded-md transition-all", importMode === 'live' ? "bg-white text-red-600 shadow-sm" : "text-gray-500")}
+                    className={cn("px-4 py-1.5 text-xs font-bold rounded-md transition-all", importMode === 'live' ? "bg-white text-green-600 shadow-sm" : "text-gray-500")}
                   >
-                    Live Import
+                    ✓ Live Import
                   </button>
                 </div>
               </div>
