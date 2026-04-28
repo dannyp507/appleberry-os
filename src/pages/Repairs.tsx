@@ -590,6 +590,7 @@ export default function Repairs() {
                 <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500">Status</th>
                 <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500">Technician</th>
                 <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500">Problem</th>
+                <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500 text-right">Due</th>
                 <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500 text-right">Value</th>
                 <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500 text-right">Updated</th>
               </tr>
@@ -598,14 +599,14 @@ export default function Repairs() {
               {loading && repairs.length === 0 ? (
                 [1,2,3,4,5].map(i => (
                   <tr key={i} className="animate-pulse">
-                    <td colSpan={8} className="px-5 py-3">
+                    <td colSpan={9} className="px-5 py-3">
                       <div className="h-16 rounded-lg bg-[#202024]/70" />
                     </td>
                   </tr>
                 ))
               ) : filteredRepairs.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-16">
+                  <td colSpan={9} className="px-6 py-16">
                     <div className="mx-auto max-w-md text-center">
                       <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-[#2A2A2E] bg-[#141416] text-[#3B82F6]">
                         <Wrench className="h-7 w-7" />
@@ -695,6 +696,17 @@ export default function Repairs() {
                     </td>
                     <td className="border-b border-[#2A2A2E] px-5 py-4 align-top">
                       <p className="line-clamp-2 max-w-[260px] text-sm leading-5 text-zinc-300">{problemText}</p>
+                    </td>
+                    <td className="border-b border-[#2A2A2E] px-5 py-4 text-right align-top">
+                      {repair.due_date ? (() => {
+                        const due = new Date(repair.due_date);
+                        const isOverdue = due < new Date() && statusTone !== 'success';
+                        return (
+                          <span className={cn('text-xs font-semibold whitespace-nowrap', isOverdue ? 'text-[#EF4444]' : 'text-zinc-300')}>
+                            {isOverdue ? '⚠ ' : ''}{safeFormatDate(repair.due_date, 'dd MMM')}
+                          </span>
+                        );
+                      })() : <span className="text-zinc-600 text-xs">—</span>}
                     </td>
                     <td className="border-b border-[#2A2A2E] px-5 py-4 text-right align-top font-semibold text-zinc-100">
                       {formatCurrency(repair.total_amount || repair.cost || 0)}
