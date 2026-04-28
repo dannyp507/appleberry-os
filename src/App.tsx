@@ -43,6 +43,7 @@ const PurchaseOrders = lazy(() => import('./pages/PurchaseOrders'));
 const InventoryTransfer = lazy(() => import('./pages/InventoryTransfer'));
 const MarketingLanding = lazy(() => import('./pages/MarketingLanding'));
 const DevicesInventory = lazy(() => import('./pages/DevicesInventory'));
+const Setup = lazy(() => import('./pages/Setup'));
 
 // Components
 import Sidebar from './components/Sidebar';
@@ -282,7 +283,7 @@ export default function App() {
                 <Route path="/activity" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'activity.view') ? <ActivityLog /> : <Navigate to="/" replace />} />
                 <Route path="/getting-started" element={<Navigate to="/" replace />} />
                 <Route path="/manage-data" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'manage_data.view') ? <ManageData /> : <Navigate to="/" replace />} />
-                <Route path="/setup" element={<Navigate to="/" replace />} />
+                <Route path="/setup" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : <Setup />} />
                 <Route path="/integrations" element={<Navigate to="/" replace />} />
 
                 <Route path="*" element={<Navigate to={requiresOnboarding ? "/onboarding" : "/"} replace />} />

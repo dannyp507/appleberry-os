@@ -1,23 +1,300 @@
 import { useEffect, useState } from 'react';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { Settings, Save } from 'lucide-react';
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  orderBy,
+  updateDoc,
+  query,
+  where,
+} from 'firebase/firestore';
+import {
+  Settings,
+  Save,
+  Plus,
+  Trash2,
+  Pencil,
+  Check,
+  X,
+  ChevronRight,
+  Wrench,
+  Tag,
+  Users,
+  Package,
+  Building2,
+  ShoppingCart,
+  Palette,
+  AlertTriangle,
+} from 'lucide-react';
 import { db } from '../lib/firebase';
 import { useTenant } from '../lib/tenant';
 import { toast } from 'sonner';
+import { requireCompanyId } from '../lib/db';
 
-type SystemSettings = {
-  currency?: string;
-  timezone?: string;
-  date_format?: string;
-  tax_rate?: number;
-  low_stock_alert?: boolean;
-  email_notifications?: boolean;
-  auto_backup?: boolean;
-};
+// ─── types ────────────────────────────────────────────────────────────────────
+type Tab =
+  | 'general'
+  | 'repair_statuses'
+  | 'repair_problems'
+  | 'brand_models'
+  | 'categories'
+  | 'manufacturers'
+  | 'vendors'
+  | 'expense_types'
+  | 'customer_types';
 
+interface ListItem {
+  id: string;
+  name: string;
+  color?: string;
+  order_index?: number;
+  default_price?: number;
+  brand?: string;
+  model?: string;
+}
+
+// ─── reusable simple-list manager ─────────────────────────────────────────────
+function SimpleListManager({
+  title,
+  collectionName,
+  companyId,
+  extraFields,
+}: {
+  title: string;
+  collectionName: string;
+  companyId: string | null;
+  extraFields?: 'price' | 'color' | 'brand_model';
+}) {
+  const [items, setItems] = useState<ListItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [newName, setNewName] = useState('');
+  const [newExtra, setNewExtra] = useState('');
+  const [newBrand, setNewBrand] = useState('');
+  const [newModel, setNewModel] = useState('');
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editExtra, setEditExtra] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!companyId) return;
+    load();
+  }, [companyId, collectionName]);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const snap = await getDocs(
+        query(
+          collection(db, collectionName),
+          where('company_id', '==', companyId),
+          orderBy(collectionName === 'repair_status_options' ? 'order_index' : 'name')
+        )
+      );
+      setItems(snap.docs.map(d => ({ id: d.id, ...d.data() } as ListItem)));
+    } catch {
+      // orderBy might fail if no index — fall back
+      try {
+        const snap = await getDocs(
+          query(collection(db, collectionName), where('company_id', '==', companyId))
+        );
+        setItems(snap.docs.map(d => ({ id: d.id, ...d.data() } as ListItem)));
+      } catch (e: any) {
+        toast.error(e.message);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleAdd() {
+    if (!newName.trim() || !companyId) return;
+    setSaving(true);
+    try {
+      const cid = requireCompanyId(companyId);
+      const payload: any = {
+        company_id: cid,
+        name: newName.trim(),
+        created_at: new Date().toISOString(),
+      };
+      if (extraFields === 'price') payload.default_price = parseFloat(newExtra) || 0;
+      if (extraFields === 'color') payload.color = newExtra || '#6b7280';
+      if (extraFields === 'brand_model') {
+        payload.brand = newBrand.trim();
+        payload.model = newName.trim();
+        payload.name = `${newBrand.trim()} ${newName.trim()}`;
+      }
+      if (collectionName === 'repair_status_options') payload.order_index = items.length;
+      const ref = await addDoc(collection(db, collectionName), payload);
+      setItems([...items, { id: ref.id, ...payload }]);
+      setNewName('');
+      setNewExtra('');
+      setNewBrand('');
+      setNewModel('');
+      toast.success('Added');
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm('Delete this item?')) return;
+    try {
+      await deleteDoc(doc(db, collectionName, id));
+      setItems(items.filter(i => i.id !== id));
+      toast.success('Deleted');
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  }
+
+  async function handleSaveEdit(id: string) {
+    if (!editName.trim()) return;
+    try {
+      const updates: any = { name: editName.trim(), updated_at: new Date().toISOString() };
+      if (extraFields === 'price') updates.default_price = parseFloat(editExtra) || 0;
+      if (extraFields === 'color') updates.color = editExtra || '#6b7280';
+      await updateDoc(doc(db, collectionName, id), updates);
+      setItems(items.map(i => i.id === id ? { ...i, ...updates } : i));
+      setEditId(null);
+      toast.success('Updated');
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  }
+
+  if (loading) return <div className="py-8 text-center text-sm text-zinc-500">Loading…</div>;
+
+  return (
+    <div className="space-y-4">
+      <h3 className="text-base font-bold text-white">{title}</h3>
+
+      {/* Add new */}
+      <div className="flex gap-2">
+        {extraFields === 'brand_model' && (
+          <input
+            type="text"
+            placeholder="Brand (e.g. Apple)"
+            className="flex-1 px-3 py-2 rounded-lg border border-[#2A2A2E] bg-[#101012] text-white text-sm placeholder-zinc-600 focus:border-[#22C55E] focus:outline-none"
+            value={newBrand}
+            onChange={e => setNewBrand(e.target.value)}
+          />
+        )}
+        <input
+          type="text"
+          placeholder={extraFields === 'brand_model' ? 'Model (e.g. iPhone 15 Pro)' : 'Name…'}
+          className="flex-1 px-3 py-2 rounded-lg border border-[#2A2A2E] bg-[#101012] text-white text-sm placeholder-zinc-600 focus:border-[#22C55E] focus:outline-none"
+          value={newName}
+          onChange={e => setNewName(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') handleAdd(); }}
+        />
+        {extraFields === 'price' && (
+          <input
+            type="number"
+            placeholder="Default price"
+            className="w-32 px-3 py-2 rounded-lg border border-[#2A2A2E] bg-[#101012] text-white text-sm focus:border-[#22C55E] focus:outline-none"
+            value={newExtra}
+            onChange={e => setNewExtra(e.target.value)}
+          />
+        )}
+        {extraFields === 'color' && (
+          <input
+            type="color"
+            className="w-10 h-10 rounded-lg border border-[#2A2A2E] bg-[#101012] cursor-pointer"
+            value={newExtra || '#6b7280'}
+            onChange={e => setNewExtra(e.target.value)}
+          />
+        )}
+        <button
+          onClick={handleAdd}
+          disabled={saving || !newName.trim()}
+          className="px-4 py-2 bg-[#22C55E] text-black rounded-lg text-sm font-bold hover:bg-[#16a34a] disabled:opacity-40 flex items-center gap-1"
+        >
+          <Plus className="w-4 h-4" /> Add
+        </button>
+      </div>
+
+      {/* List */}
+      {items.length === 0 ? (
+        <p className="text-sm text-zinc-500 italic py-4">No items yet. Add your first one above.</p>
+      ) : (
+        <div className="rounded-xl border border-[#2A2A2E] divide-y divide-[#2A2A2E] overflow-hidden">
+          {items.map(item => (
+            <div key={item.id} className="flex items-center gap-3 px-4 py-3 bg-[#141416] hover:bg-[#1C1C1F] transition-colors group">
+              {extraFields === 'color' && (
+                <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: item.color || '#6b7280' }} />
+              )}
+              {editId === item.id ? (
+                <>
+                  <input
+                    type="text"
+                    className="flex-1 px-2 py-1 rounded border border-[#22C55E] bg-[#101012] text-white text-sm focus:outline-none"
+                    value={editName}
+                    onChange={e => setEditName(e.target.value)}
+                    autoFocus
+                  />
+                  {extraFields === 'price' && (
+                    <input
+                      type="number"
+                      className="w-24 px-2 py-1 rounded border border-[#22C55E] bg-[#101012] text-white text-sm focus:outline-none"
+                      value={editExtra}
+                      onChange={e => setEditExtra(e.target.value)}
+                    />
+                  )}
+                  {extraFields === 'color' && (
+                    <input
+                      type="color"
+                      className="w-8 h-8 rounded cursor-pointer"
+                      value={editExtra || item.color || '#6b7280'}
+                      onChange={e => setEditExtra(e.target.value)}
+                    />
+                  )}
+                  <button onClick={() => handleSaveEdit(item.id)} className="text-green-400 hover:text-green-300 p-1"><Check className="w-4 h-4" /></button>
+                  <button onClick={() => setEditId(null)} className="text-zinc-500 hover:text-zinc-300 p-1"><X className="w-4 h-4" /></button>
+                </>
+              ) : (
+                <>
+                  <span className="flex-1 text-sm text-white">{item.name}</span>
+                  {extraFields === 'price' && item.default_price != null && item.default_price > 0 && (
+                    <span className="text-xs text-zinc-400 font-medium">R{item.default_price.toFixed(2)}</span>
+                  )}
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => {
+                        setEditId(item.id);
+                        setEditName(item.name);
+                        setEditExtra(
+                          extraFields === 'price' ? String(item.default_price || '') :
+                          extraFields === 'color' ? (item.color || '') : ''
+                        );
+                      }}
+                      className="p-1 text-zinc-400 hover:text-white"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={() => handleDelete(item.id)} className="p-1 text-zinc-400 hover:text-red-400">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── main setup page ───────────────────────────────────────────────────────────
 export default function Setup() {
   const { companyId } = useTenant();
-  const [settings, setSettings] = useState<SystemSettings>({
+  const [activeTab, setActiveTab] = useState<Tab>('general');
+  const [settings, setSettings] = useState({
     currency: 'ZAR',
     timezone: 'Africa/Johannesburg',
     date_format: 'DD/MM/YYYY',
@@ -30,154 +307,258 @@ export default function Setup() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (companyId) {
-      fetchSettings();
-    }
+    if (companyId) fetchSettings();
   }, [companyId]);
 
   async function fetchSettings() {
     setLoading(true);
     try {
-      const settingsDoc = await getDoc(doc(db, 'system_settings', companyId));
-      if (settingsDoc.exists()) {
-        setSettings({ ...settings, ...settingsDoc.data() });
-      }
-    } catch (error) {
-      console.error('Error fetching system settings:', error);
-    } finally {
-      setLoading(false);
-    }
+      const { getDoc } = await import('firebase/firestore');
+      const snap = await getDoc(doc(db, 'system_settings', companyId!));
+      if (snap.exists()) setSettings(s => ({ ...s, ...snap.data() }));
+    } catch {}
+    finally { setLoading(false); }
   }
 
   async function saveSettings() {
     if (!companyId) return;
-
     setSaving(true);
     try {
       await updateDoc(doc(db, 'system_settings', companyId), settings);
-      toast.success('System settings saved successfully');
-    } catch (error) {
-      console.error('Error saving system settings:', error);
-      toast.error('Failed to save settings');
+      toast.success('Settings saved');
+    } catch {
+      // doc might not exist yet — create it
+      try {
+        await addDoc(collection(db, 'system_settings'), { ...settings, company_id: companyId });
+        toast.success('Settings saved');
+      } catch (e: any) {
+        toast.error(e.message);
+      }
     } finally {
       setSaving(false);
     }
   }
 
-  if (loading) {
-    return (
-      <div className="flex min-h-[40vh] items-center justify-center">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
-      </div>
-    );
-  }
+  const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
+    { id: 'general', label: 'General', icon: <Settings className="w-4 h-4" /> },
+    { id: 'repair_statuses', label: 'Repair Statuses', icon: <Palette className="w-4 h-4" /> },
+    { id: 'repair_problems', label: 'Repair Problems', icon: <Wrench className="w-4 h-4" /> },
+    { id: 'brand_models', label: 'Brand Models', icon: <Package className="w-4 h-4" /> },
+    { id: 'categories', label: 'Product Categories', icon: <Tag className="w-4 h-4" /> },
+    { id: 'manufacturers', label: 'Manufacturers', icon: <Building2 className="w-4 h-4" /> },
+    { id: 'vendors', label: 'Vendors', icon: <ShoppingCart className="w-4 h-4" /> },
+    { id: 'expense_types', label: 'Expense Types', icon: <AlertTriangle className="w-4 h-4" /> },
+    { id: 'customer_types', label: 'Customer Types', icon: <Users className="w-4 h-4" /> },
+  ];
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">System Setup</h1>
-        <button
-          onClick={saveSettings}
-          disabled={saving}
-          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-50"
-        >
-          <Save className="h-4 w-4" />
-          {saving ? 'Saving...' : 'Save Settings'}
-        </button>
+        <div>
+          <h1 className="text-2xl font-bold text-white">Setup</h1>
+          <p className="text-sm text-zinc-400 mt-0.5">Configure your workspace, lists and defaults</p>
+        </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-gray-900">General Settings</h2>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Currency</label>
-            <select
-              value={settings.currency}
-              onChange={(e) => setSettings({ ...settings, currency: e.target.value })}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
+      <div className="flex gap-6 min-h-[70vh]">
+        {/* Sidebar nav */}
+        <div className="w-56 flex-shrink-0 space-y-1">
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                activeTab === tab.id
+                  ? 'bg-[#22C55E]/10 text-[#22C55E] border border-[#22C55E]/20'
+                  : 'text-zinc-400 hover:text-white hover:bg-[#1C1C1F]'
+              }`}
             >
-              <option value="ZAR">South African Rand (ZAR)</option>
-              <option value="USD">US Dollar (USD)</option>
-              <option value="EUR">Euro (EUR)</option>
-              <option value="GBP">British Pound (GBP)</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Timezone</label>
-            <select
-              value={settings.timezone}
-              onChange={(e) => setSettings({ ...settings, timezone: e.target.value })}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
-            >
-              <option value="Africa/Johannesburg">South Africa (GMT+2)</option>
-              <option value="UTC">UTC</option>
-              <option value="America/New_York">Eastern Time</option>
-              <option value="Europe/London">London</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Date Format</label>
-            <select
-              value={settings.date_format}
-              onChange={(e) => setSettings({ ...settings, date_format: e.target.value })}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
-            >
-              <option value="DD/MM/YYYY">DD/MM/YYYY</option>
-              <option value="MM/DD/YYYY">MM/DD/YYYY</option>
-              <option value="YYYY-MM-DD">YYYY-MM-DD</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Tax Rate (%)</label>
-            <input
-              type="number"
-              value={settings.tax_rate}
-              onChange={(e) => setSettings({ ...settings, tax_rate: parseFloat(e.target.value) || 0 })}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
-            />
-          </div>
+              {tab.icon}
+              <span className="flex-1 text-left">{tab.label}</span>
+              {activeTab === tab.id && <ChevronRight className="w-3 h-3" />}
+            </button>
+          ))}
         </div>
 
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-gray-900">Notifications & Alerts</h2>
-          <div className="space-y-3">
-            <div className="flex items-center">
-              <input
-                id="low_stock_alert"
-                type="checkbox"
-                checked={settings.low_stock_alert}
-                onChange={(e) => setSettings({ ...settings, low_stock_alert: e.target.checked })}
-                className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-              />
-              <label htmlFor="low_stock_alert" className="ml-2 block text-sm text-gray-900">
-                Low stock alerts
-              </label>
+        {/* Content panel */}
+        <div className="flex-1 rounded-2xl border border-[#2A2A2E] bg-[#141416] p-6">
+
+          {/* General Settings */}
+          {activeTab === 'general' && (
+            <div className="space-y-6 max-w-xl">
+              <h3 className="text-base font-bold text-white">General Settings</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Currency</label>
+                  <select
+                    value={settings.currency}
+                    onChange={e => setSettings({ ...settings, currency: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border border-[#2A2A2E] bg-[#101012] text-white text-sm focus:border-[#22C55E] focus:outline-none"
+                  >
+                    <option value="ZAR">South African Rand (ZAR)</option>
+                    <option value="USD">US Dollar (USD)</option>
+                    <option value="EUR">Euro (EUR)</option>
+                    <option value="GBP">British Pound (GBP)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Timezone</label>
+                  <select
+                    value={settings.timezone}
+                    onChange={e => setSettings({ ...settings, timezone: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border border-[#2A2A2E] bg-[#101012] text-white text-sm focus:border-[#22C55E] focus:outline-none"
+                  >
+                    <option value="Africa/Johannesburg">South Africa (GMT+2)</option>
+                    <option value="UTC">UTC</option>
+                    <option value="America/New_York">Eastern Time</option>
+                    <option value="Europe/London">London</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Date Format</label>
+                  <select
+                    value={settings.date_format}
+                    onChange={e => setSettings({ ...settings, date_format: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border border-[#2A2A2E] bg-[#101012] text-white text-sm focus:border-[#22C55E] focus:outline-none"
+                  >
+                    <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                    <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                    <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Tax Rate (%)</label>
+                  <input
+                    type="number"
+                    value={settings.tax_rate}
+                    onChange={e => setSettings({ ...settings, tax_rate: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 rounded-lg border border-[#2A2A2E] bg-[#101012] text-white text-sm focus:border-[#22C55E] focus:outline-none"
+                  />
+                </div>
+              </div>
+              <div className="space-y-3 pt-2">
+                <h4 className="text-sm font-bold text-zinc-300">Alerts & Notifications</h4>
+                {[
+                  { key: 'low_stock_alert', label: 'Low stock alerts' },
+                  { key: 'email_notifications', label: 'Email notifications' },
+                  { key: 'auto_backup', label: 'Automatic data backup' },
+                ].map(({ key, label }) => (
+                  <label key={key} className="flex items-center gap-3 cursor-pointer group">
+                    <div className={`w-9 h-5 rounded-full transition-colors ${(settings as any)[key] ? 'bg-[#22C55E]' : 'bg-zinc-700'} relative`}>
+                      <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${(settings as any)[key] ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                    </div>
+                    <span className="text-sm text-zinc-300 group-hover:text-white transition-colors">{label}</span>
+                    <input
+                      type="checkbox"
+                      className="sr-only"
+                      checked={(settings as any)[key]}
+                      onChange={e => setSettings({ ...settings, [key]: e.target.checked })}
+                    />
+                  </label>
+                ))}
+              </div>
+              <button
+                onClick={saveSettings}
+                disabled={saving}
+                className="flex items-center gap-2 px-5 py-2.5 bg-[#22C55E] text-black font-bold rounded-xl text-sm hover:bg-[#16a34a] disabled:opacity-50"
+              >
+                <Save className="w-4 h-4" />
+                {saving ? 'Saving…' : 'Save Settings'}
+              </button>
             </div>
-            <div className="flex items-center">
-              <input
-                id="email_notifications"
-                type="checkbox"
-                checked={settings.email_notifications}
-                onChange={(e) => setSettings({ ...settings, email_notifications: e.target.checked })}
-                className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+          )}
+
+          {activeTab === 'repair_statuses' && (
+            <div className="max-w-lg">
+              <p className="text-sm text-zinc-400 mb-4">Define the stages a repair moves through. The order here is the default sort order.</p>
+              <SimpleListManager
+                title="Repair Statuses"
+                collectionName="repair_status_options"
+                companyId={companyId}
+                extraFields="color"
               />
-              <label htmlFor="email_notifications" className="ml-2 block text-sm text-gray-900">
-                Email notifications
-              </label>
             </div>
-            <div className="flex items-center">
-              <input
-                id="auto_backup"
-                type="checkbox"
-                checked={settings.auto_backup}
-                onChange={(e) => setSettings({ ...settings, auto_backup: e.target.checked })}
-                className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+          )}
+
+          {activeTab === 'repair_problems' && (
+            <div className="max-w-lg">
+              <p className="text-sm text-zinc-400 mb-4">Pre-defined repair problems staff can select. Optionally set a default price that auto-adds to the repair cart.</p>
+              <SimpleListManager
+                title="Repair Problems"
+                collectionName="repair_problems"
+                companyId={companyId}
+                extraFields="price"
               />
-              <label htmlFor="auto_backup" className="ml-2 block text-sm text-gray-900">
-                Automatic data backup
-              </label>
             </div>
-          </div>
+          )}
+
+          {activeTab === 'brand_models' && (
+            <div className="max-w-lg">
+              <p className="text-sm text-zinc-400 mb-4">Add brand + model combinations for quick device selection when creating repairs.</p>
+              <SimpleListManager
+                title="Brand Models"
+                collectionName="brand_models"
+                companyId={companyId}
+                extraFields="brand_model"
+              />
+            </div>
+          )}
+
+          {activeTab === 'categories' && (
+            <div className="max-w-lg">
+              <p className="text-sm text-zinc-400 mb-4">Product categories used to organise your inventory.</p>
+              <SimpleListManager
+                title="Product Categories"
+                collectionName="product_categories"
+                companyId={companyId}
+              />
+            </div>
+          )}
+
+          {activeTab === 'manufacturers' && (
+            <div className="max-w-lg">
+              <p className="text-sm text-zinc-400 mb-4">Manufacturer / brand names for your products.</p>
+              <SimpleListManager
+                title="Manufacturers"
+                collectionName="manufacturers"
+                companyId={companyId}
+              />
+            </div>
+          )}
+
+          {activeTab === 'vendors' && (
+            <div className="max-w-lg">
+              <p className="text-sm text-zinc-400 mb-4">Vendors / suppliers used in your Expenses module.</p>
+              <SimpleListManager
+                title="Vendors"
+                collectionName="vendors"
+                companyId={companyId}
+              />
+            </div>
+          )}
+
+          {activeTab === 'expense_types' && (
+            <div className="max-w-lg">
+              <p className="text-sm text-zinc-400 mb-4">Categories for your business expenses (e.g. Rent, Utilities, Stock, Labour).</p>
+              <SimpleListManager
+                title="Expense Types"
+                collectionName="expense_types"
+                companyId={companyId}
+              />
+            </div>
+          )}
+
+          {activeTab === 'customer_types' && (
+            <div className="max-w-lg">
+              <p className="text-sm text-zinc-400 mb-4">Tag customers by type for filtering and reporting (e.g. Wholesale, VIP, Walk-in).</p>
+              <SimpleListManager
+                title="Customer Types"
+                collectionName="customer_types"
+                companyId={companyId}
+              />
+            </div>
+          )}
+
         </div>
       </div>
     </div>

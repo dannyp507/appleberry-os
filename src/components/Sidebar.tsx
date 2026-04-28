@@ -16,6 +16,7 @@ import {
   Smartphone,
   CheckSquare,
   Database,
+  Settings,
   X
 } from 'lucide-react';
 import { auth } from '../lib/firebase';
@@ -41,6 +42,7 @@ const navItems = [
   { icon: CheckSquare, label: 'Stock Take', path: '/stock-take', permission: 'stock_take.view' as PermissionKey },
   { icon: Database, label: 'Manage Data', path: '/manage-data', permission: 'manage_data.view' as PermissionKey },
   { icon: Search, label: 'IMEI Search', path: '/imei', permission: 'imei.view' as PermissionKey },
+  { icon: Settings, label: 'Setup', path: '/setup', permission: 'staff.manage' as PermissionKey },
 ];
 
 type SidebarProps = {
