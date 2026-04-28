@@ -86,6 +86,9 @@ export default function RepairDetail() {
   const [linkedRepairs, setLinkedRepairs] = useState<{ id: string; ticket_number?: string; device_name?: string }[]>([]);
   const [showEstimateModal, setShowEstimateModal] = useState(false);
   const [estimateSent, setEstimateSent] = useState(false);
+  const [showSignatureModal, setShowSignatureModal] = useState(false);
+  const signatureCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const isDrawingRef = useRef(false);
 
   useEffect(() => {
     if (!id) return;
@@ -215,6 +218,44 @@ export default function RepairDetail() {
     } catch (error: any) {
       toast.error(error.message);
     }
+  };
+
+  const handleSaveSignature = async () => {
+    if (!signatureCanvasRef.current || !id) return;
+    const dataUrl = signatureCanvasRef.current.toDataURL('image/png');
+    await updateDoc(doc(db, 'repairs', id), {
+      customer_signature: dataUrl,
+      updated_at: new Date().toISOString(),
+    });
+    setShowSignatureModal(false);
+    toast.success('Signature saved');
+  };
+
+  const handleClearSignature = () => {
+    if (!signatureCanvasRef.current) return;
+    const ctx = signatureCanvasRef.current.getContext('2d');
+    if (ctx) { ctx.clearRect(0, 0, signatureCanvasRef.current.width, signatureCanvasRef.current.height); }
+  };
+
+  const setupCanvas = (canvas: HTMLCanvasElement | null) => {
+    if (!canvas) return;
+    signatureCanvasRef.current = canvas;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.strokeStyle = '#1a1a1a';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    const getPos = (e: MouseEvent | Touch) => {
+      const rect = canvas.getBoundingClientRect();
+      return { x: (e as any).clientX - rect.left, y: (e as any).clientY - rect.top };
+    };
+    canvas.onmousedown = (e) => { isDrawingRef.current = true; ctx.beginPath(); const p = getPos(e); ctx.moveTo(p.x, p.y); };
+    canvas.onmousemove = (e) => { if (!isDrawingRef.current) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); };
+    canvas.onmouseup = () => { isDrawingRef.current = false; };
+    canvas.onmouseleave = () => { isDrawingRef.current = false; };
+    canvas.ontouchstart = (e) => { e.preventDefault(); isDrawingRef.current = true; ctx.beginPath(); const p = getPos(e.touches[0]); ctx.moveTo(p.x, p.y); };
+    canvas.ontouchmove = (e) => { e.preventDefault(); if (!isDrawingRef.current) return; const p = getPos(e.touches[0]); ctx.lineTo(p.x, p.y); ctx.stroke(); };
+    canvas.ontouchend = () => { isDrawingRef.current = false; };
   };
 
   const handleLinkRepair = async (e: React.FormEvent) => {
@@ -453,6 +494,14 @@ export default function RepairDetail() {
           >
             <FileText className="w-4 h-4" />
             Estimate
+          </button>
+          <button
+            onClick={() => setShowSignatureModal(true)}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold hover:opacity-90 transition-all shadow-sm ${repair?.customer_signature ? 'bg-green-600 text-white' : 'bg-white border border-gray-200 text-gray-700'}`}
+            title="Customer signature"
+          >
+            <PenTool className="w-4 h-4" />
+            {repair?.customer_signature ? 'Signed' : 'Signature'}
           </button>
         </div>
       </div>
@@ -1012,6 +1061,57 @@ export default function RepairDetail() {
           </div>
         </div>
       </div>
+
+      {/* Signature Modal */}
+      {showSignatureModal && repair && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+            <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-gray-50">
+              <div>
+                <h2 className="text-xl font-bold">Customer Signature</h2>
+                <p className="text-sm text-gray-500">Sign below to authorise repair</p>
+              </div>
+              <button onClick={() => setShowSignatureModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="p-5">
+              {repair.customer_signature ? (
+                <div className="mb-4">
+                  <p className="text-xs font-bold text-green-600 uppercase mb-2 flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" /> Signature on file
+                  </p>
+                  <img src={repair.customer_signature} alt="Customer signature" className="border border-gray-200 rounded-lg w-full" />
+                </div>
+              ) : null}
+              <p className="text-xs text-gray-500 mb-2 font-medium">Draw signature below</p>
+              <canvas
+                ref={setupCanvas}
+                width={380}
+                height={160}
+                className="border-2 border-dashed border-gray-300 rounded-xl w-full cursor-crosshair bg-white touch-none"
+                style={{ touchAction: 'none' }}
+              />
+            </div>
+            <div className="px-5 pb-5 flex gap-3">
+              <button
+                type="button"
+                onClick={handleClearSignature}
+                className="flex-1 px-4 py-2 border border-gray-200 text-gray-600 rounded-xl font-semibold hover:bg-gray-50 text-sm"
+              >
+                Clear
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveSignature}
+                className="flex-1 px-4 py-2 bg-gray-900 text-white rounded-xl font-semibold hover:opacity-80 text-sm"
+              >
+                Save Signature
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Estimate Modal */}
       {showEstimateModal && repair && (
