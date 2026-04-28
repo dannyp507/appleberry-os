@@ -112,39 +112,74 @@ export default function ImportSystem() {
             
             // Auto-detect CellStore file type from headers
             if (fileHeaders.includes('Offers Email') && fileHeaders.includes('Contact No')) {
+              // customers.csv — unique fingerprint
               setDataType('customers');
               autoMap('customers', fileHeaders);
               setStep('preview');
               toast.success('CellStore Customer file detected! Auto-mapped all fields.');
             } else if (fileHeaders.includes('Invoice #') && fileHeaders.includes('Qty Sold')) {
+              // sales / POS export — line-item level
               setDataType('sales');
               autoMap('sales', fileHeaders);
               setStep('preview');
               toast.success('CellStore POS sales file detected! Historical sales are ready for preview.');
             } else if (
-              (fileHeaders.includes('Category name') || fileHeaders.includes('Current inventory') || fileHeaders.includes('Current Stock Level')) &&
-              fileHeaders.some(h => ['Product Name', 'Name', 'SKU'].includes(h))
+              fileHeaders.includes('Current inventory') ||
+              (fileHeaders.includes('Category name') && fileHeaders.some(h => ['Product name', 'Product Name', 'SKU'].includes(h)))
             ) {
+              // product_inventory.csv
               setDataType('products');
               autoMap('products', fileHeaders);
               setStep('preview');
-              toast.success('CellStore Product file detected! Auto-mapped all fields.');
-            } else if (
-              fileHeaders.some(h => ['Rep #', 'Reported Issue', 'Device'].includes(h)) ||
-              (fileHeaders.includes('IMEI') && fileHeaders.some(h => ['Customer Name', 'Device Model'].includes(h)))
-            ) {
+              toast.success('CellStore Product Inventory file detected! Auto-mapped all fields.');
+            } else if (fileHeaders.includes('Ticket #') || fileHeaders.includes('Tech Assigned') || fileHeaders.includes('IMEI/Serial No.')) {
+              // repairs.csv — unique CellStore repairs fingerprint
               setDataType('repairs');
               autoMap('repairs', fileHeaders);
               setStep('preview');
               toast.success('CellStore Repairs file detected! Auto-mapped all fields.');
-            } else if (
-              fileHeaders.some(h => ['Expense', 'Expense Title'].includes(h)) &&
-              fileHeaders.includes('Amount')
-            ) {
+            } else if (fileHeaders.includes('Bill Amount') || fileHeaders.includes('Expense Type') || fileHeaders.includes('Vendor Name')) {
+              // expenses.csv
               setDataType('expenses');
               autoMap('expenses', fileHeaders);
               setStep('preview');
               toast.success('CellStore Expenses file detected! Auto-mapped all fields.');
+            } else if (fileHeaders.includes('Add / Sub') || (fileHeaders.includes('Date Added') && fileHeaders.includes('Reason') && fileHeaders.includes('Amount'))) {
+              // petty_cash.csv — routes to expenses schema
+              setDataType('expenses');
+              autoMap('expenses', fileHeaders);
+              setStep('preview');
+              toast.success('CellStore Petty Cash file detected! Mapped to Expenses. Auto-mapped all fields.');
+            } else if (fileHeaders.includes('Payment Type') && fileHeaders.includes('Invoice No') && fileHeaders.includes('Drawer')) {
+              // payments.csv
+              setDataType('payments');
+              autoMap('payments', fileHeaders);
+              setStep('preview');
+              toast.success('CellStore Payments file detected! Auto-mapped all fields.');
+            } else if (fileHeaders.includes('Current Stock') && fileHeaders.includes('Counted') && fileHeaders.includes('Difference')) {
+              // stock_take.csv
+              setDataType('stock_take');
+              autoMap('stock_take', fileHeaders);
+              setStep('preview');
+              toast.success('CellStore Stock Take file detected! Auto-mapped all fields.');
+            } else if (fileHeaders.includes('PO #') || fileHeaders.includes('Suppiler Name') || fileHeaders.includes('Qty Purchased')) {
+              // po.csv — note "Suppiler" is CellStore's typo
+              setDataType('purchases');
+              autoMap('purchases', fileHeaders);
+              setStep('preview');
+              toast.success('CellStore Purchase Order file detected! Auto-mapped all fields.');
+            } else if (fileHeaders.includes('Invoice No') && fileHeaders.includes('Sales Person') && fileHeaders.includes('Taxable')) {
+              // invoice.csv / order.csv — header-level invoice (no line items)
+              setDataType('invoices');
+              autoMap('invoices', fileHeaders);
+              setStep('preview');
+              toast.success('CellStore Invoice file detected! Auto-mapped all fields.');
+            } else if (fileHeaders.includes('Serial number') || fileHeaders.includes('Lot #') || fileHeaders.includes('PO number')) {
+              // imei_devices / serialised stock
+              setDataType('imei_devices');
+              autoMap('imei_devices', fileHeaders);
+              setStep('preview');
+              toast.success('IMEI/Serial Device file detected! Auto-mapped all fields.');
             } else {
               setStep('type');
             }
@@ -172,29 +207,53 @@ export default function ImportSystem() {
             setStep('preview');
             toast.success('CellStore POS sales file detected! Historical sales are ready for preview.');
           } else if (
-            (fileHeaders.includes('Category name') || fileHeaders.includes('Current inventory') || fileHeaders.includes('Current Stock Level')) &&
-            fileHeaders.some(h => ['Product Name', 'Name', 'SKU'].includes(h))
+            fileHeaders.includes('Current inventory') ||
+            (fileHeaders.includes('Category name') && fileHeaders.some(h => ['Product name', 'Product Name', 'SKU'].includes(h)))
           ) {
             setDataType('products');
             autoMap('products', fileHeaders);
             setStep('preview');
-            toast.success('CellStore Product file detected! Auto-mapped all fields.');
-          } else if (
-            fileHeaders.some(h => ['Rep #', 'Reported Issue', 'Device'].includes(h)) ||
-            (fileHeaders.includes('IMEI') && fileHeaders.some(h => ['Customer Name', 'Device Model'].includes(h)))
-          ) {
+            toast.success('CellStore Product Inventory file detected! Auto-mapped all fields.');
+          } else if (fileHeaders.includes('Ticket #') || fileHeaders.includes('Tech Assigned') || fileHeaders.includes('IMEI/Serial No.')) {
             setDataType('repairs');
             autoMap('repairs', fileHeaders);
             setStep('preview');
             toast.success('CellStore Repairs file detected! Auto-mapped all fields.');
-          } else if (
-            fileHeaders.some(h => ['Expense', 'Expense Title'].includes(h)) &&
-            fileHeaders.includes('Amount')
-          ) {
+          } else if (fileHeaders.includes('Bill Amount') || fileHeaders.includes('Expense Type') || fileHeaders.includes('Vendor Name')) {
             setDataType('expenses');
             autoMap('expenses', fileHeaders);
             setStep('preview');
             toast.success('CellStore Expenses file detected! Auto-mapped all fields.');
+          } else if (fileHeaders.includes('Add / Sub') || (fileHeaders.includes('Date Added') && fileHeaders.includes('Reason') && fileHeaders.includes('Amount'))) {
+            setDataType('expenses');
+            autoMap('expenses', fileHeaders);
+            setStep('preview');
+            toast.success('CellStore Petty Cash file detected! Mapped to Expenses. Auto-mapped all fields.');
+          } else if (fileHeaders.includes('Payment Type') && fileHeaders.includes('Invoice No') && fileHeaders.includes('Drawer')) {
+            setDataType('payments');
+            autoMap('payments', fileHeaders);
+            setStep('preview');
+            toast.success('CellStore Payments file detected! Auto-mapped all fields.');
+          } else if (fileHeaders.includes('Current Stock') && fileHeaders.includes('Counted') && fileHeaders.includes('Difference')) {
+            setDataType('stock_take');
+            autoMap('stock_take', fileHeaders);
+            setStep('preview');
+            toast.success('CellStore Stock Take file detected! Auto-mapped all fields.');
+          } else if (fileHeaders.includes('PO #') || fileHeaders.includes('Suppiler Name') || fileHeaders.includes('Qty Purchased')) {
+            setDataType('purchases');
+            autoMap('purchases', fileHeaders);
+            setStep('preview');
+            toast.success('CellStore Purchase Order file detected! Auto-mapped all fields.');
+          } else if (fileHeaders.includes('Invoice No') && fileHeaders.includes('Sales Person') && fileHeaders.includes('Taxable')) {
+            setDataType('invoices');
+            autoMap('invoices', fileHeaders);
+            setStep('preview');
+            toast.success('CellStore Invoice file detected! Auto-mapped all fields.');
+          } else if (fileHeaders.includes('Serial number') || fileHeaders.includes('Lot #') || fileHeaders.includes('PO number')) {
+            setDataType('imei_devices');
+            autoMap('imei_devices', fileHeaders);
+            setStep('preview');
+            toast.success('IMEI/Serial Device file detected! Auto-mapped all fields.');
           } else {
             setStep('type');
           }
@@ -368,6 +427,12 @@ export default function ImportSystem() {
                 imported: true,
                 import_batch: file?.name
               };
+            }
+
+            // Repairs: CellStore exports Brand + Model as separate columns.
+            // Combine them into device_model if device_model wasn't directly mapped.
+            if (dataType === 'repairs' && !transformed.device_model && (transformed.brand || transformed.model)) {
+              payload.device_model = [transformed.brand, transformed.model].filter(Boolean).join(' ');
             }
 
             batch.set(docRef, payload);
