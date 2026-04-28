@@ -6,7 +6,8 @@ export function roundMoney(value: number) {
   return Math.round((Number(value) + Number.EPSILON) * 100) / 100;
 }
 
-export function isStockTrackedProduct(product: Pick<Product, 'id' | 'category'>) {
+export function isStockTrackedProduct(product: Pick<Product, 'id' | 'category'> & { product_type?: string | null }) {
+  if (product.product_type === 'service') return false;
   const category = String(product.category || '').toLowerCase();
   return !String(product.id).startsWith('repair-') && !category.includes('service') && !category.includes('labour');
 }

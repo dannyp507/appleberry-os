@@ -65,17 +65,21 @@ const ProductRow = memo(function ProductRow({
         </div>
       </td>
       <td className="px-6 py-4">
-        <div className="flex items-center gap-2">
-          <span className={cn(
-            "text-sm font-bold",
-            product.stock <= product.low_stock_threshold ? "text-[#FCD34D]" : "text-white"
-          )}>
-            {product.stock}
-          </span>
-          {product.stock <= product.low_stock_threshold && (
-            <AlertTriangle className="w-4 h-4 text-[#F59E0B]" />
-          )}
-        </div>
+        {product.product_type === 'service' ? (
+          <span className="badge badge-info text-xs">Service</span>
+        ) : (
+          <div className="flex items-center gap-2">
+            <span className={cn(
+              "text-sm font-bold",
+              product.stock <= product.low_stock_threshold ? "text-[#FCD34D]" : "text-white"
+            )}>
+              {product.stock}
+            </span>
+            {product.stock <= product.low_stock_threshold && (
+              <AlertTriangle className="w-4 h-4 text-[#F59E0B]" />
+            )}
+          </div>
+        )}
       </td>
       <td className="px-6 py-4 text-right">
         {canAdjustInventory ? (
@@ -140,7 +144,8 @@ export default function Inventory() {
     cost_price: 0,
     selling_price: 0,
     stock: 0,
-    low_stock_threshold: 5
+    low_stock_threshold: 5,
+    product_type: 'physical' as 'physical' | 'service',
   });
 
   useEffect(() => {
@@ -180,7 +185,8 @@ export default function Inventory() {
         cost_price: product.cost_price,
         selling_price: product.selling_price,
         stock: product.stock,
-        low_stock_threshold: product.low_stock_threshold
+        low_stock_threshold: product.low_stock_threshold,
+        product_type: (product.product_type as 'physical' | 'service') || 'physical',
       });
     } else {
       setEditingProduct(null);
@@ -193,7 +199,8 @@ export default function Inventory() {
         cost_price: 0,
         selling_price: 0,
         stock: 0,
-        low_stock_threshold: 5
+        low_stock_threshold: 5,
+        product_type: 'physical',
       });
     }
     setIsModalOpen(true);
@@ -220,11 +227,16 @@ export default function Inventory() {
     }
 
     const workspaceId = requireCompanyId(companyId);
+    const isService = formData.product_type === 'service';
     const payload = withCompanyId(workspaceId, {
       ...formData,
       sku: formData.sku || null,
       barcode: formData.barcode || null,
       imei: formData.imei || null,
+      // Service products don't track stock
+      stock: isService ? 0 : formData.stock,
+      low_stock_threshold: isService ? 0 : formData.low_stock_threshold,
+      product_type: formData.product_type,
       updated_at: new Date().toISOString()
     });
 
@@ -598,6 +610,25 @@ export default function Inventory() {
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Product Type</label>
+                  <div className="flex gap-2">
+                    {(['physical', 'service'] as const).map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, product_type: t })}
+                        className={`flex-1 py-2 rounded-lg text-sm font-semibold border transition-all ${
+                          formData.product_type === t
+                            ? 'bg-gray-900 text-white border-gray-900'
+                            : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
+                        }`}
+                      >
+                        {t === 'physical' ? '📦 Physical Product' : '🔧 Service / Labour'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Product Name</label>
                   <input
                     required
@@ -661,26 +692,30 @@ export default function Inventory() {
                     onChange={e => setFormData({...formData, selling_price: Number(e.target.value)})}
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Initial Stock</label>
-                  <input
-                    type="number"
-                    required
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                    value={formData.stock}
-                    onChange={e => setFormData({...formData, stock: Number(e.target.value)})}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Low Stock Alert</label>
-                  <input
-                    type="number"
-                    required
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                    value={formData.low_stock_threshold}
-                    onChange={e => setFormData({...formData, low_stock_threshold: Number(e.target.value)})}
-                  />
-                </div>
+                {formData.product_type !== 'service' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Initial Stock</label>
+                      <input
+                        type="number"
+                        required
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                        value={formData.stock}
+                        onChange={e => setFormData({...formData, stock: Number(e.target.value)})}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Low Stock Alert</label>
+                      <input
+                        type="number"
+                        required
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                        value={formData.low_stock_threshold}
+                        onChange={e => setFormData({...formData, low_stock_threshold: Number(e.target.value)})}
+                      />
+                    </div>
+                  </>
+                )}
               </div>
               <div className="pt-4 flex gap-3">
                 <button

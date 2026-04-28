@@ -47,6 +47,8 @@ export interface Product {
   selling_price: number;
   stock: number;
   low_stock_threshold: number;
+  /** 'physical' | 'service' — service products skip inventory tracking */
+  product_type?: 'physical' | 'service' | null;
   created_at: string;
 }
 
