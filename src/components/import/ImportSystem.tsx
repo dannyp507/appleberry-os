@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { 
   Upload, 
   FileText, 
@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import Papa from 'papaparse';
+import * as XLSX from 'xlsx';
 import { cn, formatCurrency } from '../../lib/utils';
 import { 
   ImportDataType, 
@@ -27,8 +28,7 @@ import { db } from '../../lib/firebase';
 import { collection, query, where, getDocs, writeBatch, doc } from 'firebase/firestore';
 import { toast } from 'sonner';
 import { useTenant } from '../../lib/tenant';
-import { withCompanyId } from '../../lib/companyData';
-import { companyQuery, requireCompanyId } from '../../lib/db';
+import { isCompanyScopedRecord, withCompanyId } from '../../lib/companyData';
 
 type Step = 'upload' | 'type' | 'mapping' | 'preview' | 'importing' | 'results';
 
@@ -41,7 +41,7 @@ export default function ImportSystem() {
   const [headers, setHeaders] = useState<string[]>([]);
   const [dataType, setDataType] = useState<ImportDataType>('customers');
   const [mapping, setMapping] = useState<ColumnMapping>({});
-  const [importMode, setImportMode] = useState<'dry' | 'live'>('dry');
+  const [importMode, setImportMode] = useState<'dry' | 'live'>('live');
   const [progress, setProgress] = useState(0);
   const [results, setResults] = useState<ImportResult | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -91,67 +91,191 @@ export default function ImportSystem() {
     return String(rawValue).replace(/\u00a0/g, ' ').trim();
   };
 
-  const processRows = (rows: any[], fileHeaders: string[]) => {
-    setData(rows);
-    setHeaders(fileHeaders);
-
-    if (fileHeaders.includes('Offers Email') && fileHeaders.includes('Contact No')) {
-      setDataType('customers');
-      autoMap('customers', fileHeaders);
-      setStep('preview');
-      toast.success('CellStore Customer CSV detected. Fields were auto-mapped.');
-    } else if (fileHeaders.includes('Invoice #') && fileHeaders.includes('Qty Sold')) {
-      setDataType('sales');
-      autoMap('sales', fileHeaders);
-      setStep('preview');
-      toast.success('CellStore POS sales CSV detected. Historical sales are ready for preview.');
-    } else {
-      setStep('type');
-    }
-  };
-
   // 1. File Upload Handling
-  const onDrop = (acceptedFiles: File[]) => {
+  const onDrop = useCallback((acceptedFiles: File[]) => {
     const selectedFile = acceptedFiles[0];
     if (!selectedFile) return;
-
-    if (!selectedFile.name.toLowerCase().endsWith('.csv')) {
-      toast.error('Only CSV imports are supported in production mode. Export spreadsheets to CSV before importing.');
-      return;
-    }
 
     setFile(selectedFile);
     const reader = new FileReader();
 
     reader.onload = (e) => {
       const content = e.target?.result;
-      Papa.parse(content as string, {
-        header: true,
-        skipEmptyLines: true,
-        complete: (results) => {
-          if (results.errors.length > 0) {
-            toast.error(results.errors[0]?.message || 'CSV parsing failed.');
-            return;
+      if (selectedFile.name.endsWith('.csv')) {
+        Papa.parse(content as string, {
+          header: true,
+          skipEmptyLines: true,
+          complete: (results) => {
+            setData(results.data);
+            const fileHeaders = results.meta.fields || [];
+            setHeaders(fileHeaders);
+            
+            // Auto-detect CellStore file type from headers
+            if (fileHeaders.includes('Offers Email') && fileHeaders.includes('Contact No')) {
+              // customers.csv — unique fingerprint
+              setDataType('customers');
+              autoMap('customers', fileHeaders);
+              setStep('preview');
+              toast.success('CellStore Customer file detected! Auto-mapped all fields.');
+            } else if (fileHeaders.includes('Invoice #') && fileHeaders.includes('Qty Sold')) {
+              // sales / POS export — line-item level
+              setDataType('sales');
+              autoMap('sales', fileHeaders);
+              setStep('preview');
+              toast.success('CellStore POS sales file detected! Historical sales are ready for preview.');
+            } else if (
+              fileHeaders.includes('Current inventory') ||
+              (fileHeaders.includes('Category name') && fileHeaders.some(h => ['Product name', 'Product Name', 'SKU'].includes(h)))
+            ) {
+              // product_inventory.csv
+              setDataType('products');
+              autoMap('products', fileHeaders);
+              setStep('preview');
+              toast.success('CellStore Product Inventory file detected! Auto-mapped all fields.');
+            } else if (fileHeaders.includes('Ticket #') || fileHeaders.includes('Tech Assigned') || fileHeaders.includes('IMEI/Serial No.')) {
+              // repairs.csv — unique CellStore repairs fingerprint
+              setDataType('repairs');
+              autoMap('repairs', fileHeaders);
+              setStep('preview');
+              toast.success('CellStore Repairs file detected! Auto-mapped all fields.');
+            } else if (fileHeaders.includes('Bill Amount') || fileHeaders.includes('Expense Type') || fileHeaders.includes('Vendor Name')) {
+              // expenses.csv
+              setDataType('expenses');
+              autoMap('expenses', fileHeaders);
+              setStep('preview');
+              toast.success('CellStore Expenses file detected! Auto-mapped all fields.');
+            } else if (fileHeaders.includes('Add / Sub') || (fileHeaders.includes('Date Added') && fileHeaders.includes('Reason') && fileHeaders.includes('Amount'))) {
+              // petty_cash.csv — routes to expenses schema
+              setDataType('expenses');
+              autoMap('expenses', fileHeaders);
+              setStep('preview');
+              toast.success('CellStore Petty Cash file detected! Mapped to Expenses. Auto-mapped all fields.');
+            } else if (fileHeaders.includes('Payment Type') && fileHeaders.includes('Invoice No') && fileHeaders.includes('Drawer')) {
+              // payments.csv
+              setDataType('payments');
+              autoMap('payments', fileHeaders);
+              setStep('preview');
+              toast.success('CellStore Payments file detected! Auto-mapped all fields.');
+            } else if (fileHeaders.includes('Current Stock') && fileHeaders.includes('Counted') && fileHeaders.includes('Difference')) {
+              // stock_take.csv
+              setDataType('stock_take');
+              autoMap('stock_take', fileHeaders);
+              setStep('preview');
+              toast.success('CellStore Stock Take file detected! Auto-mapped all fields.');
+            } else if (fileHeaders.includes('PO #') || fileHeaders.includes('Suppiler Name') || fileHeaders.includes('Qty Purchased')) {
+              // po.csv — note "Suppiler" is CellStore's typo
+              setDataType('purchases');
+              autoMap('purchases', fileHeaders);
+              setStep('preview');
+              toast.success('CellStore Purchase Order file detected! Auto-mapped all fields.');
+            } else if (fileHeaders.includes('Invoice No') && fileHeaders.includes('Sales Person') && fileHeaders.includes('Taxable')) {
+              // invoice.csv / order.csv — header-level invoice (no line items)
+              setDataType('invoices');
+              autoMap('invoices', fileHeaders);
+              setStep('preview');
+              toast.success('CellStore Invoice file detected! Auto-mapped all fields.');
+            } else if (fileHeaders.includes('Serial number') || fileHeaders.includes('Lot #') || fileHeaders.includes('PO number')) {
+              // imei_devices / serialised stock
+              setDataType('imei_devices');
+              autoMap('imei_devices', fileHeaders);
+              setStep('preview');
+              toast.success('IMEI/Serial Device file detected! Auto-mapped all fields.');
+            } else {
+              setStep('type');
+            }
           }
+        });
+      } else {
+        const workbook = XLSX.read(content, { type: 'binary' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        setData(jsonData);
+        if (jsonData.length > 0) {
+          const fileHeaders = Object.keys(jsonData[0] as object);
+          setHeaders(fileHeaders);
 
-          const fileHeaders = results.meta.fields || [];
-          if (fileHeaders.length === 0) {
-            toast.error('The CSV file has no header row.');
-            return;
+          // Auto-detect CellStore file type from headers
+          if (fileHeaders.includes('Offers Email') && fileHeaders.includes('Contact No')) {
+            setDataType('customers');
+            autoMap('customers', fileHeaders);
+            setStep('preview');
+            toast.success('CellStore Customer file detected! Auto-mapped all fields.');
+          } else if (fileHeaders.includes('Invoice #') && fileHeaders.includes('Qty Sold')) {
+            setDataType('sales');
+            autoMap('sales', fileHeaders);
+            setStep('preview');
+            toast.success('CellStore POS sales file detected! Historical sales are ready for preview.');
+          } else if (
+            fileHeaders.includes('Current inventory') ||
+            (fileHeaders.includes('Category name') && fileHeaders.some(h => ['Product name', 'Product Name', 'SKU'].includes(h)))
+          ) {
+            setDataType('products');
+            autoMap('products', fileHeaders);
+            setStep('preview');
+            toast.success('CellStore Product Inventory file detected! Auto-mapped all fields.');
+          } else if (fileHeaders.includes('Ticket #') || fileHeaders.includes('Tech Assigned') || fileHeaders.includes('IMEI/Serial No.')) {
+            setDataType('repairs');
+            autoMap('repairs', fileHeaders);
+            setStep('preview');
+            toast.success('CellStore Repairs file detected! Auto-mapped all fields.');
+          } else if (fileHeaders.includes('Bill Amount') || fileHeaders.includes('Expense Type') || fileHeaders.includes('Vendor Name')) {
+            setDataType('expenses');
+            autoMap('expenses', fileHeaders);
+            setStep('preview');
+            toast.success('CellStore Expenses file detected! Auto-mapped all fields.');
+          } else if (fileHeaders.includes('Add / Sub') || (fileHeaders.includes('Date Added') && fileHeaders.includes('Reason') && fileHeaders.includes('Amount'))) {
+            setDataType('expenses');
+            autoMap('expenses', fileHeaders);
+            setStep('preview');
+            toast.success('CellStore Petty Cash file detected! Mapped to Expenses. Auto-mapped all fields.');
+          } else if (fileHeaders.includes('Payment Type') && fileHeaders.includes('Invoice No') && fileHeaders.includes('Drawer')) {
+            setDataType('payments');
+            autoMap('payments', fileHeaders);
+            setStep('preview');
+            toast.success('CellStore Payments file detected! Auto-mapped all fields.');
+          } else if (fileHeaders.includes('Current Stock') && fileHeaders.includes('Counted') && fileHeaders.includes('Difference')) {
+            setDataType('stock_take');
+            autoMap('stock_take', fileHeaders);
+            setStep('preview');
+            toast.success('CellStore Stock Take file detected! Auto-mapped all fields.');
+          } else if (fileHeaders.includes('PO #') || fileHeaders.includes('Suppiler Name') || fileHeaders.includes('Qty Purchased')) {
+            setDataType('purchases');
+            autoMap('purchases', fileHeaders);
+            setStep('preview');
+            toast.success('CellStore Purchase Order file detected! Auto-mapped all fields.');
+          } else if (fileHeaders.includes('Invoice No') && fileHeaders.includes('Sales Person') && fileHeaders.includes('Taxable')) {
+            setDataType('invoices');
+            autoMap('invoices', fileHeaders);
+            setStep('preview');
+            toast.success('CellStore Invoice file detected! Auto-mapped all fields.');
+          } else if (fileHeaders.includes('Serial number') || fileHeaders.includes('Lot #') || fileHeaders.includes('PO number')) {
+            setDataType('imei_devices');
+            autoMap('imei_devices', fileHeaders);
+            setStep('preview');
+            toast.success('IMEI/Serial Device file detected! Auto-mapped all fields.');
+          } else {
+            setStep('type');
           }
-
-          processRows(results.data as any[], fileHeaders);
+        } else {
+          setStep('type');
         }
-      });
+      }
     };
 
-    reader.readAsText(selectedFile);
-  };
+    if (selectedFile.name.endsWith('.csv')) {
+      reader.readAsText(selectedFile);
+    } else {
+      reader.readAsBinaryString(selectedFile);
+    }
+  }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
       'text/csv': ['.csv'],
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+      'application/vnd.ms-excel': ['.xls']
     } as any,
     multiple: false
   } as any);
@@ -160,13 +284,17 @@ export default function ImportSystem() {
   const autoMap = (type: ImportDataType, fileHeaders: string[]) => {
     const fields = IMPORT_FIELDS[type];
     const newMapping: ColumnMapping = {};
+    const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+
     fields.forEach(field => {
-      const match = fileHeaders.find(h => 
-        h.toLowerCase().replace(/[^a-z0-9]/g, '') === 
-        field.label.toLowerCase().replace(/[^a-z0-9]/g, '') ||
-        h.toLowerCase().replace(/[^a-z0-9]/g, '') === 
-        field.key.toLowerCase().replace(/[^a-z0-9]/g, '')
-      );
+      // Check label, key, then any declared aliases — first match wins
+      const candidates = [
+        field.label,
+        field.key,
+        ...(field.aliases || []),
+      ].map(normalize);
+
+      const match = fileHeaders.find(h => candidates.includes(normalize(h)));
       if (match) newMapping[field.key] = match;
     });
     setMapping(newMapping);
@@ -263,7 +391,7 @@ export default function ImportSystem() {
             const docRef = doc(collection(db, dataType));
 
             let payload = {
-              ...withCompanyId(requireCompanyId(companyId), {}),
+              ...withCompanyId(companyId, {}),
               ...transformed,
               created_at: transformed.created_at || new Date().toISOString(),
               imported: true,
@@ -273,7 +401,7 @@ export default function ImportSystem() {
             if (dataType === 'customers') {
               const fullName = `${transformed.first_name || ''} ${transformed.last_name || ''}`.trim();
               payload = {
-                ...withCompanyId(requireCompanyId(companyId), {}),
+                ...withCompanyId(companyId, {}),
                 external_id: transformed.external_id || null,
                 created_at: transformed.created_at || new Date().toISOString(),
                 created_by: transformed.created_by || null,
@@ -299,6 +427,12 @@ export default function ImportSystem() {
                 imported: true,
                 import_batch: file?.name
               };
+            }
+
+            // Repairs: CellStore exports Brand + Model as separate columns.
+            // Combine them into device_model if device_model wasn't directly mapped.
+            if (dataType === 'repairs' && !transformed.device_model && (transformed.brand || transformed.model)) {
+              payload.device_model = [transformed.brand, transformed.model].filter(Boolean).join(' ');
             }
 
             batch.set(docRef, payload);
@@ -345,14 +479,15 @@ export default function ImportSystem() {
       importResults.total = groupedSales.length;
 
       const [productsSnapshot, customersSnapshot] = await Promise.all([
-        getDocs(companyQuery('products', companyId)),
-        getDocs(companyQuery('customers', companyId)),
+        getDocs(collection(db, 'products')),
+        getDocs(collection(db, 'customers')),
       ]);
 
       const productBySku = new Map<string, any>();
       const productByName = new Map<string, any>();
       productsSnapshot.docs.forEach((productDoc) => {
         const product = { id: productDoc.id, ...productDoc.data() } as any;
+        if (!isCompanyScopedRecord(product, companyId)) return;
         const skuKey = normalizeText(product.sku || product.external_id);
         if (skuKey) productBySku.set(skuKey.toLowerCase(), product);
         const nameKey = normalizeText(product.name);
@@ -364,6 +499,7 @@ export default function ImportSystem() {
       const customerByName = new Map<string, any>();
       customersSnapshot.docs.forEach((customerDoc) => {
         const customer = { id: customerDoc.id, ...customerDoc.data() } as any;
+        if (!isCompanyScopedRecord(customer, companyId)) return;
         const emailKey = normalizeText(customer.email).toLowerCase();
         const phoneKey = normalizeText(customer.phone);
         const nameKey = normalizeText(customer.name).toLowerCase();
@@ -394,7 +530,7 @@ export default function ImportSystem() {
         if (!customer && customerName && customerName.toLowerCase() !== 'unassigned' && importMode === 'live' && batch) {
           const customerRef = doc(collection(db, 'customers'));
           const customerPayload = {
-            ...withCompanyId(requireCompanyId(companyId), {}),
+            ...withCompanyId(companyId, {}),
             first_name: customerName.split(' ')[0] || customerName,
             last_name: customerName.split(' ').slice(1).join(' ') || null,
             name: customerName,
@@ -435,7 +571,7 @@ export default function ImportSystem() {
         if (importMode === 'live' && batch) {
           const saleRef = doc(collection(db, 'sales'));
           batch.set(saleRef, {
-            ...withCompanyId(requireCompanyId(companyId), {}),
+            ...withCompanyId(companyId, {}),
             external_invoice_number: invoiceNumber,
             customer_id: customer?.id || null,
             customer_name: customerName && customerName.toLowerCase() !== 'unassigned' ? customerName : null,
@@ -448,9 +584,6 @@ export default function ImportSystem() {
             payments: [{ method: 'imported', amount: totalAmount, timestamp: createdAt }],
             staff_id: null,
             staff_name: staffName,
-            refunded_amount: 0,
-            refund_status: 'none',
-            refunded_item_quantities: {},
             created_at: createdAt,
             imported: true,
             import_batch: file?.name,
@@ -470,7 +603,7 @@ export default function ImportSystem() {
             const unitPrice = quantity > 0 ? lineTotal / quantity : lineTotal;
 
             const itemPayload = {
-              ...withCompanyId(requireCompanyId(companyId), {}),
+              ...withCompanyId(companyId, {}),
               sale_id: saleRef.id,
               product_id: product?.id || null,
               external_sku: sku || null,
@@ -594,7 +727,7 @@ export default function ImportSystem() {
             </div>
             <h3 className="text-lg font-bold text-gray-900 mb-2">Click or drag file to upload</h3>
             <p className="text-sm text-gray-500 max-w-xs mx-auto mb-6">
-              Support CSV files only. Export spreadsheets to CSV before importing. Maximum file size 10MB.
+              Support .csv, .xlsx, and .xls files. Maximum file size 10MB.
             </p>
             <div className="flex items-center justify-center gap-4 text-xs font-bold text-gray-400 uppercase tracking-widest">
               <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-green-500" /> Auto-detection</span>
@@ -684,17 +817,17 @@ export default function ImportSystem() {
               <h3 className="text-lg font-bold text-gray-900">Preview (First 20 Rows)</h3>
               <div className="flex items-center gap-4">
                 <div className="flex bg-gray-100 p-1 rounded-lg">
-                  <button 
+                  <button
                     onClick={() => setImportMode('dry')}
-                    className={cn("px-4 py-1.5 text-xs font-bold rounded-md transition-all", importMode === 'dry' ? "bg-white text-primary shadow-sm" : "text-gray-500")}
+                    className={cn("px-4 py-1.5 text-xs font-bold rounded-md transition-all", importMode === 'dry' ? "bg-white text-orange-600 shadow-sm" : "text-gray-500")}
                   >
-                    Dry Run
+                    Test Only (no save)
                   </button>
-                  <button 
+                  <button
                     onClick={() => setImportMode('live')}
-                    className={cn("px-4 py-1.5 text-xs font-bold rounded-md transition-all", importMode === 'live' ? "bg-white text-red-600 shadow-sm" : "text-gray-500")}
+                    className={cn("px-4 py-1.5 text-xs font-bold rounded-md transition-all", importMode === 'live' ? "bg-white text-green-600 shadow-sm" : "text-gray-500")}
                   >
-                    Live Import
+                    ✓ Live Import
                   </button>
                 </div>
               </div>

@@ -46,13 +46,30 @@ export default function Signup() {
         ownerName: form.full_name.trim(),
       });
 
-      await sendEmailVerification(user);
+      try {
+        await sendEmailVerification(user, {
+          url: `${window.location.origin}/verify-email?email=${encodeURIComponent(email)}&verified=1`,
+          handleCodeInApp: false,
+        });
+      } catch (emailErr: any) {
+        // Non-fatal — workspace was created, user can resend from verify-email page
+        console.warn('Verification email failed to send automatically:', emailErr?.message);
+      }
+
       await signOut(auth);
 
-      toast.success('We sent a verification email. Verify your address before signing in.');
+      toast.success('Workspace created! Check your inbox for a verification email.');
       navigate(`/verify-email?email=${encodeURIComponent(email)}`, { replace: true });
     } catch (error: any) {
-      toast.error(error.message || 'Failed to create your workspace.');
+      // Surface a friendlier message for the most common Firebase errors
+      const msg: string = error?.message || '';
+      if (msg.includes('email-already-in-use')) {
+        toast.error('An account with that email already exists. Try signing in instead.');
+      } else if (msg.includes('weak-password')) {
+        toast.error('Password is too weak. Use at least 6 characters.');
+      } else {
+        toast.error(msg || 'Failed to create your workspace.');
+      }
     } finally {
       setLoading(false);
     }

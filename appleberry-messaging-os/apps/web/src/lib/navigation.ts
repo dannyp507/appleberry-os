@@ -1,0 +1,113 @@
+import {
+  BarChart3,
+  Bot,
+  Boxes,
+  ContactRound,
+  Flame,
+  Link2,
+  LayoutDashboard,
+  MessageCircleMore,
+  MessagesSquare,
+  PanelsTopLeft,
+  PlugZap,
+  QrCode,
+  Radio,
+  SendHorizontal,
+  Send,
+  Settings2,
+  Users2,
+  Waypoints,
+} from 'lucide-react';
+
+export const navigation = [
+  { label: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { label: 'Accounts', href: '/accounts', icon: MessageCircleMore },
+  { label: 'Campaigns', href: '/campaigns', icon: Send },
+  { label: 'Contacts', href: '/contacts', icon: Users2 },
+  { label: 'Templates', href: '/templates', icon: PanelsTopLeft },
+  { label: 'Flows', href: '/flows', icon: Waypoints },
+  { label: 'Inbox', href: '/inbox', icon: MessagesSquare },
+  { label: 'Analytics', href: '/analytics', icon: BarChart3 },
+  { label: 'Settings', href: '/settings', icon: Settings2 },
+] as const;
+
+export const whatsappFeatureNavigation = [
+  {
+    label: 'Whatsapp',
+    description: 'Customize system interface',
+    href: '/accounts',
+    icon: MessageCircleMore,
+  },
+  {
+    label: 'Profile',
+    description: 'Information WhatsApp account',
+    href: '/accounts',
+    icon: ContactRound,
+  },
+  {
+    label: 'Bulk messaging',
+    description: 'Send to multiple recipients',
+    href: '/campaigns',
+    icon: SendHorizontal,
+  },
+  {
+    label: 'Autoresponder',
+    description: 'Send a pre-written message',
+    href: '/flows',
+    icon: Bot,
+  },
+  {
+    label: 'On Fail Decode',
+    description: 'Send a message when decode fails',
+    href: '/flows',
+    icon: Flame,
+  },
+  {
+    label: 'Chatbot',
+    description: 'Communicate with users',
+    href: '/flows',
+    icon: Boxes,
+  },
+  {
+    label: 'Export participants',
+    description: 'Export participant list',
+    href: '/contacts',
+    icon: Users2,
+  },
+  {
+    label: 'Link Generator',
+    description: 'Create QR and links for WhatsApp',
+    href: '/templates',
+    icon: QrCode,
+  },
+  {
+    label: 'API',
+    description: 'API WhatsApp REST',
+    href: '/settings',
+    icon: PlugZap,
+  },
+  {
+    label: 'Advanced API',
+    description: 'Special API REST endpoints',
+    href: '/settings',
+    icon: Radio,
+  },
+  {
+    label: 'Button template',
+    description: 'Create interactive button messages',
+    href: '/templates',
+    icon: PanelsTopLeft,
+  },
+  {
+    label: 'List message template',
+    description: 'Create list of items/options',
+    href: '/templates',
+    icon: BarChart3,
+  },
+  {
+    label: 'Contacts',
+    description: 'Create, edit your contacts',
+    href: '/contacts',
+    icon: Link2,
+  },
+] as const;
