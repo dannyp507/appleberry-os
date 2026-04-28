@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import Papa from 'papaparse';
-import * as XLSX from 'xlsx';
+
 import { cn, formatCurrency } from '../../lib/utils';
 import { 
   ImportDataType, 
@@ -186,96 +186,18 @@ export default function ImportSystem() {
           }
         });
       } else {
-        const workbook = XLSX.read(content, { type: 'binary' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
-        setData(jsonData);
-        if (jsonData.length > 0) {
-          const fileHeaders = Object.keys(jsonData[0] as object);
-          setHeaders(fileHeaders);
-
-          // Auto-detect CellStore file type from headers
-          if (fileHeaders.includes('Offers Email') && fileHeaders.includes('Contact No')) {
-            setDataType('customers');
-            autoMap('customers', fileHeaders);
-            setStep('preview');
-            toast.success('CellStore Customer file detected! Auto-mapped all fields.');
-          } else if (fileHeaders.includes('Invoice #') && fileHeaders.includes('Qty Sold')) {
-            setDataType('sales');
-            autoMap('sales', fileHeaders);
-            setStep('preview');
-            toast.success('CellStore POS sales file detected! Historical sales are ready for preview.');
-          } else if (
-            fileHeaders.includes('Current inventory') ||
-            (fileHeaders.includes('Category name') && fileHeaders.some(h => ['Product name', 'Product Name', 'SKU'].includes(h)))
-          ) {
-            setDataType('products');
-            autoMap('products', fileHeaders);
-            setStep('preview');
-            toast.success('CellStore Product Inventory file detected! Auto-mapped all fields.');
-          } else if (fileHeaders.includes('Ticket #') || fileHeaders.includes('Tech Assigned') || fileHeaders.includes('IMEI/Serial No.')) {
-            setDataType('repairs');
-            autoMap('repairs', fileHeaders);
-            setStep('preview');
-            toast.success('CellStore Repairs file detected! Auto-mapped all fields.');
-          } else if (fileHeaders.includes('Bill Amount') || fileHeaders.includes('Expense Type') || fileHeaders.includes('Vendor Name')) {
-            setDataType('expenses');
-            autoMap('expenses', fileHeaders);
-            setStep('preview');
-            toast.success('CellStore Expenses file detected! Auto-mapped all fields.');
-          } else if (fileHeaders.includes('Add / Sub') || (fileHeaders.includes('Date Added') && fileHeaders.includes('Reason') && fileHeaders.includes('Amount'))) {
-            setDataType('expenses');
-            autoMap('expenses', fileHeaders);
-            setStep('preview');
-            toast.success('CellStore Petty Cash file detected! Mapped to Expenses. Auto-mapped all fields.');
-          } else if (fileHeaders.includes('Payment Type') && fileHeaders.includes('Invoice No') && fileHeaders.includes('Drawer')) {
-            setDataType('payments');
-            autoMap('payments', fileHeaders);
-            setStep('preview');
-            toast.success('CellStore Payments file detected! Auto-mapped all fields.');
-          } else if (fileHeaders.includes('Current Stock') && fileHeaders.includes('Counted') && fileHeaders.includes('Difference')) {
-            setDataType('stock_take');
-            autoMap('stock_take', fileHeaders);
-            setStep('preview');
-            toast.success('CellStore Stock Take file detected! Auto-mapped all fields.');
-          } else if (fileHeaders.includes('PO #') || fileHeaders.includes('Suppiler Name') || fileHeaders.includes('Qty Purchased')) {
-            setDataType('purchases');
-            autoMap('purchases', fileHeaders);
-            setStep('preview');
-            toast.success('CellStore Purchase Order file detected! Auto-mapped all fields.');
-          } else if (fileHeaders.includes('Invoice No') && fileHeaders.includes('Sales Person') && fileHeaders.includes('Taxable')) {
-            setDataType('invoices');
-            autoMap('invoices', fileHeaders);
-            setStep('preview');
-            toast.success('CellStore Invoice file detected! Auto-mapped all fields.');
-          } else if (fileHeaders.includes('Serial number') || fileHeaders.includes('Lot #') || fileHeaders.includes('PO number')) {
-            setDataType('imei_devices');
-            autoMap('imei_devices', fileHeaders);
-            setStep('preview');
-            toast.success('IMEI/Serial Device file detected! Auto-mapped all fields.');
-          } else {
-            setStep('type');
-          }
-        } else {
-          setStep('type');
-        }
+        toast.error('Only CSV files are supported. Please export your file as CSV and try again.');
+        setFile(null);
       }
     };
 
-    if (selectedFile.name.endsWith('.csv')) {
-      reader.readAsText(selectedFile);
-    } else {
-      reader.readAsBinaryString(selectedFile);
-    }
+    reader.readAsText(selectedFile);
   }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
       'text/csv': ['.csv'],
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
-      'application/vnd.ms-excel': ['.xls']
     } as any,
     multiple: false
   } as any);
@@ -727,7 +649,7 @@ export default function ImportSystem() {
             </div>
             <h3 className="text-lg font-bold text-gray-900 mb-2">Click or drag file to upload</h3>
             <p className="text-sm text-gray-500 max-w-xs mx-auto mb-6">
-              Support .csv, .xlsx, and .xls files. Maximum file size 10MB.
+              Support CSV files only. Export spreadsheets to CSV before importing. Maximum file size 10MB.
             </p>
             <div className="flex items-center justify-center gap-4 text-xs font-bold text-gray-400 uppercase tracking-widest">
               <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-green-500" /> Auto-detection</span>
