@@ -129,6 +129,9 @@ export default function Customers() {
   const [creditAmount, setCreditAmount] = useState('');
   const [creditReason, setCreditReason] = useState('');
   const [savingCredit, setSavingCredit] = useState(false);
+  const [customerRepairs, setCustomerRepairs] = useState<any[]>([]);
+  const [customerSales, setCustomerSales] = useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
@@ -222,6 +225,8 @@ export default function Customers() {
   }
 
   const handleOpenModal = (customer?: Customer) => {
+    setCustomerRepairs([]);
+    setCustomerSales([]);
     if (customer) {
       setEditingCustomer(customer);
       setFormData({
@@ -238,6 +243,17 @@ export default function Customers() {
         whatsapp_marketing_opt_in: customer.whatsapp_marketing_opt_in !== false,
         marketing_opt_out_reason: customer.marketing_opt_out_reason || '',
       });
+      // Load customer history
+      if (companyId) {
+        setHistoryLoading(true);
+        Promise.all([
+          getDocs(query(collection(db, 'repairs'), where('company_id', '==', companyId), where('customer_id', '==', customer.id))),
+          getDocs(query(collection(db, 'sales'), where('company_id', '==', companyId), where('customer_id', '==', customer.id))),
+        ]).then(([repSnap, salSnap]) => {
+          setCustomerRepairs(repSnap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a: any, b: any) => b.created_at?.localeCompare(a.created_at || '') || 0));
+          setCustomerSales(salSnap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a: any, b: any) => b.created_at?.localeCompare(a.created_at || '') || 0));
+        }).catch(() => {}).finally(() => setHistoryLoading(false));
+      }
     } else {
       setEditingCustomer(null);
       setFormData({
@@ -686,6 +702,54 @@ export default function Customers() {
                   {editingCustomer ? 'Update' : 'Save'}
                 </button>
               </div>
+
+              {/* Customer History */}
+              {editingCustomer && (
+                <div className="pt-4 border-t border-gray-100 space-y-4">
+                  <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                    <History className="w-4 h-4 text-gray-500" /> Customer History
+                  </h3>
+                  {historyLoading ? (
+                    <p className="text-sm text-gray-400">Loading history...</p>
+                  ) : (
+                    <>
+                      {customerRepairs.length > 0 && (
+                        <div>
+                          <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Repairs ({customerRepairs.length})</p>
+                          <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                            {customerRepairs.slice(0, 10).map((r: any) => (
+                              <div key={r.id} className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg text-sm">
+                                <div>
+                                  <span className="font-semibold text-gray-800">{r.ticket_number || r.id.slice(-6)}</span>
+                                  <span className="text-gray-500 ml-2">{r.device_name || '—'}</span>
+                                </div>
+                                <span className="text-xs text-gray-400">{r.created_at ? new Date(r.created_at).toLocaleDateString() : '—'}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {customerSales.length > 0 && (
+                        <div>
+                          <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Purchases ({customerSales.length})</p>
+                          <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                            {customerSales.slice(0, 10).map((s: any) => (
+                              <div key={s.id} className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg text-sm">
+                                <span className="font-mono text-xs text-gray-600">{s.invoice_number || s.id.slice(-8).toUpperCase()}</span>
+                                <span className="font-bold text-gray-900">R{Number(s.total_amount || 0).toFixed(2)}</span>
+                                <span className="text-xs text-gray-400">{s.created_at ? new Date(s.created_at).toLocaleDateString() : '—'}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {customerRepairs.length === 0 && customerSales.length === 0 && (
+                        <p className="text-sm text-gray-400 italic">No history found for this customer.</p>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
             </form>
           </div>
         </div>
