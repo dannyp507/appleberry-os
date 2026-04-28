@@ -28,6 +28,7 @@ export interface ColumnMapping {
 export interface ImportResult {
   total: number;
   success: number;
+  skipped: number;
   failed: number;
   errors: { row: number; message: string; data: any }[];
 }

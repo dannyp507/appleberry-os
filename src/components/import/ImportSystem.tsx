@@ -282,6 +282,89 @@ export default function ImportSystem() {
     return { errors, transformed };
   };
 
+  // 4a. Deduplication helpers
+  const getUniqueKey = (type: ImportDataType, t: any): string | null => {
+    switch (type) {
+      case 'customers':
+        if (t.external_id) return `id:${String(t.external_id).trim()}`;
+        return [t.first_name, t.last_name, t.phone].filter(Boolean).join('|').toLowerCase() || null;
+      case 'products':
+      case 'inventory':
+        if (t.sku) return `sku:${String(t.sku).toLowerCase().trim()}`;
+        return t.name ? `name:${String(t.name).toLowerCase().trim()}` : null;
+      case 'repairs':
+        return t.external_id ? `ticket:${String(t.external_id).trim()}` : null;
+      case 'expenses':
+        if (t.date && t.amount != null && t.title)
+          return `${String(t.date).substring(0, 10)}|${t.amount}|${String(t.title).toLowerCase().trim()}`;
+        return null;
+      case 'payments':
+        if (t.invoice_number && t.payment_method && t.amount != null)
+          return `${t.invoice_number}|${t.payment_method}|${t.amount}`;
+        return null;
+      case 'purchases':
+        return t.external_id ? `po:${String(t.external_id).trim()}` : null;
+      case 'invoices':
+        return t.invoice_number ? `inv:${String(t.invoice_number).trim()}` : null;
+      case 'imei_devices':
+        return t.imei ? `imei:${String(t.imei).trim()}` : null;
+      case 'stock_take':
+        return null; // always allow — each stock take is a new event
+      default:
+        return null;
+    }
+  };
+
+  const loadExistingKeys = async (type: ImportDataType): Promise<Set<string>> => {
+    const keys = new Set<string>();
+    if (!companyId) return keys;
+    try {
+      const colName = type === 'inventory' ? 'products' : type;
+      const snap = await getDocs(query(collection(db, colName), where('company_id', '==', companyId)));
+      snap.docs.forEach(d => {
+        const data = d.data() as any;
+        let key: string | null = null;
+        switch (type) {
+          case 'customers':
+            key = data.external_id ? `id:${String(data.external_id).trim()}` :
+              [data.first_name, data.last_name, data.phone].filter(Boolean).join('|').toLowerCase() || null;
+            break;
+          case 'products':
+          case 'inventory':
+            key = data.sku ? `sku:${String(data.sku).toLowerCase().trim()}` :
+              data.name ? `name:${String(data.name).toLowerCase().trim()}` : null;
+            break;
+          case 'repairs':
+            key = data.external_id ? `ticket:${String(data.external_id).trim()}` : null;
+            break;
+          case 'expenses':
+            key = (data.date && data.amount != null && data.title)
+              ? `${String(data.date).substring(0, 10)}|${data.amount}|${String(data.title).toLowerCase().trim()}`
+              : null;
+            break;
+          case 'payments':
+            key = (data.invoice_number && data.payment_method && data.amount != null)
+              ? `${data.invoice_number}|${data.payment_method}|${data.amount}`
+              : null;
+            break;
+          case 'purchases':
+            key = data.external_id ? `po:${String(data.external_id).trim()}` : null;
+            break;
+          case 'invoices':
+            key = data.invoice_number ? `inv:${String(data.invoice_number).trim()}` : null;
+            break;
+          case 'imei_devices':
+            key = data.imei ? `imei:${String(data.imei).trim()}` : null;
+            break;
+        }
+        if (key) keys.add(key);
+      });
+    } catch (e) {
+      console.warn('Dedup key load failed, skipping dedup:', e);
+    }
+    return keys;
+  };
+
   // 4. Import Execution
   const runImport = async () => {
     setIsProcessing(true);
@@ -293,8 +376,11 @@ export default function ImportSystem() {
     }
 
     const fields = IMPORT_FIELDS[dataType];
-    const importResults: ImportResult = { total: data.length, success: 0, failed: 0, errors: [] };
-    
+    const importResults: ImportResult = { total: data.length, success: 0, skipped: 0, failed: 0, errors: [] };
+
+    // Load existing records for deduplication (live mode only)
+    const existingKeys = importMode === 'live' ? await loadExistingKeys(dataType) : new Set<string>();
+
     const batchSize = 20;
     for (let i = 0; i < data.length; i += batchSize) {
       const chunk = data.slice(i, i + batchSize);
@@ -309,6 +395,14 @@ export default function ImportSystem() {
           importResults.failed++;
           importResults.errors.push({ row: rowIndex + 1, message: errors.join(', '), data: row });
         } else {
+          // Deduplication check
+          const uniqueKey = getUniqueKey(dataType, transformed);
+          if (importMode === 'live' && uniqueKey && existingKeys.has(uniqueKey)) {
+            importResults.skipped++;
+            continue;
+          }
+          if (importMode === 'live' && uniqueKey) existingKeys.add(uniqueKey);
+
           if (importMode === 'live' && batch) {
             const docRef = doc(collection(db, dataType));
 
@@ -374,14 +468,14 @@ export default function ImportSystem() {
     setStep('results');
     setIsProcessing(false);
     if (importMode === 'live') {
-      toast.success(`Import complete: ${importResults.success} succeeded, ${importResults.failed} failed`);
+      toast.success(`Import complete: ${importResults.success} imported, ${importResults.skipped} skipped (already exist), ${importResults.failed} failed`);
     } else {
-      toast.info(`Dry run complete: ${importResults.success} would succeed, ${importResults.failed} would fail`);
+      toast.info(`Test complete: ${importResults.success} would import, ${importResults.failed} would fail`);
     }
   };
 
   const runHistoricalSalesImport = async () => {
-    const importResults: ImportResult = { total: 0, success: 0, failed: 0, errors: [] };
+    const importResults: ImportResult = { total: 0, success: 0, skipped: 0, failed: 0, errors: [] };
 
     try {
       const groupedRows = new Map<string, any[]>();
@@ -399,6 +493,16 @@ export default function ImportSystem() {
 
       const groupedSales = Array.from(groupedRows.entries());
       importResults.total = groupedSales.length;
+
+      // Load existing sales invoice numbers for dedup
+      const existingSalesKeys = new Set<string>();
+      if (importMode === 'live' && companyId) {
+        const existingSalesSnap = await getDocs(query(collection(db, 'sales'), where('company_id', '==', companyId)));
+        existingSalesSnap.docs.forEach(d => {
+          const inv = (d.data() as any).external_invoice_number;
+          if (inv) existingSalesKeys.add(String(inv).trim());
+        });
+      }
 
       const [productsSnapshot, customersSnapshot] = await Promise.all([
         getDocs(collection(db, 'products')),
@@ -433,6 +537,12 @@ export default function ImportSystem() {
       let operationCount = 0;
       let batch = importMode === 'live' ? writeBatch(db) : null;
       for (const [index, [invoiceNumber, rows]] of groupedSales.entries()) {
+        // Skip already-imported invoices
+        if (importMode === 'live' && existingSalesKeys.has(invoiceNumber.trim())) {
+          importResults.skipped++;
+          setProgress(Math.round(((index + 1) / groupedSales.length) * 100));
+          continue;
+        }
         const firstRow = rows[0];
         const createdAt = parseImportedDate(firstRow['POS Date']) || new Date().toISOString();
         const customerName = normalizeText(firstRow['Customer name']);
@@ -834,14 +944,18 @@ export default function ImportSystem() {
 
         {step === 'results' && results && (
           <div className="space-y-8">
-            <div className="grid grid-cols-3 gap-6">
+            <div className="grid grid-cols-4 gap-4">
               <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100 text-center">
                 <p className="text-sm text-gray-500 font-medium mb-1">Total Rows</p>
                 <p className="text-3xl font-bold text-gray-900">{results.total}</p>
               </div>
               <div className="bg-green-50 p-6 rounded-2xl border border-green-100 text-center">
-                <p className="text-sm text-green-600 font-medium mb-1">Success</p>
+                <p className="text-sm text-green-600 font-medium mb-1">Imported</p>
                 <p className="text-3xl font-bold text-green-700">{results.success}</p>
+              </div>
+              <div className="bg-orange-50 p-6 rounded-2xl border border-orange-100 text-center">
+                <p className="text-sm text-orange-600 font-medium mb-1">Skipped (duplicate)</p>
+                <p className="text-3xl font-bold text-orange-700">{results.skipped}</p>
               </div>
               <div className="bg-red-50 p-6 rounded-2xl border border-red-100 text-center">
                 <p className="text-sm text-red-600 font-medium mb-1">Failed</p>
