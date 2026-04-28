@@ -16,11 +16,14 @@ type RepairRecord = {
   customer_id?: string;
   technician_id?: string | null;
   status_id?: string;
+  problem_id?: string | null;
   cost?: number;
   total_amount?: number;
   created_at?: string;
   updated_at?: string;
 };
+
+type RepairProblem = { id: string; name: string; };
 
 const STATUS_COLORS = ['#0ea5e9', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6'];
 
@@ -29,6 +32,7 @@ export default function RepairsReports() {
   const [repairs, setRepairs] = useState<RepairRecord[]>([]);
   const [statuses, setStatuses] = useState<Map<string, RepairStatus>>(new Map());
   const [staffMap, setStaffMap] = useState<Map<string, string>>(new Map());
+  const [problemMap, setProblemMap] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -38,10 +42,11 @@ export default function RepairsReports() {
   async function fetchRepairsData() {
     setLoading(true);
     try {
-      const [repairsSnapshot, statusesSnapshot, profilesSnapshot] = await Promise.all([
+      const [repairsSnapshot, statusesSnapshot, profilesSnapshot, problemsSnapshot] = await Promise.all([
         getDocs(companyQuery('repairs', companyId)),
         getDocs(companyQuery('repair_status_options', companyId)),
         getDocs(companyQuery('profiles', companyId)),
+        getDocs(companyQuery('repair_problems', companyId)),
       ]);
 
       setRepairs(repairsSnapshot.docs.map((repairDoc) => ({ id: repairDoc.id, ...repairDoc.data() } as RepairRecord)));
@@ -51,6 +56,7 @@ export default function RepairsReports() {
       setStaffMap(new Map(profilesSnapshot.docs.map((profileDoc) => ({ id: profileDoc.id, ...profileDoc.data() } as Profile)).map((profile) => {
         return [profile.id, profile.full_name || 'Staff Member'];
       })));
+      setProblemMap(new Map(problemsSnapshot.docs.map((d) => ({ id: d.id, ...d.data() } as RepairProblem)).map((p) => [p.id, p.name])));
     } catch (error) {
       console.error('Error fetching repair report data:', error);
     } finally {
@@ -113,6 +119,18 @@ export default function RepairsReports() {
     });
     return Array.from(totals.values()).sort((a, b) => b.jobs - a.jobs);
   }, [enrichedRepairs]);
+
+  const byProblem = useMemo(() => {
+    const map = new Map<string, { name: string; count: number; revenue: number }>();
+    enrichedRepairs.forEach((r) => {
+      const name = r.problem_id ? (problemMap.get(r.problem_id) || 'Unknown') : 'No Problem Listed';
+      const entry = map.get(name) || { name, count: 0, revenue: 0 };
+      entry.count += 1;
+      entry.revenue += Number(r.total_amount || r.cost || 0);
+      map.set(name, entry);
+    });
+    return Array.from(map.values()).sort((a, b) => b.count - a.count);
+  }, [enrichedRepairs, problemMap]);
 
   const agingBuckets = useMemo(() => {
     const buckets = [
@@ -240,6 +258,56 @@ export default function RepairsReports() {
             {!loading && enrichedRepairs.filter((repair) => !repair.isClosed).length === 0 && (
               <div className="p-10 text-center text-gray-400">No open repairs right now.</div>
             )}
+          </div>
+        </div>
+      </div>
+
+      {/* By Problem */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Repairs by Problem Type</h3>
+          {byProblem.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-8">No data available.</p>
+          ) : (
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={byProblem.slice(0, 10)} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f3f4f6" />
+                  <XAxis type="number" allowDecimals={false} axisLine={false} tickLine={false} />
+                  <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} width={140} tick={{ fontSize: 11 }} />
+                  <Tooltip />
+                  <Bar dataKey="count" fill="#8b5cf6" radius={[0, 4, 4, 0]} name="Jobs" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Problem Revenue Breakdown</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 text-left text-gray-500 uppercase text-[11px] tracking-wider">
+                  <th className="px-4 py-3">Problem</th>
+                  <th className="px-4 py-3 text-right">Jobs</th>
+                  <th className="px-4 py-3 text-right">Revenue</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr><td colSpan={3} className="px-4 py-10 text-center text-gray-400">Loading...</td></tr>
+                ) : byProblem.length === 0 ? (
+                  <tr><td colSpan={3} className="px-4 py-10 text-center text-gray-400">No problems recorded.</td></tr>
+                ) : byProblem.map((row) => (
+                  <tr key={row.name} className="border-b border-gray-50">
+                    <td className="px-4 py-3.5 font-medium text-gray-900">{row.name}</td>
+                    <td className="px-4 py-3.5 text-right text-gray-600">{row.count}</td>
+                    <td className="px-4 py-3.5 text-right font-semibold text-gray-900">{formatCurrency(row.revenue)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>

@@ -44,6 +44,7 @@ const InventoryTransfer = lazy(() => import('./pages/InventoryTransfer'));
 const MarketingLanding = lazy(() => import('./pages/MarketingLanding'));
 const DevicesInventory = lazy(() => import('./pages/DevicesInventory'));
 const Setup = lazy(() => import('./pages/Setup'));
+const WhatsAppStudio = lazy(() => import('./pages/WhatsAppStudio'));
 
 // Components
 import Sidebar from './components/Sidebar';
@@ -257,6 +258,7 @@ export default function App() {
                 <Route path="/onboarding" element={<Onboarding />} />
                 <Route path="/" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : <Dashboard profile={profile} />} />
                 <Route path="/campaigns" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'marketing.view') ? <MarketingHub /> : <Navigate to="/" replace />} />
+                <Route path="/whatsapp-studio" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'marketing.view') ? <WhatsAppStudio /> : <Navigate to="/" replace />} />
                 <Route path="/pos" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'pos.use') ? <POS /> : <Navigate to="/" replace />} />
                 <Route path="/view-invoice/:id" element={<InvoiceView />} />
                 <Route path="/inventory" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'inventory.view') ? <Inventory /> : <Navigate to="/" replace />} />
