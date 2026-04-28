@@ -7,7 +7,7 @@ import { Suspense, lazy, useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { auth, db } from './lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { collection, doc, getDoc, getDocs, limit, query, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, limit, query, updateDoc, where } from 'firebase/firestore';
 import { Toaster } from 'sonner';
 import { Menu } from 'lucide-react';
 import { Company, Profile } from './types';
@@ -60,16 +60,48 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/** If a profile has no company_id, search companies to find and heal the link. */
+async function healMissingCompany(user: User, profile: Profile): Promise<{ profile: Profile; company: Company | null }> {
+  // Try owner_user_id match first
+  const byOwner = await getDocs(query(collection(db, 'companies'), where('owner_user_id', '==', user.uid), limit(1)));
+  if (!byOwner.empty) {
+    const companyDoc = byOwner.docs[0];
+    const company = { id: companyDoc.id, ...companyDoc.data() } as Company;
+    try { await updateDoc(doc(db, 'profiles', profile.id), { company_id: company.id, auth_uid: user.uid }); } catch {}
+    return { profile: { ...profile, company_id: company.id }, company };
+  }
+  // Try owner_email match
+  if (user.email) {
+    const byEmail = await getDocs(query(collection(db, 'companies'), where('owner_email', '==', user.email.toLowerCase()), limit(1)));
+    if (!byEmail.empty) {
+      const companyDoc = byEmail.docs[0];
+      const company = { id: companyDoc.id, ...companyDoc.data() } as Company;
+      try { await updateDoc(doc(db, 'profiles', profile.id), { company_id: company.id, auth_uid: user.uid }); } catch {}
+      return { profile: { ...profile, company_id: company.id }, company };
+    }
+  }
+  return { profile, company: null };
+}
+
 async function resolveProfileAndCompany(user: User): Promise<{ profile: Profile | null; company: Company | null }> {
   for (let attempt = 0; attempt < 6; attempt++) {
     const profileSnap = await getDoc(doc(db, 'profiles', user.uid));
     if (profileSnap.exists()) {
       const nextProfile = { id: profileSnap.id, ...profileSnap.data() } as Profile;
-      const nextCompany = nextProfile.company_id
-        ? await getDoc(doc(db, 'companies', nextProfile.company_id)).then((companySnap) =>
-            companySnap.exists() ? ({ id: companySnap.id, ...companySnap.data() } as Company) : null
-          )
-        : null;
+
+      // Profile has no company_id — try to find and heal it
+      if (!nextProfile.company_id) {
+        return healMissingCompany(user, nextProfile);
+      }
+
+      const nextCompany = await getDoc(doc(db, 'companies', nextProfile.company_id)).then((companySnap) =>
+        companySnap.exists() ? ({ id: companySnap.id, ...companySnap.data() } as Company) : null
+      );
+
+      // Company doc missing despite company_id being set — try to heal
+      if (!nextCompany) {
+        return healMissingCompany(user, nextProfile);
+      }
 
       return { profile: nextProfile, company: nextCompany };
     }
@@ -83,12 +115,14 @@ async function resolveProfileAndCompany(user: User): Promise<{ profile: Profile 
       if (!snapshot.empty) {
         const matchedDoc = snapshot.docs[0];
         const matchedProfile = { id: matchedDoc.id, ...matchedDoc.data() } as Profile;
-        const matchedCompany = matchedProfile.company_id
-          ? await getDoc(doc(db, 'companies', matchedProfile.company_id)).then((companySnap) =>
-              companySnap.exists() ? ({ id: companySnap.id, ...companySnap.data() } as Company) : null
-            )
-          : null;
 
+        if (!matchedProfile.company_id) {
+          return healMissingCompany(user, matchedProfile);
+        }
+
+        const matchedCompany = await getDoc(doc(db, 'companies', matchedProfile.company_id)).then((companySnap) =>
+          companySnap.exists() ? ({ id: companySnap.id, ...companySnap.data() } as Company) : null
+        );
         return { profile: matchedProfile, company: matchedCompany };
       }
     }
