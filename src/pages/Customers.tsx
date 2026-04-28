@@ -1,13 +1,13 @@
 import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { db } from '../lib/firebase';
-import { collection, getDocs, addDoc, updateDoc, doc, orderBy, writeBatch } from 'firebase/firestore';
-import { 
-  Plus, 
-  Search, 
-  User, 
-  Phone, 
-  Mail, 
-  Edit2, 
+import { db, auth } from '../lib/firebase';
+import { collection, getDocs, addDoc, updateDoc, doc, orderBy, writeBatch, query, where } from 'firebase/firestore';
+import {
+  Plus,
+  Search,
+  User,
+  Phone,
+  Mail,
+  Edit2,
   History,
   Upload,
   Download,
@@ -15,7 +15,8 @@ import {
   Building2,
   MapPin,
   FileText,
-  MessageSquareMore
+  MessageSquareMore,
+  CreditCard,
 } from 'lucide-react';
 
 import { Customer } from '../types';
@@ -30,10 +31,14 @@ import { companyQuery, requireCompanyId } from '../lib/db';
 
 const CustomerCard = memo(function CustomerCard({
   customer,
+  creditBalance,
   onEdit,
+  onAddCredit,
 }: {
   customer: Customer;
+  creditBalance: number;
   onEdit: (customer: Customer) => void;
+  onAddCredit: (customer: Customer) => void;
 }) {
   return (
     <div className="section-card p-6 rounded-[24px] hover:-translate-y-0.5 transition-all group relative">
@@ -42,6 +47,13 @@ const CustomerCard = memo(function CustomerCard({
           <User className="w-6 h-6" />
         </div>
         <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={() => onAddCredit(customer)}
+            title="Manage store credit"
+            className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all"
+          >
+            <CreditCard className="w-4 h-4" />
+          </button>
           <button
             onClick={() => onEdit(customer)}
             className="p-2 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-all"
@@ -75,6 +87,11 @@ const CustomerCard = memo(function CustomerCard({
           </div>
         )}
         <div className="flex flex-wrap gap-2 pt-2">
+          {creditBalance > 0 && (
+            <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold bg-green-100 text-green-700">
+              💳 Credit: R{creditBalance.toFixed(2)}
+            </span>
+          )}
           <span className={cn(
             "rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em]",
             customer.whatsapp_marketing_opt_in === false
@@ -107,6 +124,11 @@ export default function Customers() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [creditBalances, setCreditBalances] = useState<Map<string, number>>(new Map());
+  const [creditModalCustomer, setCreditModalCustomer] = useState<Customer | null>(null);
+  const [creditAmount, setCreditAmount] = useState('');
+  const [creditReason, setCreditReason] = useState('');
+  const [savingCredit, setSavingCredit] = useState(false);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
@@ -151,10 +173,52 @@ export default function Customers() {
       const querySnapshot = await getDocs(companyQuery('customers', companyId, orderBy('first_name')));
       const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
       setCustomers(data);
+      // Load store credit balances
+      if (companyId && data.length > 0) {
+        const creditSnap = await getDocs(
+          query(collection(db, 'store_credit'), where('company_id', '==', companyId))
+        );
+        const balMap = new Map<string, number>();
+        creditSnap.docs.forEach(d => {
+          const cid = d.data().customer_id as string;
+          balMap.set(cid, (balMap.get(cid) || 0) + Number(d.data().amount || 0));
+        });
+        // Only keep positive balances
+        balMap.forEach((v, k) => { if (v <= 0) balMap.delete(k); });
+        setCreditBalances(balMap);
+      }
     } catch (error: any) {
       toast.error(error.message);
     }
     setLoading(false);
+  }
+
+  async function handleAddCreditSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!creditModalCustomer || !companyId) return;
+    const amt = parseFloat(creditAmount);
+    if (isNaN(amt) || amt === 0) { toast.error('Enter a valid amount'); return; }
+    setSavingCredit(true);
+    try {
+      await addDoc(collection(db, 'store_credit'), {
+        company_id: companyId,
+        customer_id: creditModalCustomer.id,
+        amount: amt,
+        reason: creditReason || (amt > 0 ? 'Manual credit' : 'Manual debit'),
+        source: 'manual',
+        created_by: auth.currentUser?.uid || '',
+        created_at: new Date().toISOString(),
+      });
+      toast.success(amt > 0 ? 'Store credit added' : 'Store credit deducted');
+      setCreditModalCustomer(null);
+      setCreditAmount('');
+      setCreditReason('');
+      fetchCustomers();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setSavingCredit(false);
+    }
   }
 
   const handleOpenModal = (customer?: Customer) => {
@@ -365,7 +429,13 @@ export default function Customers() {
           {loading && customers.length === 0 ? (
           [1,2,3].map(i => <div key={i} className="h-48 section-card animate-pulse rounded-[24px]"></div>)
           ) : filteredCustomers.map(customer => (
-            <CustomerCard key={customer.id} customer={customer} onEdit={handleOpenModal} />
+            <CustomerCard
+              key={customer.id}
+              customer={customer}
+              creditBalance={creditBalances.get(customer.id) || 0}
+              onEdit={handleOpenModal}
+              onAddCredit={(c) => { setCreditModalCustomer(c); setCreditAmount(''); setCreditReason(''); }}
+            />
           ))}
         </div>
       )}
@@ -617,6 +687,76 @@ export default function Customers() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Store Credit Modal */}
+      {creditModalCustomer && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50">
+              <div>
+                <h2 className="text-xl font-bold">Store Credit</h2>
+                <p className="text-sm text-gray-500">{creditModalCustomer.first_name} {creditModalCustomer.last_name}</p>
+              </div>
+              <button onClick={() => setCreditModalCustomer(null)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="p-6">
+              <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-xl flex items-center gap-3">
+                <CreditCard className="w-5 h-5 text-green-600 shrink-0" />
+                <div>
+                  <p className="text-xs text-green-600 font-semibold uppercase tracking-wide">Current Balance</p>
+                  <p className="text-2xl font-black text-green-700">
+                    R{(creditBalances.get(creditModalCustomer.id) || 0).toFixed(2)}
+                  </p>
+                </div>
+              </div>
+              <form onSubmit={handleAddCreditSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Amount (use negative to deduct)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    placeholder="e.g. 100.00 or -50.00"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-200 focus:border-green-500"
+                    value={creditAmount}
+                    onChange={e => setCreditAmount(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Reason</label>
+                  <input
+                    type="text"
+                    placeholder="Refund, goodwill, deposit..."
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-200 focus:border-green-500"
+                    value={creditReason}
+                    onChange={e => setCreditReason(e.target.value)}
+                  />
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setCreditModalCustomer(null)}
+                    className="flex-1 px-4 py-2 border border-gray-200 text-gray-600 rounded-lg font-medium hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingCredit}
+                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50"
+                  >
+                    {savingCredit ? 'Saving...' : 'Apply'}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}

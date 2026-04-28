@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { db, auth } from '../lib/firebase';
-import { 
-  collection, 
-  query, 
-  getDocs, 
-  doc, 
+import {
+  collection,
+  query,
+  getDocs,
+  doc,
   getDoc,
+  addDoc,
   orderBy,
   onSnapshot,
   where,
@@ -88,6 +89,7 @@ export default function POS() {
   const [customItem, setCustomItem] = useState({ name: '', price: '', quantity: '1' });
   const [showCustomerResults, setShowCustomerResults] = useState(false);
   const [showProductResults, setShowProductResults] = useState(false);
+  const [customerCreditBalance, setCustomerCreditBalance] = useState(0);
   const paymentAmountRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -117,6 +119,24 @@ export default function POS() {
       unsubscribeCustomers();
     };
   }, [companyId, repairId]);
+
+  // Load store credit balance when customer changes
+  useEffect(() => {
+    if (!selectedCustomer?.id || !companyId) {
+      setCustomerCreditBalance(0);
+      return;
+    }
+    getDocs(
+      query(
+        collection(db, 'store_credit'),
+        where('company_id', '==', companyId),
+        where('customer_id', '==', selectedCustomer.id)
+      )
+    ).then((snap) => {
+      const total = snap.docs.reduce((sum, d) => sum + Number(d.data().amount || 0), 0);
+      setCustomerCreditBalance(Math.max(0, total));
+    }).catch(() => setCustomerCreditBalance(0));
+  }, [selectedCustomer?.id, companyId]);
 
   async function loadRepairData(id: string) {
     try {
@@ -309,6 +329,17 @@ export default function POS() {
       toast.error('Invalid amount');
       return;
     }
+    if (paymentMethod === 'Store Credit') {
+      if (!selectedCustomer) {
+        toast.error('Select a customer to use store credit.');
+        return;
+      }
+      const alreadyUsed = payments.filter(p => p.method === 'Store Credit').reduce((s, p) => s + p.amount, 0);
+      if (alreadyUsed + amount > customerCreditBalance + 0.001) {
+        toast.error(`Insufficient store credit. Available: R${customerCreditBalance.toFixed(2)}`);
+        return;
+      }
+    }
     setPayments([...payments, {
       method: paymentMethod,
       amount: amount,
@@ -496,6 +527,20 @@ export default function POS() {
         }));
       });
 
+      // Deduct store credit if used
+      const creditUsed = payments.filter(p => p.method === 'Store Credit').reduce((s, p) => s + p.amount, 0);
+      if (creditUsed > 0 && selectedCustomer?.id) {
+        await addDoc(collection(db, 'store_credit'), withCompanyId(workspaceId, {
+          customer_id: selectedCustomer.id,
+          amount: -creditUsed,
+          reason: `Applied to sale ${invoiceNumber}`,
+          source: 'redemption',
+          sale_id: saleRef.id,
+          created_by: auth.currentUser?.uid || selectedStaffId,
+          created_at: now,
+        }));
+      }
+
       toast.success('Sale completed successfully!');
       setLastSaleData({
         repair: currentRepair,
@@ -526,6 +571,7 @@ export default function POS() {
     setGlobalDiscount(0);
     setCustomerSearch('');
     setSearch('');
+    setCustomerCreditBalance(0);
   };
 
   return (
@@ -814,6 +860,9 @@ export default function POS() {
                 <div className="min-w-0">
                   <p className="text-sm font-bold text-white truncate">{selectedCustomer.name}</p>
                   <p className="text-[10px] text-zinc-500 truncate">{selectedCustomer.phone}</p>
+                  {customerCreditBalance > 0 && (
+                    <p className="text-[10px] font-bold text-[#86EFAC]">💳 Credit: R{customerCreditBalance.toFixed(2)}</p>
+                  )}
                 </div>
               </div>
               <button onClick={() => setSelectedCustomer(null)} className="text-zinc-500 hover:text-white">
@@ -907,7 +956,7 @@ export default function POS() {
             
             <div className="space-y-2">
               <label className="block text-xs font-black uppercase tracking-[0.14em] text-zinc-500">Payment method</label>
-              <select 
+              <select
                 className="w-full px-3 py-4 text-base font-bold focus:border-[#3B82F6] focus:ring-2 focus:ring-[#3B82F6]/20"
                 value={paymentMethod}
                 onChange={(e) => {
@@ -926,7 +975,15 @@ export default function POS() {
                 <option>EFT Via Capital</option>
                 <option>EFT Via FNB</option>
                 <option>EFT</option>
+                {selectedCustomer && customerCreditBalance > 0 && (
+                  <option value="Store Credit">Store Credit (R{customerCreditBalance.toFixed(2)} available)</option>
+                )}
               </select>
+              {paymentMethod === 'Store Credit' && (
+                <p className="text-xs font-semibold text-[#22C55E] mt-1">
+                  💳 Available: R{customerCreditBalance.toFixed(2)}
+                </p>
+              )}
             </div>
             <div className="space-y-3 rounded-xl border border-[#2A2A2E] bg-[#101012] p-4">
               <label className="block text-xs font-black uppercase tracking-[0.14em] text-zinc-400">Amount received</label>
