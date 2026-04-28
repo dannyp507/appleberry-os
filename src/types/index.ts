@@ -120,10 +120,15 @@ export interface Repair {
   ticket_number?: string;
   customer_id: string;
   device_name: string;
+  device_brand?: string | null;
+  device_model?: string | null;
   imei: string | null;
   issue_description: string | null;
   problem_id?: string | null;
   technician_id: string | null;
+  salesman_id?: string | null;
+  bin_location?: string | null;
+  due_date?: string | null;
   cost: number;
   status_id: string;
   notes: string | null;
@@ -154,6 +159,30 @@ export interface Repair {
   updated_at: string;
   customer?: Customer;
   status?: RepairStatus;
+}
+
+export interface StoreCredit {
+  id: string;
+  company_id: string;
+  customer_id: string;
+  amount: number;
+  reason: string;
+  source?: 'refund' | 'manual' | 'deposit';
+  sale_id?: string | null;
+  repair_id?: string | null;
+  created_by: string;
+  created_at: string;
+}
+
+export interface PettyCash {
+  id: string;
+  company_id: string;
+  type: 'in' | 'out';
+  amount: number;
+  reason: string;
+  drawer?: string | null;
+  staff_id: string;
+  created_at: string;
 }
 
 export interface CommunicationSettings {
@@ -199,7 +228,7 @@ export interface Sale {
   device_name?: string | null;
   total_amount: number;
   profit: number;
-  payment_method: 'cash' | 'card' | 'eft';
+  payment_method: 'cash' | 'card' | 'eft' | 'visa' | 'mastercard' | 'amex' | 'discover' | 'debit' | 'cheque' | 'eft_capital' | 'eft_fnb' | 'other';
   payment_methods?: string[];
   staff_id: string;
   refunded_amount?: number;

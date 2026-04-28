@@ -77,6 +77,9 @@ export default function RepairDetail() {
   const [paymentAmount, setPaymentAmount] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [newNote, setNewNote] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
+  const [activityLog, setActivityLog] = useState<any[]>([]);
 
   useEffect(() => {
     if (!id) return;
@@ -119,9 +122,18 @@ export default function RepairDetail() {
     fetchStaff();
     fetchProblems();
 
+    // Load activity log
+    const unsubscribeLog = onSnapshot(
+      query(collection(db, `repairs/${id}/history`), orderBy('created_at', 'desc')),
+      (snapshot) => {
+        setActivityLog(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+      }
+    );
+
     return () => {
       unsubscribeRepair();
       unsubscribeItems();
+      unsubscribeLog();
     };
   }, [id, companyId, navigate]);
 
@@ -269,6 +281,30 @@ export default function RepairDetail() {
     }
   };
 
+  const handleAddNote = async () => {
+    if (!id || !newNote.trim()) return;
+    setSavingNote(true);
+    try {
+      const user = auth.currentUser;
+      const workspaceId = requireCompanyId(companyId);
+      await addDoc(collection(db, `repairs/${id}/history`), {
+        company_id: workspaceId,
+        repair_id: id,
+        type: 'note',
+        notes: newNote.trim(),
+        changed_by: user?.uid || 'system',
+        changed_by_name: staff.find(s => s.id === user?.uid)?.full_name || 'Staff',
+        created_at: new Date().toISOString()
+      });
+      setNewNote('');
+      toast.success('Note added');
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setSavingNote(false);
+    }
+  };
+
   const subtotal = items.reduce((acc, item) => acc + item.total_price, 0);
   const globalDiscount = repair?.global_discount || 0;
   const grandTotal = Math.max(0, subtotal - globalDiscount);
@@ -346,102 +382,143 @@ export default function RepairDetail() {
                 <User className="w-4 h-4" />
                 Ticket #{repair.ticket_number || repair.id.substring(0, 8)}
               </div>
-              <button className="p-1 hover:bg-gray-200 rounded text-gray-400">
-                <PenTool className="w-4 h-4" />
-              </button>
             </div>
-            <div className="p-6">
-              <div className="flex justify-between items-start mb-6">
+            <div className="p-6 space-y-5">
+              {/* Device + IMEI */}
+              <div className="flex justify-between items-start">
                 <div>
                   <h2 className="text-xl font-black text-gray-900 mb-1">{repair.device_name}</h2>
-                  <p className="text-sm text-gray-500">Serial: {repair.imei || 'N/A'}</p>
-                </div>
-                <div className="text-right">
-                  <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
-                    <span className="font-bold">Technician:</span>
-                    <select 
-                      className="bg-transparent focus:outline-none font-medium text-primary"
-                      value={repair.technician_id || ''}
-                      onChange={(e) => handleUpdateRepair({ technician_id: e.target.value })}
-                    >
-                      <option value="">Unassigned</option>
-                      {staff.map(s => (
-                        <option key={s.id} value={s.id}>{s.full_name}</option>
-                      ))}
-                    </select>
-                  </div>
+                  <p className="text-sm text-gray-500">IMEI/Serial: {repair.imei || 'N/A'}</p>
                 </div>
               </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="text-sm">
-                  <span className="font-bold text-gray-400 uppercase tracking-wider text-[10px]">Problem:</span>
-                  <div className="mt-1">
-                    <select
-                      className="bg-transparent focus:outline-none font-medium text-primary w-full"
-                      value={repair.problem_id || ''}
-                      onChange={async (e) => {
-                        const probId = e.target.value;
-                        const problem = problems.find(p => p.id === probId);
-                        if (!problem) return;
 
-                        await handleUpdateRepair({ 
-                          problem_id: probId,
-                          issue_description: problem.name
-                        });
-
-                        // Auto-add service item if problem has a default price
-                        if (problem.default_price && problem.default_price > 0) {
-                          const existing = items.find(item => item.name === problem.name);
-                          if (!existing) {
-                            if (confirm(`This problem has a standard price of ${formatCurrency(problem.default_price)}. Would you like to add it to the repair items?`)) {
-                              const workspaceId = requireCompanyId(companyId);
-                              await addDoc(collection(db, `repairs/${id}/items`), {
-                                company_id: workspaceId,
-                                product_id: `prob-${probId}`,
-                                name: problem.name,
-                                quantity: 1,
-                                unit_price: problem.default_price,
-                                discount: 0,
-                                total_price: problem.default_price,
-                                created_at: new Date().toISOString()
-                              });
-                              toast.success(`Added ${problem.name} service`);
-                            }
+              {/* Problem */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Problem</label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
+                    value={repair.problem_id || ''}
+                    onChange={async (e) => {
+                      const probId = e.target.value;
+                      const problem = problems.find(p => p.id === probId);
+                      if (!problem) return;
+                      await handleUpdateRepair({ problem_id: probId, issue_description: problem.name });
+                      if (problem.default_price && problem.default_price > 0) {
+                        const existing = items.find(item => item.name === problem.name);
+                        if (!existing) {
+                          if (confirm(`Add standard price of ${formatCurrency(problem.default_price)} for ${problem.name}?`)) {
+                            const workspaceId = requireCompanyId(companyId);
+                            await addDoc(collection(db, `repairs/${id}/items`), {
+                              company_id: workspaceId,
+                              product_id: `prob-${probId}`,
+                              name: problem.name,
+                              quantity: 1,
+                              unit_price: problem.default_price,
+                              discount: 0,
+                              total_price: problem.default_price,
+                              created_at: new Date().toISOString()
+                            });
                           }
                         }
-                      }}
-                    >
-                      <option value="">Select Problem</option>
-                      {problems.map(p => (
-                        <option key={p.id} value={p.id}>{p.name}</option>
-                      ))}
-                    </select>
+                      }
+                    }}
+                  >
+                    <option value="">Select Problem</option>
+                    {problems.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Due Date */}
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Due Date</label>
+                  <input
+                    type="date"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    value={repair.due_date?.substring(0, 10) || ''}
+                    onChange={(e) => handleUpdateRepair({ due_date: e.target.value || null })}
+                  />
+                </div>
+              </div>
+
+              {/* Technician + Salesman */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Tech Assigned</label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
+                    value={repair.technician_id || ''}
+                    onChange={(e) => handleUpdateRepair({ technician_id: e.target.value })}
+                  >
+                    <option value="">Unassigned</option>
+                    {staff.map(s => (
+                      <option key={s.id} value={s.id}>{s.full_name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Salesperson</label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
+                    value={repair.salesman_id || ''}
+                    onChange={(e) => handleUpdateRepair({ salesman_id: e.target.value })}
+                  >
+                    <option value="">Unassigned</option>
+                    {staff.map(s => (
+                      <option key={s.id} value={s.id}>{s.full_name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Bin Location + Lock Password */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Bin Location</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Shelf A3"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    value={repair.bin_location || ''}
+                    onChange={(e) => handleUpdateRepair({ bin_location: e.target.value || null })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Lock Password / PIN</label>
+                  <input
+                    type="text"
+                    placeholder="Device passcode"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    value={repair.ticket_details?.passcode || ''}
+                    onChange={(e) => handleUpdateRepair({ ticket_details: { ...repair.ticket_details, passcode: e.target.value } })}
+                  />
+                </div>
+              </div>
+
+              {/* Suggested Parts */}
+              {suggestedProducts.length > 0 && (
+                <div className="bg-primary/5 p-3 rounded-lg border border-primary/10">
+                  <span className="font-bold text-primary uppercase tracking-wider text-[10px] flex items-center gap-1 mb-2">
+                    <AlertCircle className="w-3 h-3" />
+                    Suggested Parts for {repair.device_name}
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {suggestedProducts.map(p => (
+                      <button
+                        key={p.id}
+                        onClick={() => addToRepair(p)}
+                        className="text-[10px] bg-white border border-primary/20 text-primary px-2 py-1 rounded hover:bg-primary hover:text-white transition-all font-bold"
+                      >
+                        + {p.name} ({formatCurrency(p.selling_price)})
+                      </button>
+                    ))}
                   </div>
                 </div>
-                
-                {suggestedProducts.length > 0 && (
-                  <div className="bg-primary/5 p-3 rounded-lg border border-primary/10">
-                    <span className="font-bold text-primary uppercase tracking-wider text-[10px] flex items-center gap-1 mb-2">
-                      <AlertCircle className="w-3 h-3" />
-                      Suggested Parts for {repair.device_name}
-                    </span>
-                    <div className="flex flex-wrap gap-2">
-                      {suggestedProducts.map(p => (
-                        <button
-                          key={p.id}
-                          onClick={() => addToRepair(p)}
-                          className="text-[10px] bg-white border border-primary/20 text-primary px-2 py-1 rounded hover:bg-primary hover:text-white transition-all font-bold"
-                        >
-                          + {p.name} ({formatCurrency(p.selling_price)})
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+              )}
             </div>
-            
+
             <div className="px-6 py-3 bg-gray-50 border-t border-gray-100 flex items-center gap-4">
               <div className="flex items-center gap-2 text-xs font-bold text-gray-500">
                 <Clock className="w-3 h-3" />
@@ -555,28 +632,57 @@ export default function RepairDetail() {
           {/* Activity Log */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
             <div className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors">
-              <button 
+              <button
                 onClick={() => setIsActivityLogExpanded(!isActivityLogExpanded)}
                 className="flex items-center gap-2 flex-1 text-left focus:outline-none"
               >
                 {isActivityLogExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                 <span className="font-bold text-gray-700">Activity Log</span>
+                <span className="text-xs text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">{activityLog.length}</span>
               </button>
-              <div className="flex items-center gap-2">
-                <select className="text-xs border border-gray-200 rounded px-2 py-1 bg-white">
-                  <option>All Activities</option>
-                </select>
-                <button className="text-xs bg-gray-100 px-3 py-1 rounded hover:bg-gray-200 flex items-center gap-1">
-                  <PenTool className="w-3 h-3" /> Add Digital Signature
-                </button>
-                <button className="text-xs bg-gray-100 px-3 py-1 rounded hover:bg-gray-200 flex items-center gap-1">
-                  <FileText className="w-3 h-3" /> Add New Note
-                </button>
-              </div>
             </div>
             {isActivityLogExpanded && (
-              <div className="p-4 border-t border-gray-100 min-h-[100px] text-sm text-gray-500 italic">
-                No activities logged for this repair.
+              <div className="border-t border-gray-100">
+                {/* Add Note */}
+                <div className="p-4 border-b border-gray-100">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Add a note…"
+                      className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                      value={newNote}
+                      onChange={(e) => setNewNote(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleAddNote(); }}
+                    />
+                    <button
+                      onClick={handleAddNote}
+                      disabled={savingNote || !newNote.trim()}
+                      className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-bold hover:opacity-90 disabled:opacity-40 flex items-center gap-1"
+                    >
+                      <FileText className="w-3 h-3" /> Add Note
+                    </button>
+                  </div>
+                </div>
+                {/* Log Entries */}
+                {activityLog.length === 0 ? (
+                  <div className="p-6 text-center text-gray-400 text-sm italic">No activities yet.</div>
+                ) : (
+                  <div className="divide-y divide-gray-50">
+                    {activityLog.map((entry) => (
+                      <div key={entry.id} className="px-4 py-3 flex items-start gap-3">
+                        <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <History className="w-3.5 h-3.5 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-gray-800 font-medium">{entry.notes || entry.type}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            {entry.changed_by_name || entry.changed_by} · {safeFormatDate(entry.created_at, 'dd MMM yyyy HH:mm')}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -650,40 +756,66 @@ export default function RepairDetail() {
             <div className="bg-[#334155] text-white px-4 py-2 text-center font-bold text-sm">
               Take payment
             </div>
-            <div className="p-4 space-y-4">
-              <div className="space-y-3">
-                <select 
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
-                  value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
-                >
-                  <option>Cash</option>
-                  <option>Card</option>
-                  <option>EFT</option>
-                </select>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">R</span>
-                    <input
-                      type="number"
-                      placeholder="0.00"
-                      className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary font-bold"
-                      value={paymentAmount}
-                      onChange={(e) => setPaymentAmount(e.target.value)}
-                    />
-                  </div>
-                  <button 
-                    onClick={handleAddPayment}
-                    className="px-3 py-2 bg-[#22c55e] text-white rounded-lg text-sm font-bold hover:opacity-90 flex items-center gap-1"
-                  >
-                    <Plus className="w-4 h-4" /> Payment
-                  </button>
+            <div className="p-4 space-y-3">
+              <select
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+              >
+                <option>Cash</option>
+                <option>Cheque</option>
+                <option>Visa</option>
+                <option>Mastercard</option>
+                <option>AMEX</option>
+                <option>Discover</option>
+                <option>Other</option>
+                <option>Debit Card</option>
+                <option>EFT Via Capital</option>
+                <option>EFT Via FNB</option>
+                <option>EFT</option>
+              </select>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">R</span>
+                  <input
+                    type="number"
+                    placeholder="0.00"
+                    className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary font-bold"
+                    value={paymentAmount}
+                    onChange={(e) => setPaymentAmount(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleAddPayment(); }}
+                  />
                 </div>
+                <button
+                  onClick={handleAddPayment}
+                  className="px-3 py-2 bg-[#22c55e] text-white rounded-lg text-sm font-bold hover:opacity-90 flex items-center gap-1"
+                >
+                  <Plus className="w-4 h-4" /> Add
+                </button>
               </div>
+              {/* Payments made */}
+              {(repair.payments || []).length > 0 && (
+                <div className="border border-gray-100 rounded-lg divide-y divide-gray-50">
+                  {(repair.payments || []).map((p, i) => (
+                    <div key={i} className="flex justify-between items-center px-3 py-2 text-xs">
+                      <span className="font-bold text-gray-600">{p.method}</span>
+                      <span className="font-black text-green-600">{formatCurrency(p.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-            <div className="bg-[#e2e8f0] p-4 flex justify-between items-center">
-              <span className="font-black text-gray-700">Amount Due</span>
-              <span className="font-black text-gray-900 text-xl">{formatCurrency(amountDue)}</span>
+            <div className="bg-[#e2e8f0] p-4 space-y-1">
+              <div className="flex justify-between text-xs text-gray-600">
+                <span>Total Paid</span>
+                <span className="font-bold text-green-700">{formatCurrency(totalPaid)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="font-black text-gray-700">Amount Due</span>
+                <span className={`font-black text-xl ${amountDue <= 0 ? 'text-green-600' : 'text-gray-900'}`}>
+                  {amountDue <= 0 ? 'PAID' : formatCurrency(amountDue)}
+                </span>
+              </div>
             </div>
           </div>
 

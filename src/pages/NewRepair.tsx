@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db, auth } from '../lib/firebase';
-import { 
-  collection, 
-  addDoc, 
-  getDocs, 
-  orderBy
+import {
+  collection,
+  addDoc,
+  getDocs,
+  orderBy,
+  query,
+  where
 } from 'firebase/firestore';
 import { 
   Plus, 
@@ -59,6 +61,11 @@ export default function NewRepair() {
   const [selectedDevice, setSelectedDevice] = useState<{ name: string; imei: string; serial_number?: string; condition?: string } | null>(null);
   const [selectedProblem, setSelectedProblem] = useState<string>('');
   const [selectedItems, setSelectedItems] = useState<any[]>([]);
+  const [selectedTechnician, setSelectedTechnician] = useState<string>('');
+  const [selectedSalesman, setSelectedSalesman] = useState<string>('');
+  const [dueDate, setDueDate] = useState<string>('');
+  const [binLocation, setBinLocation] = useState<string>('');
+  const [staff, setStaff] = useState<any[]>([]);
   const [ticketDetails, setTicketDetails] = useState({
     passcode: '',
     pattern: '',
@@ -74,17 +81,23 @@ export default function NewRepair() {
 
   async function fetchData() {
     try {
-      const [custSnap, prodSnap, probSnap, statSnap] = await Promise.all([
+      const [custSnap, prodSnap, probSnap, statSnap, staffSnap] = await Promise.all([
         getDocs(companyQuery('customers', companyId, orderBy('created_at', 'desc'))),
         getDocs(companyQuery('products', companyId, orderBy('name'))),
         getDocs(companyQuery('repair_problems', companyId, orderBy('name'))),
-        getDocs(companyQuery('repair_status_options', companyId, orderBy('order_index')))
+        getDocs(companyQuery('repair_status_options', companyId, orderBy('order_index'))),
+        getDocs(query(collection(db, 'profiles'), where('company_id', '==', companyId)))
       ]);
 
       setCustomers(custSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer)));
       setProducts(prodSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product)));
       setProblems(probSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as RepairProblem)));
       setStatuses(statSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as RepairStatus)));
+      setStaff(staffSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+
+      // Pre-select current user as technician
+      const user = auth.currentUser;
+      if (user) setSelectedTechnician(user.uid);
     } catch (error) {
       console.error('Error fetching data:', error);
     }
@@ -157,7 +170,10 @@ export default function NewRepair() {
         condition_notes: selectedDevice.condition || null,
         problem_id: selectedProblem,
         issue_description: problems.find(p => p.id === selectedProblem)?.name || '',
-        technician_id: user?.uid || null,
+        technician_id: selectedTechnician || user?.uid || null,
+        salesman_id: selectedSalesman || null,
+        due_date: dueDate || null,
+        bin_location: binLocation || null,
         cost: roundMoney(totalCost),
         subtotal: roundMoney(totalCost),
         global_discount: 0,
@@ -404,9 +420,64 @@ export default function NewRepair() {
           </div>
         </div>
 
-        {/* Step 4: Services & Parts */}
+        {/* Step 4: Assignment & Details */}
         <div className="flex gap-6">
           <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-bold">4</div>
+          <div className="flex-1 space-y-4">
+            <h2 className="text-lg font-bold text-gray-900">Assign & Schedule</h2>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tech Assigned</label>
+                <select
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
+                  value={selectedTechnician}
+                  onChange={(e) => setSelectedTechnician(e.target.value)}
+                >
+                  <option value="">Unassigned</option>
+                  {staff.map((s: any) => (
+                    <option key={s.id} value={s.id}>{s.full_name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Salesperson</label>
+                <select
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white"
+                  value={selectedSalesman}
+                  onChange={(e) => setSelectedSalesman(e.target.value)}
+                >
+                  <option value="">Unassigned</option>
+                  {staff.map((s: any) => (
+                    <option key={s.id} value={s.id}>{s.full_name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+                <input
+                  type="date"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Bin Location</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Shelf A3"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  value={binLocation}
+                  onChange={(e) => setBinLocation(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Step 5: Services & Parts */}
+        <div className="flex gap-6">
+          <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-bold">5</div>
           <div className="flex-1 space-y-4">
             <h2 className="text-lg font-bold text-gray-900">Add Services & Parts</h2>
             <div className="space-y-4">
@@ -498,9 +569,9 @@ export default function NewRepair() {
           </div>
         </div>
 
-        {/* Step 5: Optional Details */}
+        {/* Step 6: Optional Details */}
         <div className="flex gap-6">
-          <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-bold">5</div>
+          <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-bold">6</div>
           <div className="flex-1">
             <button 
               onClick={() => setIsDetailsExpanded(!isDetailsExpanded)}
@@ -565,9 +636,9 @@ export default function NewRepair() {
           </div>
         </div>
 
-        {/* Step 6: Form */}
+        {/* Step 7: Form */}
         <div className="flex gap-6">
-          <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-bold">6</div>
+          <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-bold">7</div>
           <div className="flex-1 space-y-4">
             <h2 className="text-lg font-bold text-gray-900">Form</h2>
             <div className="flex gap-4">

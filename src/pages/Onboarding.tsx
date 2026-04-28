@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, getDocs, limit, query, updateDoc, where } from 'firebase/firestore';
 import { toast } from 'sonner';
 import { db } from '../lib/firebase';
 import { useTenant } from '../lib/tenant';
@@ -87,6 +87,58 @@ export default function Onboarding() {
           updated_at: new Date().toISOString(),
         }),
       ]);
+
+      // Seed default repair statuses if none exist yet
+      const existingStatuses = await getDocs(
+        query(collection(db, 'repair_status_options'), where('company_id', '==', companyId), limit(1))
+      );
+      if (existingStatuses.empty) {
+        const defaultStatuses = [
+          { name: 'New', color: '#22c55e', order_index: 0 },
+          { name: 'Assigned', color: '#3b82f6', order_index: 1 },
+          { name: 'On Hold', color: '#f97316', order_index: 2 },
+          { name: 'Waiting on Customer', color: '#eab308', order_index: 3 },
+          { name: 'Waiting for Parts', color: '#8b5cf6', order_index: 4 },
+          { name: 'Finished', color: '#111827', order_index: 5 },
+          { name: 'Invoiced', color: '#059669', order_index: 6 },
+          { name: 'Cancelled', color: '#ef4444', order_index: 7 },
+        ];
+        await Promise.all(defaultStatuses.map(s =>
+          addDoc(collection(db, 'repair_status_options'), {
+            company_id: companyId,
+            ...s,
+            created_at: new Date().toISOString(),
+          })
+        ));
+      }
+
+      // Seed default repair problems if none exist yet
+      const existingProblems = await getDocs(
+        query(collection(db, 'repair_problems'), where('company_id', '==', companyId), limit(1))
+      );
+      if (existingProblems.empty) {
+        const defaultProblems = [
+          { name: 'LCD / Screen Replacement', default_price: 0 },
+          { name: 'Battery Replacement', default_price: 0 },
+          { name: 'Charging Port Service', default_price: 0 },
+          { name: 'Back Glass Replacement', default_price: 0 },
+          { name: 'Water Damage', default_price: 0 },
+          { name: 'No Power', default_price: 0 },
+          { name: 'Software Update / Reload', default_price: 0 },
+          { name: 'Data Transfer', default_price: 0 },
+          { name: 'Assessment / Diagnostic', default_price: 0 },
+          { name: 'Camera Repair', default_price: 0 },
+          { name: 'Speaker / Microphone Repair', default_price: 0 },
+          { name: 'Board Repair', default_price: 0 },
+        ];
+        await Promise.all(defaultProblems.map(p =>
+          addDoc(collection(db, 'repair_problems'), {
+            company_id: companyId,
+            ...p,
+            created_at: new Date().toISOString(),
+          })
+        ));
+      }
 
       toast.success('Company setup completed.');
       window.location.href = '/';

@@ -916,7 +916,15 @@ export default function POS() {
                 }}
               >
                 <option>Cash</option>
-                <option>Card</option>
+                <option>Cheque</option>
+                <option>Visa</option>
+                <option>Mastercard</option>
+                <option>AMEX</option>
+                <option>Discover</option>
+                <option>Other</option>
+                <option>Debit Card</option>
+                <option>EFT Via Capital</option>
+                <option>EFT Via FNB</option>
                 <option>EFT</option>
               </select>
             </div>
