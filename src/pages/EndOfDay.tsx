@@ -1,230 +1,473 @@
 import React, { useState, useEffect } from 'react';
-import { db } from '../lib/firebase';
-import { where, getDocs } from 'firebase/firestore';
-import { 
-  Moon, 
-  Sun, 
-  DollarSign, 
-  Wallet, 
+import { db, auth } from '../lib/firebase';
+import {
+  addDoc,
+  collection,
+  getDocs,
+  orderBy,
+  query,
+  where,
+  limit,
+} from 'firebase/firestore';
+import {
+  Moon,
+  DollarSign,
+  Wallet,
   TrendingUp,
   ArrowRight,
   Printer,
-  CheckCircle2
+  CheckCircle2,
+  Clock,
+  ChevronDown,
+  ChevronUp,
+  Plus,
+  Minus,
+  History,
 } from 'lucide-react';
 import { formatCurrency, cn, safeFormatDate } from '../lib/utils';
 import { startOfDay, endOfDay, format } from 'date-fns';
 import { toast } from 'sonner';
 import { useTenant } from '../lib/tenant';
-import { companyQuery } from '../lib/db';
+import { companyQuery, requireCompanyId } from '../lib/db';
 
+// ─── payment method helpers ───────────────────────────────────────────────────
+const ALL_METHODS = [
+  'Cash', 'Cheque', 'Visa', 'Mastercard', 'AMEX', 'Discover',
+  'Other', 'Debit Card', 'EFT Via Capital', 'EFT Via FNB', 'EFT',
+];
+
+function normMethod(m: string) {
+  return (m || '').toLowerCase().trim();
+}
+
+function bucketPayment(method: string, amount: number, acc: Record<string, number>) {
+  const key = ALL_METHODS.find(m => normMethod(m) === normMethod(method)) || 'Other';
+  acc[key] = (acc[key] || 0) + amount;
+}
+
+// ─── component ────────────────────────────────────────────────────────────────
 export default function EndOfDay() {
   const { companyId } = useTenant();
+
   const [loading, setLoading] = useState(true);
-  const [actualCash, setActualCash] = useState<string>('');
+  const [closing, setClosing] = useState(false);
+
+  // Cash reconciliation
+  const [startingBalance, setStartingBalance] = useState('');
+  const [countedCash, setCountedCash] = useState('');
+  const [comments, setComments] = useState('');
+
+  // Petty cash
+  const [pettyItems, setPettyItems] = useState<any[]>([]);
+  const [newPettyDesc, setNewPettyDesc] = useState('');
+  const [newPettyAmount, setNewPettyAmount] = useState('');
+  const [newPettyType, setNewPettyType] = useState<'in' | 'out'>('out');
+  const [showPetty, setShowPetty] = useState(true);
+
+  // History
+  const [history, setHistory] = useState<any[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+
+  // Data
   const [data, setData] = useState({
     sales: 0,
     expenses: 0,
-    profit: 0,
+    repairs: 0,
+    repairsCount: 0,
     salesCount: 0,
-    paymentMethods: {
-      cash: 0,
-      card: 0,
-      eft: 0
-    }
+    paymentMethods: {} as Record<string, number>,
+    storeCreditUsed: 0,
+    salesDocs: [] as any[],
   });
 
   useEffect(() => {
-    fetchDaySummary();
+    if (companyId) {
+      fetchDaySummary();
+      fetchPettyCash();
+      fetchHistory();
+    }
   }, [companyId]);
 
   async function fetchDaySummary() {
     setLoading(true);
     try {
-      const todayStart = startOfDay(new Date());
-      const todayEnd = endOfDay(new Date());
+      const todayStart = startOfDay(new Date()).toISOString();
+      const todayEnd = endOfDay(new Date()).toISOString();
 
-      const salesQuery = companyQuery('sales', companyId, where('created_at', '>=', todayStart.toISOString()), where('created_at', '<=', todayEnd.toISOString()));
-      const salesSnapshot = await getDocs(salesQuery);
-      const salesDocs = salesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
-      
+      const [salesSnap, expSnap, repairSnap] = await Promise.all([
+        getDocs(companyQuery('sales', companyId,
+          where('created_at', '>=', todayStart),
+          where('created_at', '<=', todayEnd)
+        )),
+        getDocs(companyQuery('expenses', companyId,
+          where('date', '==', format(new Date(), 'yyyy-MM-dd'))
+        )),
+        getDocs(companyQuery('repairs', companyId,
+          where('updated_at', '>=', todayStart),
+          where('updated_at', '<=', todayEnd)
+        )),
+      ]);
+
+      const salesDocs = salesSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+      const expDocs = expSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+      const repairDocs = repairSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+
+      const methods: Record<string, number> = {};
       let totalSales = 0;
-      let totalProfit = 0;
-      let methods = { cash: 0, card: 0, eft: 0 };
 
       salesDocs.forEach(d => {
-        totalSales += Number(d.total_amount);
-        totalProfit += Number(d.profit);
-        
-        // Handle multiple payments per sale
-        if (d.payments && Array.isArray(d.payments)) {
-          d.payments.forEach((p: any) => {
-            const method = p.method?.toLowerCase();
-            const amount = Number(p.amount) || 0;
-            if (method === 'cash') methods.cash += amount;
-            else if (method === 'card') methods.card += amount;
-            else if (method === 'eft') methods.eft += amount;
-          });
+        totalSales += Number(d.total_amount) || 0;
+        if (d.payment_methods && Array.isArray(d.payment_methods)) {
+          // new format: array of method strings parallel to payments array
+          (d.payments || []).forEach((p: any) => bucketPayment(p.method, Number(p.amount) || 0, methods));
+        } else if (d.payments && Array.isArray(d.payments)) {
+          d.payments.forEach((p: any) => bucketPayment(p.method, Number(p.amount) || 0, methods));
         } else if (d.payment_method) {
-          // Fallback for legacy single payment sales
-          const method = d.payment_method.toLowerCase();
-          const amount = Number(d.total_amount) || 0;
-          if (method === 'cash') methods.cash += amount;
-          else if (method === 'card') methods.card += amount;
-          else if (method === 'eft') methods.eft += amount;
+          bucketPayment(d.payment_method, Number(d.total_amount) || 0, methods);
         }
       });
 
-      const expensesQuery = companyQuery('expenses', companyId, where('date', '==', format(new Date(), 'yyyy-MM-dd')));
-      const expensesSnapshot = await getDocs(expensesQuery);
-      const expenseDocs = expensesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
-      const totalExpenses = expenseDocs.reduce((acc, doc) => acc + Number(doc.amount), 0);
+      const totalExpenses = expDocs.reduce((a, d) => a + (Number(d.amount) || 0), 0);
+      const repairRevenue = repairDocs.reduce((a, d) => a + (Number(d.paid_amount) || 0), 0);
 
       setData({
         sales: totalSales,
         expenses: totalExpenses,
-        profit: totalProfit - totalExpenses,
+        repairs: repairRevenue,
+        repairsCount: repairDocs.filter(r => r.paid_amount > 0).length,
         salesCount: salesDocs.length,
-        paymentMethods: methods
+        paymentMethods: methods,
+        storeCreditUsed: 0,
+        salesDocs,
       });
-    } catch (error: any) {
-      toast.error(error.message);
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
-  const handleCloseDay = () => {
-    toast.success('Day closed successfully. Summary saved to history.');
-    // In a real app, you'd save this summary to a 'day_closures' collection.
-  };
-
-  if (loading) {
-    return <div className="animate-pulse space-y-8">
-      <div className="h-32 bg-gray-100 rounded-xl"></div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {[1,2,3].map(i => <div key={i} className="h-40 bg-gray-100 rounded-xl"></div>)}
-      </div>
-    </div>;
+  async function fetchPettyCash() {
+    if (!companyId) return;
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    try {
+      const snap = await getDocs(
+        query(collection(db, 'petty_cash'),
+          where('company_id', '==', companyId),
+          where('date', '==', todayStr),
+          orderBy('created_at', 'asc')
+        )
+      );
+      setPettyItems(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch { /* index might not exist yet */ }
   }
+
+  async function fetchHistory() {
+    if (!companyId) return;
+    try {
+      const snap = await getDocs(
+        query(collection(db, 'end_of_day'),
+          where('company_id', '==', companyId),
+          orderBy('created_at', 'desc'),
+          limit(10)
+        )
+      );
+      setHistory(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch { /* index might not exist yet */ }
+  }
+
+  async function handleAddPetty() {
+    if (!newPettyDesc.trim() || !newPettyAmount || !companyId) return;
+    const cid = requireCompanyId(companyId);
+    const now = new Date().toISOString();
+    const item = {
+      company_id: cid,
+      type: newPettyType,
+      reason: newPettyDesc.trim(),
+      amount: parseFloat(newPettyAmount) || 0,
+      date: format(new Date(), 'yyyy-MM-dd'),
+      staff_id: auth.currentUser?.uid || '',
+      created_at: now,
+    };
+    try {
+      const ref = await addDoc(collection(db, 'petty_cash'), item);
+      setPettyItems([...pettyItems, { id: ref.id, ...item }]);
+      setNewPettyDesc('');
+      setNewPettyAmount('');
+      toast.success('Petty cash entry added');
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  }
+
+  async function handleCloseDay() {
+    if (!companyId) return;
+    setClosing(true);
+    try {
+      const cid = requireCompanyId(companyId);
+      const now = new Date().toISOString();
+      const totalPettyIn = pettyItems.filter(p => p.type === 'in').reduce((a, p) => a + p.amount, 0);
+      const totalPettyOut = pettyItems.filter(p => p.type === 'out').reduce((a, p) => a + p.amount, 0);
+      const calcCash = (data.paymentMethods['Cash'] || 0) + parseFloat(startingBalance || '0') - totalPettyOut + totalPettyIn;
+
+      await addDoc(collection(db, 'end_of_day'), {
+        company_id: cid,
+        date: format(new Date(), 'yyyy-MM-dd'),
+        starting_balance: parseFloat(startingBalance) || 0,
+        counted_cash: parseFloat(countedCash) || 0,
+        calculated_cash: calcCash,
+        cash_variance: (parseFloat(countedCash) || 0) - calcCash,
+        total_sales: data.sales,
+        total_expenses: data.expenses,
+        total_repair_revenue: data.repairs,
+        payment_methods: data.paymentMethods,
+        petty_cash_in: totalPettyIn,
+        petty_cash_out: totalPettyOut,
+        comments: comments.trim(),
+        closed_by: auth.currentUser?.uid || '',
+        created_at: now,
+      });
+      toast.success('Day closed and saved to history');
+      fetchHistory();
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setClosing(false);
+    }
+  }
+
+  const totalPettyIn = pettyItems.filter(p => p.type === 'in').reduce((a, p) => a + p.amount, 0);
+  const totalPettyOut = pettyItems.filter(p => p.type === 'out').reduce((a, p) => a + p.amount, 0);
+  const calcCash = (data.paymentMethods['Cash'] || 0) + parseFloat(startingBalance || '0') - totalPettyOut + totalPettyIn;
+  const variance = countedCash !== '' ? parseFloat(countedCash) - calcCash : null;
+
+  if (loading) return (
+    <div className="animate-pulse space-y-6">
+      <div className="h-32 bg-[#1C1C1F] rounded-2xl" />
+      <div className="grid grid-cols-3 gap-4">{[1, 2, 3].map(i => <div key={i} className="h-28 bg-[#1C1C1F] rounded-2xl" />)}</div>
+    </div>
+  );
+
+  const activeMethods = Object.entries(data.paymentMethods).filter(([, v]) => v > 0);
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-5xl mx-auto space-y-6 pb-16">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Moon className="w-6 h-6 text-primary" />
-            End of Day Summary
+          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+            <Moon className="w-6 h-6 text-[#22C55E]" /> End of Day Report
           </h1>
-          <p className="text-gray-500">Review today's performance before closing.</p>
+          <p className="text-zinc-400 text-sm mt-0.5">{safeFormatDate(new Date(), 'EEEE, dd MMMM yyyy')}</p>
         </div>
-        <div className="text-right">
-          <p className="text-sm font-bold text-gray-900">{safeFormatDate(new Date(), 'EEEE, MMM dd')}</p>
-          <p className="text-xs text-gray-500">Status: <span className="text-green-600 font-bold uppercase">Open</span></p>
+        <div className="flex gap-2">
+          <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 border border-[#2A2A2E] rounded-xl text-zinc-300 text-sm hover:bg-[#1C1C1F]">
+            <Printer className="w-4 h-4" /> Print
+          </button>
+          <button
+            onClick={() => setShowHistory(!showHistory)}
+            className="flex items-center gap-2 px-4 py-2 border border-[#2A2A2E] rounded-xl text-zinc-300 text-sm hover:bg-[#1C1C1F]"
+          >
+            <History className="w-4 h-4" /> History
+          </button>
         </div>
       </div>
 
-      {/* Main Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <SummaryCard 
-          title="Total Sales" 
-          value={formatCurrency(data.sales)} 
-          icon={DollarSign} 
-          color="text-blue-600" 
-          bgColor="bg-blue-50"
-          subtitle={`${data.salesCount} transactions`}
-        />
-        <SummaryCard 
-          title="Total Expenses" 
-          value={formatCurrency(data.expenses)} 
-          icon={Wallet} 
-          color="text-red-600" 
-          bgColor="bg-red-50"
-          subtitle="Business spending"
-        />
-        <SummaryCard 
-          title="Net Profit" 
-          value={formatCurrency(data.profit)} 
-          icon={TrendingUp} 
-          color="text-green-600" 
-          bgColor="bg-green-50"
-          subtitle="Sales profit - Expenses"
-        />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Payment Breakdown & Reconciliation */}
-        <div className="space-y-6">
-          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-            <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-primary" />
-              Payment Breakdown
-            </h3>
-            <div className="space-y-4">
-              <PaymentRow label="Cash" amount={data.paymentMethods.cash} total={data.sales} />
-              <PaymentRow label="Card" amount={data.paymentMethods.card} total={data.sales} />
-              <PaymentRow label="EFT" amount={data.paymentMethods.eft} total={data.sales} />
+      {/* History panel */}
+      {showHistory && (
+        <div className="rounded-2xl border border-[#2A2A2E] bg-[#141416] p-5">
+          <h3 className="font-bold text-white mb-3 text-sm">Recent End of Day Records</h3>
+          {history.length === 0 ? (
+            <p className="text-zinc-500 text-sm italic">No records yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {history.map(h => (
+                <div key={h.id} className="flex items-center justify-between py-2 border-b border-[#2A2A2E] text-sm">
+                  <span className="text-zinc-300">{h.date}</span>
+                  <span className="text-white font-bold">{formatCurrency(h.total_sales)}</span>
+                  <span className={variance != null && variance !== 0 ? 'text-red-400' : 'text-green-400'}>
+                    {h.cash_variance >= 0 ? '+' : ''}{formatCurrency(h.cash_variance || 0)} variance
+                  </span>
+                </div>
+              ))}
             </div>
+          )}
+        </div>
+      )}
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <StatCard title="Total Sales" value={formatCurrency(data.sales)} sub={`${data.salesCount} transactions`} icon={DollarSign} color="text-blue-400" />
+        <StatCard title="Repair Revenue" value={formatCurrency(data.repairs)} sub={`${data.repairsCount} paid repairs`} icon={TrendingUp} color="text-green-400" />
+        <StatCard title="Expenses" value={formatCurrency(data.expenses)} sub="Today's costs" icon={Wallet} color="text-red-400" />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Left column */}
+        <div className="space-y-5">
+          {/* Payment Breakdown */}
+          <div className="rounded-2xl border border-[#2A2A2E] bg-[#141416] p-5">
+            <h3 className="font-bold text-white mb-4 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-[#22C55E]" /> Payment Breakdown
+            </h3>
+            {activeMethods.length === 0 ? (
+              <p className="text-zinc-500 text-sm italic">No sales recorded today.</p>
+            ) : (
+              <div className="space-y-3">
+                {activeMethods.map(([method, amount]) => (
+                  <div key={method} className="flex justify-between items-center py-1 border-b border-[#2A2A2E]">
+                    <span className="text-sm text-zinc-300">{method}</span>
+                    <span className="font-bold text-white">{formatCurrency(amount)}</span>
+                  </div>
+                ))}
+                <div className="flex justify-between items-center pt-1">
+                  <span className="text-sm font-bold text-zinc-400">Total</span>
+                  <span className="font-black text-white">{formatCurrency(data.sales)}</span>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Cash Reconciliation */}
-          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-            <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-              <Wallet className="w-5 h-5 text-primary" />
-              Cash Reconciliation
-            </h3>
-            <p className="text-sm text-gray-500 mb-6">Enter the actual cash counted in the drawer to check for variances.</p>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Actual Cash Counted</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">R</span>
+          {/* Petty Cash */}
+          <div className="rounded-2xl border border-[#2A2A2E] bg-[#141416]">
+            <button
+              onClick={() => setShowPetty(!showPetty)}
+              className="w-full flex items-center justify-between p-5 text-left"
+            >
+              <h3 className="font-bold text-white flex items-center gap-2">
+                <Wallet className="w-4 h-4 text-yellow-400" /> Petty Cash
+                <span className="text-xs text-zinc-400 font-normal ml-1">In: {formatCurrency(totalPettyIn)} | Out: {formatCurrency(totalPettyOut)}</span>
+              </h3>
+              {showPetty ? <ChevronUp className="w-4 h-4 text-zinc-500" /> : <ChevronDown className="w-4 h-4 text-zinc-500" />}
+            </button>
+            {showPetty && (
+              <div className="px-5 pb-5 space-y-3 border-t border-[#2A2A2E] pt-4">
+                {/* Add petty cash */}
+                <div className="flex gap-2">
+                  <select
+                    value={newPettyType}
+                    onChange={e => setNewPettyType(e.target.value as 'in' | 'out')}
+                    className="px-2 py-2 rounded-lg border border-[#2A2A2E] bg-[#101012] text-white text-sm focus:border-[#22C55E] focus:outline-none"
+                  >
+                    <option value="out">Out ▼</option>
+                    <option value="in">In ▲</option>
+                  </select>
+                  <input
+                    type="text"
+                    placeholder="Reason…"
+                    className="flex-1 px-3 py-2 rounded-lg border border-[#2A2A2E] bg-[#101012] text-white text-sm focus:border-[#22C55E] focus:outline-none"
+                    value={newPettyDesc}
+                    onChange={e => setNewPettyDesc(e.target.value)}
+                  />
                   <input
                     type="number"
-                    value={actualCash}
-                    onChange={(e) => setActualCash(e.target.value)}
+                    placeholder="Amount"
+                    className="w-24 px-3 py-2 rounded-lg border border-[#2A2A2E] bg-[#101012] text-white text-sm focus:border-[#22C55E] focus:outline-none"
+                    value={newPettyAmount}
+                    onChange={e => setNewPettyAmount(e.target.value)}
+                  />
+                  <button
+                    onClick={handleAddPetty}
+                    className="px-3 py-2 bg-[#22C55E] text-black rounded-lg text-sm font-bold hover:bg-[#16a34a]"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+                {pettyItems.length > 0 && (
+                  <div className="space-y-1 max-h-40 overflow-y-auto">
+                    {pettyItems.map(p => (
+                      <div key={p.id} className="flex justify-between items-center py-1.5 text-sm border-b border-[#2A2A2E]">
+                        <span className="text-zinc-400">{p.reason}</span>
+                        <span className={p.type === 'in' ? 'text-green-400 font-bold' : 'text-red-400 font-bold'}>
+                          {p.type === 'in' ? '+' : '-'}{formatCurrency(p.amount)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right column */}
+        <div className="space-y-5">
+          {/* Cash Reconciliation */}
+          <div className="rounded-2xl border border-[#2A2A2E] bg-[#141416] p-5">
+            <h3 className="font-bold text-white mb-4 flex items-center gap-2">
+              <DollarSign className="w-4 h-4 text-[#22C55E]" /> Cash Drawer Count
+            </h3>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Starting Balance</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 font-bold text-sm">R</span>
+                  <input
+                    type="number"
+                    value={startingBalance}
+                    onChange={e => setStartingBalance(e.target.value)}
                     placeholder="0.00"
-                    className="w-full pl-8 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-bold text-lg"
+                    className="w-full pl-8 pr-4 py-2.5 rounded-lg border border-[#2A2A2E] bg-[#101012] text-white text-sm focus:border-[#22C55E] focus:outline-none"
                   />
                 </div>
               </div>
-
-              {actualCash !== '' && (
+              <div className="flex justify-between py-2 text-sm">
+                <span className="text-zinc-400">Cash Sales Today</span>
+                <span className="font-bold text-white">{formatCurrency(data.paymentMethods['Cash'] || 0)}</span>
+              </div>
+              <div className="flex justify-between py-2 text-sm border-t border-[#2A2A2E]">
+                <span className="text-zinc-400">Petty Cash Out</span>
+                <span className="font-bold text-red-400">-{formatCurrency(totalPettyOut)}</span>
+              </div>
+              <div className="flex justify-between py-2 text-sm font-bold border-t border-[#2A2A2E]">
+                <span className="text-zinc-300">Calculated Cash</span>
+                <span className="text-white">{formatCurrency(calcCash)}</span>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Counted Cash</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 font-bold text-sm">R</span>
+                  <input
+                    type="number"
+                    value={countedCash}
+                    onChange={e => setCountedCash(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full pl-8 pr-4 py-2.5 rounded-lg border border-[#2A2A2E] bg-[#101012] text-white text-sm focus:border-[#22C55E] focus:outline-none"
+                  />
+                </div>
+              </div>
+              {variance !== null && (
                 <div className={cn(
-                  "p-4 rounded-xl flex justify-between items-center",
-                  Number(actualCash) - data.paymentMethods.cash === 0 ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
+                  'flex justify-between items-center px-4 py-3 rounded-xl font-bold text-sm',
+                  variance === 0 ? 'bg-green-900/20 text-green-400 border border-green-800' :
+                  variance > 0 ? 'bg-blue-900/20 text-blue-400 border border-blue-800' :
+                  'bg-red-900/20 text-red-400 border border-red-800'
                 )}>
-                  <span className="font-medium">Variance:</span>
-                  <span className="font-bold text-lg">
-                    {formatCurrency(Number(actualCash) - data.paymentMethods.cash)}
-                  </span>
+                  <span>Variance</span>
+                  <span>{variance >= 0 ? '+' : ''}{formatCurrency(variance)}</span>
                 </div>
               )}
             </div>
           </div>
-        </div>
 
-        {/* Actions */}
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
-          <div>
-            <h3 className="text-lg font-bold mb-2">Ready to close?</h3>
-            <p className="text-sm text-gray-500 mb-6">
-              Closing the day will generate a final report and reset the daily counters. 
-              Make sure all transactions are recorded.
-            </p>
-          </div>
-          <div className="space-y-3">
-            <button 
-              onClick={() => window.print()}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-gray-200 rounded-xl font-bold text-gray-600 hover:bg-gray-50 transition-all"
-            >
-              <Printer className="w-5 h-5" />
-              Print X-Report
-            </button>
-            <button 
+          {/* Comments + Close */}
+          <div className="rounded-2xl border border-[#2A2A2E] bg-[#141416] p-5 space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Comments</label>
+              <textarea
+                value={comments}
+                onChange={e => setComments(e.target.value)}
+                rows={3}
+                placeholder="Any notes for today…"
+                className="w-full px-3 py-2 rounded-lg border border-[#2A2A2E] bg-[#101012] text-white text-sm focus:border-[#22C55E] focus:outline-none resize-none"
+              />
+            </div>
+            <button
               onClick={handleCloseDay}
-              className="w-full flex items-center justify-center gap-2 px-4 py-4 appleberry-gradient text-white rounded-xl font-bold hover:opacity-90 transition-all shadow-lg shadow-primary/20"
+              disabled={closing}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#22C55E] text-black font-black rounded-xl hover:bg-[#16a34a] disabled:opacity-50 transition-all"
             >
-              Close Day
+              {closing ? 'Saving…' : 'Close Day & Save Report'}
               <ArrowRight className="w-5 h-5" />
             </button>
           </div>
@@ -234,33 +477,15 @@ export default function EndOfDay() {
   );
 }
 
-function SummaryCard({ title, value, icon: Icon, color, bgColor, subtitle }: any) {
+function StatCard({ title, value, sub, icon: Icon, color }: any) {
   return (
-    <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-      <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center mb-4", bgColor, color)}>
-        <Icon className="w-6 h-6" />
+    <div className="rounded-2xl border border-[#2A2A2E] bg-[#141416] p-5">
+      <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center mb-3', color, 'bg-current/10')}>
+        <Icon className={cn('w-5 h-5', color)} style={{ opacity: 1 }} />
       </div>
-      <p className="text-sm text-gray-500 font-medium">{title}</p>
-      <p className="text-2xl font-bold text-gray-900">{value}</p>
-      <p className="text-xs text-gray-400 mt-1">{subtitle}</p>
-    </div>
-  );
-}
-
-function PaymentRow({ label, amount, total }: any) {
-  const percentage = total > 0 ? (amount / total) * 100 : 0;
-  return (
-    <div className="space-y-2">
-      <div className="flex justify-between text-sm">
-        <span className="font-medium text-gray-600">{label}</span>
-        <span className="font-bold text-gray-900">{formatCurrency(amount)}</span>
-      </div>
-      <div className="h-2 bg-gray-50 rounded-full overflow-hidden">
-        <div 
-          className="h-full bg-primary transition-all duration-500" 
-          style={{ width: `${percentage}%` }}
-        />
-      </div>
+      <p className="text-xs text-zinc-500 font-medium uppercase tracking-wider">{title}</p>
+      <p className="text-2xl font-black text-white mt-1">{value}</p>
+      <p className="text-xs text-zinc-500 mt-0.5">{sub}</p>
     </div>
   );
 }
