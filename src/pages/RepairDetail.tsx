@@ -84,6 +84,8 @@ export default function RepairDetail() {
   const [quickItem, setQuickItem] = useState({ name: '', price: '', qty: '1' });
   const [linkedTicketInput, setLinkedTicketInput] = useState('');
   const [linkedRepairs, setLinkedRepairs] = useState<{ id: string; ticket_number?: string; device_name?: string }[]>([]);
+  const [showEstimateModal, setShowEstimateModal] = useState(false);
+  const [estimateSent, setEstimateSent] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -99,6 +101,7 @@ export default function RepairDetail() {
           return;
         }
         setRepair(repairData);
+        setEstimateSent(Boolean(repairData.estimate_sent));
 
         // Load linked repairs
         const linkedIds: string[] = Array.isArray(repairData.linked_repair_ids) ? repairData.linked_repair_ids : [];
@@ -436,16 +439,20 @@ export default function RepairDetail() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button className="p-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600">
+          <button
+            onClick={() => window.print()}
+            className="p-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600"
+            title="Print repair sheet"
+          >
             <Printer className="w-5 h-5" />
           </button>
-          <button className="p-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600">
-            <Share2 className="w-5 h-5" />
-          </button>
-          <div className="h-8 w-px bg-gray-200 mx-2" />
-          <button className="bg-[#9333ea] text-white px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-all shadow-sm flex items-center gap-2">
-            Shop Spares
-            <ChevronDown className="w-4 h-4" />
+          <button
+            onClick={() => setShowEstimateModal(true)}
+            className="flex items-center gap-2 px-3 py-2 bg-amber-500 text-white rounded-lg text-sm font-semibold hover:opacity-90 transition-all shadow-sm"
+            title="View / send estimate"
+          >
+            <FileText className="w-4 h-4" />
+            Estimate
           </button>
         </div>
       </div>
@@ -1005,6 +1012,108 @@ export default function RepairDetail() {
           </div>
         </div>
       </div>
+
+      {/* Estimate Modal */}
+      {showEstimateModal && repair && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-amber-50">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Repair Estimate</h2>
+                <p className="text-sm text-gray-500">{repair.ticket_number} · {repair.device_name}</p>
+              </div>
+              <button onClick={() => setShowEstimateModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto flex-1">
+              <div className="space-y-1 mb-4">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Customer</span>
+                  <span className="font-semibold">{customer?.name || repair.customer_name || '—'}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Device</span>
+                  <span className="font-semibold">{repair.device_name || '—'}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Date</span>
+                  <span className="font-semibold">{new Date().toLocaleDateString()}</span>
+                </div>
+              </div>
+
+              <table className="w-full text-sm border border-gray-100 rounded-lg overflow-hidden mb-4">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-bold text-gray-600">Item</th>
+                    <th className="px-3 py-2 text-center font-bold text-gray-600">Qty</th>
+                    <th className="px-3 py-2 text-right font-bold text-gray-600">Price</th>
+                    <th className="px-3 py-2 text-right font-bold text-gray-600">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map(item => (
+                    <tr key={item.id} className="border-t border-gray-100">
+                      <td className="px-3 py-2">{item.name}</td>
+                      <td className="px-3 py-2 text-center">{item.quantity}</td>
+                      <td className="px-3 py-2 text-right">{formatCurrency(item.unit_price)}</td>
+                      <td className="px-3 py-2 text-right font-semibold">{formatCurrency(item.total_price)}</td>
+                    </tr>
+                  ))}
+                  {items.length === 0 && (
+                    <tr><td colSpan={4} className="px-3 py-4 text-center text-gray-400 italic">No items added yet</td></tr>
+                  )}
+                </tbody>
+                <tfoot className="bg-gray-50 border-t-2 border-gray-200">
+                  <tr>
+                    <td colSpan={3} className="px-3 py-2 font-black text-right text-gray-900">TOTAL</td>
+                    <td className="px-3 py-2 text-right font-black text-gray-900">
+                      {formatCurrency(items.reduce((s, i) => s + i.total_price, 0))}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+
+              {repair.ticket_details?.notes && (
+                <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-600 mb-4">
+                  <p className="font-semibold text-gray-700 mb-1">Notes</p>
+                  {repair.ticket_details.notes}
+                </div>
+              )}
+
+              {estimateSent && (
+                <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-sm text-green-700 mb-4">
+                  <CheckCircle2 className="w-4 h-4" />
+                  Estimate marked as sent
+                </div>
+              )}
+            </div>
+            <div className="p-4 border-t border-gray-100 flex gap-3">
+              <button
+                onClick={() => window.print()}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 text-sm"
+              >
+                <Printer className="w-4 h-4" /> Print
+              </button>
+              <button
+                onClick={async () => {
+                  if (!id) return;
+                  await updateDoc(doc(db, 'repairs', id), {
+                    estimate_sent: true,
+                    estimate_sent_at: new Date().toISOString(),
+                  });
+                  setEstimateSent(true);
+                  toast.success('Estimate marked as sent');
+                }}
+                disabled={estimateSent}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-500 text-white rounded-xl font-semibold hover:opacity-90 text-sm disabled:opacity-50"
+              >
+                <Share2 className="w-4 h-4" /> Mark Sent
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
