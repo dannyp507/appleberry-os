@@ -80,6 +80,10 @@ export default function RepairDetail() {
   const [newNote, setNewNote] = useState('');
   const [savingNote, setSavingNote] = useState(false);
   const [activityLog, setActivityLog] = useState<any[]>([]);
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [quickItem, setQuickItem] = useState({ name: '', price: '', qty: '1' });
+  const [linkedTicketInput, setLinkedTicketInput] = useState('');
+  const [linkedRepairs, setLinkedRepairs] = useState<{ id: string; ticket_number?: string; device_name?: string }[]>([]);
 
   useEffect(() => {
     if (!id) return;
@@ -95,7 +99,19 @@ export default function RepairDetail() {
           return;
         }
         setRepair(repairData);
-        
+
+        // Load linked repairs
+        const linkedIds: string[] = Array.isArray(repairData.linked_repair_ids) ? repairData.linked_repair_ids : [];
+        if (linkedIds.length > 0) {
+          const linked = await Promise.all(
+            linkedIds.map(async (lid) => {
+              const s = await getDoc(doc(db, 'repairs', lid));
+              return s.exists() ? { id: s.id, ticket_number: s.data().ticket_number, device_name: s.data().device_name } : null;
+            })
+          );
+          setLinkedRepairs(linked.filter(Boolean) as any[]);
+        }
+
         // Load Customer
         const custSnap = await getDoc(doc(db, 'customers', repairData.customer_id));
         if (custSnap.exists() && isCompanyScopedRecord(custSnap.data(), companyId)) {
@@ -195,6 +211,68 @@ export default function RepairDetail() {
       toast.success('Item added');
     } catch (error: any) {
       toast.error(error.message);
+    }
+  };
+
+  const handleLinkRepair = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!repair || !id || !linkedTicketInput.trim()) return;
+    try {
+      const q = query(
+        collection(db, 'repairs'),
+        where('ticket_number', '==', linkedTicketInput.trim()),
+        where('company_id', '==', companyId)
+      );
+      const snap = await getDocs(q);
+      if (snap.empty) { toast.error('Ticket not found'); return; }
+      const linkedId = snap.docs[0].id;
+      if (linkedId === id) { toast.error("Can't link a ticket to itself"); return; }
+      const existing: string[] = Array.isArray(repair.linked_repair_ids) ? repair.linked_repair_ids : [];
+      if (existing.includes(linkedId)) { toast.error('Already linked'); return; }
+      const newIds = [...existing, linkedId];
+      await updateDoc(doc(db, 'repairs', id), { linked_repair_ids: newIds });
+      const linked = snap.docs[0].data();
+      setLinkedRepairs(prev => [...prev, { id: linkedId, ticket_number: linked.ticket_number, device_name: linked.device_name }]);
+      setLinkedTicketInput('');
+      toast.success('Repair linked');
+    } catch (err: any) { toast.error(err.message); }
+  };
+
+  const handleUnlinkRepair = async (linkedId: string) => {
+    if (!repair || !id) return;
+    const existing: string[] = Array.isArray(repair.linked_repair_ids) ? repair.linked_repair_ids : [];
+    const newIds = existing.filter(i => i !== linkedId);
+    await updateDoc(doc(db, 'repairs', id), { linked_repair_ids: newIds });
+    setLinkedRepairs(prev => prev.filter(r => r.id !== linkedId));
+  };
+
+  const handleQuickAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id) return;
+    const price = parseFloat(quickItem.price);
+    const qty = parseInt(quickItem.qty, 10) || 1;
+    if (!quickItem.name.trim() || isNaN(price) || price < 0) {
+      toast.error('Enter a name and valid price');
+      return;
+    }
+    try {
+      const workspaceId = requireCompanyId(companyId);
+      await addDoc(collection(db, `repairs/${id}/items`), {
+        company_id: workspaceId,
+        product_id: null,
+        name: quickItem.name.trim(),
+        quantity: qty,
+        unit_price: price,
+        discount: 0,
+        total_price: roundMoney(price * qty),
+        is_one_time: true,
+        created_at: new Date().toISOString(),
+      });
+      setQuickItem({ name: '', price: '', qty: '1' });
+      setShowQuickAdd(false);
+      toast.success('Item added');
+    } catch (err: any) {
+      toast.error(err.message);
     }
   };
 
@@ -497,6 +575,41 @@ export default function RepairDetail() {
                 </div>
               </div>
 
+              {/* Linked Repairs */}
+              <div>
+                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Linked Tickets</label>
+                <form onSubmit={handleLinkRepair} className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    placeholder="Enter ticket number to link..."
+                    className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    value={linkedTicketInput}
+                    onChange={e => setLinkedTicketInput(e.target.value)}
+                  />
+                  <button type="submit" className="shrink-0 px-3 py-2 bg-gray-900 text-white rounded-lg text-sm font-semibold hover:opacity-80">
+                    Link
+                  </button>
+                </form>
+                {linkedRepairs.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {linkedRepairs.map(r => (
+                      <div key={r.id} className="flex items-center gap-1 bg-blue-50 border border-blue-200 rounded-lg px-2 py-1">
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/repairs/${r.id}`)}
+                          className="text-xs font-bold text-blue-700 hover:underline"
+                        >
+                          {r.ticket_number || r.id.slice(-6)} {r.device_name ? `· ${r.device_name}` : ''}
+                        </button>
+                        <button type="button" onClick={() => handleUnlinkRepair(r.id)} className="text-blue-400 hover:text-blue-700 ml-1">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {/* Suggested Parts */}
               {suggestedProducts.length > 0 && (
                 <div className="bg-primary/5 p-3 rounded-lg border border-primary/10">
@@ -533,22 +646,72 @@ export default function RepairDetail() {
 
           {/* Items Table */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
-            <div className="p-4 border-b border-gray-100 bg-gray-50/50">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search by product name, SKU or Serial"
-                  className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                  value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value);
-                    setShowProductResults(true);
-                  }}
-                  onFocus={() => setShowProductResults(true)}
-                />
-                {showProductResults && search && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 max-h-60 overflow-y-auto">
+            <div className="p-4 border-b border-gray-100 bg-gray-50/50 space-y-3">
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search by product name, SKU or Serial"
+                    className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    value={search}
+                    onChange={(e) => {
+                      setSearch(e.target.value);
+                      setShowProductResults(true);
+                    }}
+                    onFocus={() => setShowProductResults(true)}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowQuickAdd(!showQuickAdd)}
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-2 text-sm font-semibold rounded-lg border border-dashed border-gray-300 text-gray-600 hover:border-primary hover:text-primary transition-colors"
+                >
+                  <Plus className="w-4 h-4" /> Quick Add
+                </button>
+              </div>
+              {showQuickAdd && (
+                <form onSubmit={handleQuickAdd} className="flex gap-2 items-end bg-white border border-gray-200 rounded-lg p-3">
+                  <div className="flex-1">
+                    <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Description</label>
+                    <input
+                      required
+                      placeholder="Labour, Part name..."
+                      className="w-full px-2 py-1.5 border border-gray-200 rounded text-sm"
+                      value={quickItem.name}
+                      onChange={e => setQuickItem({ ...quickItem, name: e.target.value })}
+                    />
+                  </div>
+                  <div className="w-20">
+                    <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Qty</label>
+                    <input
+                      type="number" min="1"
+                      className="w-full px-2 py-1.5 border border-gray-200 rounded text-sm"
+                      value={quickItem.qty}
+                      onChange={e => setQuickItem({ ...quickItem, qty: e.target.value })}
+                    />
+                  </div>
+                  <div className="w-28">
+                    <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Price (R)</label>
+                    <input
+                      required type="number" step="0.01" min="0"
+                      placeholder="0.00"
+                      className="w-full px-2 py-1.5 border border-gray-200 rounded text-sm"
+                      value={quickItem.price}
+                      onChange={e => setQuickItem({ ...quickItem, price: e.target.value })}
+                    />
+                  </div>
+                  <button type="submit" className="shrink-0 px-3 py-1.5 bg-primary text-white rounded text-sm font-semibold hover:opacity-90">
+                    Add
+                  </button>
+                  <button type="button" onClick={() => setShowQuickAdd(false)} className="shrink-0 p-1.5 text-gray-400 hover:text-gray-600">
+                    <X className="w-4 h-4" />
+                  </button>
+                </form>
+              )}
+              {showProductResults && search && (
+                <div className="relative">
+                  <div className="absolute top-0 left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg z-20 max-h-60 overflow-y-auto">
                     {filteredProducts.length > 0 ? (
                       filteredProducts.map(p => (
                         <button
@@ -567,8 +730,8 @@ export default function RepairDetail() {
                       <div className="p-4 text-center text-gray-500 text-xs">No products found</div>
                     )}
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
