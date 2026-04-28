@@ -225,10 +225,24 @@ export default function StaffManagement() {
         doc(db, 'settings', getCompanySettingsDocId('communication', inviteCompanyId || 'global')),
       );
       const communicationSettings = communicationSnap.exists() ? communicationSnap.data() as any : null;
+
+      // Validate delivery channel BEFORE creating the invite record to avoid dead invites
+      const hasEmail = !!(communicationSettings?.email?.host && communicationSettings?.email?.user && communicationSettings?.email?.pass);
+      const hasWhatsApp = !!(communicationSettings?.whatsapp && member.phone);
+      if (!hasEmail && !hasWhatsApp) {
+        toast.error('No delivery channel configured. Go to Manage Data → Communication Settings, add your SMTP details and switch to Live Mode first.');
+        return;
+      }
+      if (communicationSettings?.mode !== 'live') {
+        toast.error('Communication is in Test Mode — switch it to Live Mode in Communication Settings before sending invites.');
+        return;
+      }
+
       const token = crypto.randomUUID();
       const tempPassword = createTempPassword();
       const inviteLink = `${window.location.origin}/activate?token=${token}`;
 
+      // Only create the Firestore record after confirming delivery is possible
       await addDoc(collection(db, 'staff_invites'), {
         token,
         profile_id: member.id,

@@ -110,7 +110,7 @@ export default function ImportSystem() {
             const fileHeaders = results.meta.fields || [];
             setHeaders(fileHeaders);
             
-            // Auto-detect CellStore Customers
+            // Auto-detect CellStore file type from headers
             if (fileHeaders.includes('Offers Email') && fileHeaders.includes('Contact No')) {
               setDataType('customers');
               autoMap('customers', fileHeaders);
@@ -121,6 +121,30 @@ export default function ImportSystem() {
               autoMap('sales', fileHeaders);
               setStep('preview');
               toast.success('CellStore POS sales file detected! Historical sales are ready for preview.');
+            } else if (
+              (fileHeaders.includes('Category name') || fileHeaders.includes('Current inventory') || fileHeaders.includes('Current Stock Level')) &&
+              fileHeaders.some(h => ['Product Name', 'Name', 'SKU'].includes(h))
+            ) {
+              setDataType('products');
+              autoMap('products', fileHeaders);
+              setStep('preview');
+              toast.success('CellStore Product file detected! Auto-mapped all fields.');
+            } else if (
+              fileHeaders.some(h => ['Rep #', 'Reported Issue', 'Device'].includes(h)) ||
+              (fileHeaders.includes('IMEI') && fileHeaders.some(h => ['Customer Name', 'Device Model'].includes(h)))
+            ) {
+              setDataType('repairs');
+              autoMap('repairs', fileHeaders);
+              setStep('preview');
+              toast.success('CellStore Repairs file detected! Auto-mapped all fields.');
+            } else if (
+              fileHeaders.some(h => ['Expense', 'Expense Title'].includes(h)) &&
+              fileHeaders.includes('Amount')
+            ) {
+              setDataType('expenses');
+              autoMap('expenses', fileHeaders);
+              setStep('preview');
+              toast.success('CellStore Expenses file detected! Auto-mapped all fields.');
             } else {
               setStep('type');
             }
@@ -136,7 +160,7 @@ export default function ImportSystem() {
           const fileHeaders = Object.keys(jsonData[0] as object);
           setHeaders(fileHeaders);
 
-          // Auto-detect CellStore Customers
+          // Auto-detect CellStore file type from headers
           if (fileHeaders.includes('Offers Email') && fileHeaders.includes('Contact No')) {
             setDataType('customers');
             autoMap('customers', fileHeaders);
@@ -147,6 +171,30 @@ export default function ImportSystem() {
             autoMap('sales', fileHeaders);
             setStep('preview');
             toast.success('CellStore POS sales file detected! Historical sales are ready for preview.');
+          } else if (
+            (fileHeaders.includes('Category name') || fileHeaders.includes('Current inventory') || fileHeaders.includes('Current Stock Level')) &&
+            fileHeaders.some(h => ['Product Name', 'Name', 'SKU'].includes(h))
+          ) {
+            setDataType('products');
+            autoMap('products', fileHeaders);
+            setStep('preview');
+            toast.success('CellStore Product file detected! Auto-mapped all fields.');
+          } else if (
+            fileHeaders.some(h => ['Rep #', 'Reported Issue', 'Device'].includes(h)) ||
+            (fileHeaders.includes('IMEI') && fileHeaders.some(h => ['Customer Name', 'Device Model'].includes(h)))
+          ) {
+            setDataType('repairs');
+            autoMap('repairs', fileHeaders);
+            setStep('preview');
+            toast.success('CellStore Repairs file detected! Auto-mapped all fields.');
+          } else if (
+            fileHeaders.some(h => ['Expense', 'Expense Title'].includes(h)) &&
+            fileHeaders.includes('Amount')
+          ) {
+            setDataType('expenses');
+            autoMap('expenses', fileHeaders);
+            setStep('preview');
+            toast.success('CellStore Expenses file detected! Auto-mapped all fields.');
           } else {
             setStep('type');
           }
@@ -177,13 +225,17 @@ export default function ImportSystem() {
   const autoMap = (type: ImportDataType, fileHeaders: string[]) => {
     const fields = IMPORT_FIELDS[type];
     const newMapping: ColumnMapping = {};
+    const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+
     fields.forEach(field => {
-      const match = fileHeaders.find(h => 
-        h.toLowerCase().replace(/[^a-z0-9]/g, '') === 
-        field.label.toLowerCase().replace(/[^a-z0-9]/g, '') ||
-        h.toLowerCase().replace(/[^a-z0-9]/g, '') === 
-        field.key.toLowerCase().replace(/[^a-z0-9]/g, '')
-      );
+      // Check label, key, then any declared aliases — first match wins
+      const candidates = [
+        field.label,
+        field.key,
+        ...(field.aliases || []),
+      ].map(normalize);
+
+      const match = fileHeaders.find(h => candidates.includes(normalize(h)));
       if (match) newMapping[field.key] = match;
     });
     setMapping(newMapping);
