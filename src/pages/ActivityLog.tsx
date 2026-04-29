@@ -140,13 +140,13 @@ export default function ActivityLog() {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Activity Log</h1>
-          <p className="text-gray-500">See recent operational changes across sales, repairs, customers, and stock.</p>
+          <h1 className="text-2xl font-bold text-white">Activity Log</h1>
+          <p className="text-sm text-zinc-400 mt-0.5">Recent operational changes across sales, repairs, customers, and stock.</p>
         </div>
         <select
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)}
-          className="px-4 py-2.5 border border-gray-200 rounded-xl bg-white"
+          className="rounded-xl border border-[#2A2A2E] bg-[#141416] px-3 py-2.5 text-sm text-white focus:border-[#22C55E] focus:outline-none"
         >
           <option value="all">All activity</option>
           <option value="sale">Sales</option>
@@ -159,36 +159,36 @@ export default function ActivityLog() {
         </select>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-        <div className="space-y-4">
+      <div className="rounded-2xl border border-[#2A2A2E] bg-[#141416] p-6">
+        <div className="space-y-3">
           {loading ? (
             Array.from({ length: 6 }).map((_, index) => (
-              <div key={index} className="animate-pulse flex gap-4 items-start p-4 bg-gray-50 rounded-xl">
-                <div className="w-10 h-10 rounded-full bg-gray-200" />
+              <div key={index} className="animate-pulse flex gap-4 items-start p-4 bg-[#1C1C1F] rounded-xl">
+                <div className="w-10 h-10 rounded-xl bg-[#2A2A2E]" />
                 <div className="flex-1 space-y-2">
-                  <div className="h-4 bg-gray-200 rounded w-48" />
-                  <div className="h-4 bg-gray-100 rounded w-full" />
+                  <div className="h-4 bg-[#2A2A2E] rounded w-48" />
+                  <div className="h-4 bg-[#2A2A2E]/60 rounded w-full" />
                 </div>
               </div>
             ))
           ) : filteredActivities.length === 0 ? (
-            <div className="py-16 text-center text-gray-400">
+            <div className="py-16 text-center text-zinc-600">
               <History className="w-10 h-10 mx-auto mb-3 opacity-30" />
-              <p>No activity found for this filter.</p>
+              <p className="text-sm">No activity found for this filter.</p>
             </div>
           ) : (
             filteredActivities.map((activity) => (
-              <div key={activity.id} className="flex gap-4 items-start p-4 bg-gray-50 rounded-xl border border-gray-100">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${iconBg(activity.type)}`}>
+              <div key={activity.id} className="flex gap-4 items-start p-4 rounded-xl border border-[#2A2A2E] hover:bg-white/[0.02]">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${iconBg(activity.type)}`}>
                   {iconForType(activity.type)}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-1">
-                    <p className="font-semibold text-gray-900">{activity.title}</p>
-                    <p className="text-xs uppercase tracking-wider text-gray-400">{safeFormatDate(activity.createdAt, 'dd MMM yyyy HH:mm')}</p>
+                    <p className="font-semibold text-white">{activity.title}</p>
+                    <p className="text-[10px] uppercase tracking-wider text-zinc-500">{safeFormatDate(activity.createdAt, 'dd MMM yyyy HH:mm')}</p>
                   </div>
-                  <p className="text-sm text-gray-600 mt-1">{activity.description}</p>
-                  {activity.actor && <p className="text-xs text-gray-400 mt-2">Actor: {activity.actor}</p>}
+                  <p className="text-sm text-zinc-400 mt-1">{activity.description}</p>
+                  {activity.actor && <p className="text-xs text-zinc-600 mt-1.5">Actor: {activity.actor}</p>}
                 </div>
               </div>
             ))
@@ -201,19 +201,19 @@ export default function ActivityLog() {
 
 function iconForType(type: ActivityItem['type']) {
   const className = 'w-5 h-5';
-  if (type === 'sale') return <ShoppingCart className={`${className} text-blue-600`} />;
-  if (type === 'refund') return <RotateCcw className={`${className} text-red-600`} />;
-  if (type === 'expense') return <Wallet className={`${className} text-red-600`} />;
-  if (type === 'repair' || type === 'repair-history') return <Wrench className={`${className} text-amber-600`} />;
-  if (type === 'product') return <Package className={`${className} text-violet-600`} />;
-  return <Users className={`${className} text-green-600`} />;
+  if (type === 'sale') return <ShoppingCart className={`${className} text-blue-400`} />;
+  if (type === 'refund') return <RotateCcw className={`${className} text-red-400`} />;
+  if (type === 'expense') return <Wallet className={`${className} text-red-400`} />;
+  if (type === 'repair' || type === 'repair-history') return <Wrench className={`${className} text-amber-400`} />;
+  if (type === 'product') return <Package className={`${className} text-violet-400`} />;
+  return <Users className={`${className} text-[#22C55E]`} />;
 }
 
 function iconBg(type: ActivityItem['type']) {
-  if (type === 'sale') return 'bg-blue-50';
-  if (type === 'refund') return 'bg-red-50';
-  if (type === 'expense') return 'bg-red-50';
-  if (type === 'repair' || type === 'repair-history') return 'bg-amber-50';
-  if (type === 'product') return 'bg-violet-50';
-  return 'bg-green-50';
+  if (type === 'sale') return 'bg-blue-500/10';
+  if (type === 'refund') return 'bg-red-500/10';
+  if (type === 'expense') return 'bg-red-500/10';
+  if (type === 'repair' || type === 'repair-history') return 'bg-amber-500/10';
+  if (type === 'product') return 'bg-violet-500/10';
+  return 'bg-[#22C55E]/10';
 }
