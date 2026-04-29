@@ -27,6 +27,7 @@ import {
   ShoppingCart,
   Palette,
   AlertTriangle,
+  Landmark,
 } from 'lucide-react';
 import { db } from '../lib/firebase';
 import { useTenant } from '../lib/tenant';
@@ -36,6 +37,7 @@ import { requireCompanyId } from '../lib/db';
 // ─── types ────────────────────────────────────────────────────────────────────
 type Tab =
   | 'general'
+  | 'cash_drawers'
   | 'repair_statuses'
   | 'repair_problems'
   | 'brand_models'
@@ -341,6 +343,7 @@ export default function Setup() {
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: 'general', label: 'General', icon: <Settings className="w-4 h-4" /> },
+    { id: 'cash_drawers', label: 'Cash Drawers', icon: <Landmark className="w-4 h-4" /> },
     { id: 'repair_statuses', label: 'Repair Statuses', icon: <Palette className="w-4 h-4" /> },
     { id: 'repair_problems', label: 'Repair Problems', icon: <Wrench className="w-4 h-4" /> },
     { id: 'brand_models', label: 'Brand Models', icon: <Package className="w-4 h-4" /> },
@@ -465,6 +468,19 @@ export default function Setup() {
                 <Save className="w-4 h-4" />
                 {saving ? 'Saving…' : 'Save Settings'}
               </button>
+            </div>
+          )}
+
+          {activeTab === 'cash_drawers' && (
+            <div className="max-w-lg">
+              <p className="text-sm text-zinc-400 mb-4">
+                Define your cash drawers (e.g. "Front Counter", "Back Office"). Staff select a drawer when opening the POS or running End of Day — sales and cash counts are tracked per drawer.
+              </p>
+              <SimpleListManager
+                title="Cash Drawers"
+                collectionName="drawers"
+                companyId={companyId}
+              />
             </div>
           )}
 

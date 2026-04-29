@@ -90,6 +90,9 @@ export default function POS() {
   const [showCustomerResults, setShowCustomerResults] = useState(false);
   const [showProductResults, setShowProductResults] = useState(false);
   const [customerCreditBalance, setCustomerCreditBalance] = useState(0);
+  const [drawers, setDrawers] = useState<{ id: string; name: string }[]>([]);
+  const [selectedDrawerId, setSelectedDrawerId] = useState<string>(() => localStorage.getItem('pos_drawer_id') || '');
+  const [selectedDrawerName, setSelectedDrawerName] = useState<string>(() => localStorage.getItem('pos_drawer_name') || '');
   const paymentAmountRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -105,7 +108,8 @@ export default function POS() {
     });
 
     fetchStaff();
-    
+    fetchDrawers();
+
     if (auth.currentUser) {
       setSelectedStaffId(auth.currentUser.uid);
     }
@@ -221,6 +225,30 @@ export default function POS() {
     const q = query(collection(db, 'profiles'), where('company_id', '==', companyId), where('role', 'in', ['admin', 'staff']));
     const querySnapshot = await getDocs(q);
     setStaff(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Profile)));
+  }
+
+  async function fetchDrawers() {
+    if (!companyId) return;
+    try {
+      const snap = await getDocs(query(collection(db, 'drawers'), where('company_id', '==', companyId)));
+      const drawerList = snap.docs.map(d => ({ id: d.id, name: d.data().name as string }));
+      setDrawers(drawerList);
+      // Auto-select first drawer if none saved
+      if (!localStorage.getItem('pos_drawer_id') && drawerList.length > 0) {
+        setSelectedDrawerId(drawerList[0].id);
+        setSelectedDrawerName(drawerList[0].name);
+        localStorage.setItem('pos_drawer_id', drawerList[0].id);
+        localStorage.setItem('pos_drawer_name', drawerList[0].name);
+      }
+    } catch { /* drawers collection may not exist yet */ }
+  }
+
+  function handleDrawerChange(id: string) {
+    const drawer = drawers.find(d => d.id === id);
+    setSelectedDrawerId(id);
+    setSelectedDrawerName(drawer?.name || '');
+    localStorage.setItem('pos_drawer_id', id);
+    localStorage.setItem('pos_drawer_name', drawer?.name || '');
   }
 
   const fuse = useMemo(() => {
@@ -455,6 +483,8 @@ export default function POS() {
           refund_status: 'none',
           refunded_item_quantities: {},
           staff_id: selectedStaffId,
+          drawer_id: selectedDrawerId || null,
+          drawer_name: selectedDrawerName || null,
           created_by: auth.currentUser?.uid || selectedStaffId,
           created_at: now,
           updated_at: now
@@ -587,8 +617,8 @@ export default function POS() {
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <div className="flex items-center gap-2 bg-[#101012] border border-[#2A2A2E] rounded-xl px-3 py-2 shadow-sm min-w-0">
               <UserIcon className="w-4 h-4 text-zinc-500" />
-              <select 
-                className="min-w-0 text-sm font-medium bg-transparent focus:outline-none"
+              <select
+                className="min-w-0 text-sm font-medium bg-transparent focus:outline-none text-white"
                 value={selectedStaffId}
                 onChange={(e) => setSelectedStaffId(e.target.value)}
               >
@@ -597,6 +627,21 @@ export default function POS() {
                 ))}
               </select>
             </div>
+            {drawers.length > 0 && (
+              <div className="flex items-center gap-2 bg-[#101012] border border-[#2A2A2E] rounded-xl px-3 py-2 shadow-sm min-w-0">
+                <span className="text-zinc-500 text-xs font-bold">🗄</span>
+                <select
+                  className="min-w-0 text-sm font-medium bg-transparent focus:outline-none text-white"
+                  value={selectedDrawerId}
+                  onChange={(e) => handleDrawerChange(e.target.value)}
+                >
+                  <option value="">No Drawer</option>
+                  {drawers.map(d => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <button className="btn btn-secondary px-3 py-2 text-xs">
               Petty Cash
             </button>

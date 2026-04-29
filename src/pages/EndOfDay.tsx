@@ -9,6 +9,7 @@ import {
   where,
   limit,
 } from 'firebase/firestore';
+
 import {
   Moon,
   DollarSign,
@@ -17,12 +18,11 @@ import {
   ArrowRight,
   Printer,
   CheckCircle2,
-  Clock,
   ChevronDown,
   ChevronUp,
   Plus,
-  Minus,
   History,
+  Landmark,
 } from 'lucide-react';
 import { formatCurrency, cn, safeFormatDate } from '../lib/utils';
 import { startOfDay, endOfDay, format } from 'date-fns';
@@ -51,6 +51,11 @@ export default function EndOfDay() {
 
   const [loading, setLoading] = useState(true);
   const [closing, setClosing] = useState(false);
+
+  // Drawer selection
+  const [drawers, setDrawers] = useState<{ id: string; name: string }[]>([]);
+  const [selectedDrawerId, setSelectedDrawerId] = useState<string>(() => localStorage.getItem('pos_drawer_id') || '');
+  const [selectedDrawerName, setSelectedDrawerName] = useState<string>(() => localStorage.getItem('pos_drawer_name') || '');
 
   // Cash reconciliation
   const [startingBalance, setStartingBalance] = useState('');
@@ -82,11 +87,34 @@ export default function EndOfDay() {
 
   useEffect(() => {
     if (companyId) {
+      fetchDrawers();
       fetchDaySummary();
       fetchPettyCash();
       fetchHistory();
     }
   }, [companyId]);
+
+  // Re-fetch petty cash when drawer changes
+  useEffect(() => {
+    if (companyId) fetchPettyCash();
+  }, [selectedDrawerId]);
+
+  async function fetchDrawers() {
+    if (!companyId) return;
+    try {
+      const snap = await getDocs(query(collection(db, 'drawers'), where('company_id', '==', companyId)));
+      const list = snap.docs.map(d => ({ id: d.id, name: d.data().name as string }));
+      setDrawers(list);
+    } catch { /* drawers may not exist yet */ }
+  }
+
+  function handleDrawerChange(id: string) {
+    const drawer = drawers.find(d => d.id === id);
+    setSelectedDrawerId(id);
+    setSelectedDrawerName(drawer?.name || '');
+    localStorage.setItem('pos_drawer_id', id);
+    localStorage.setItem('pos_drawer_name', drawer?.name || '');
+  }
 
   async function fetchDaySummary() {
     setLoading(true);
@@ -151,14 +179,18 @@ export default function EndOfDay() {
     if (!companyId) return;
     const todayStr = format(new Date(), 'yyyy-MM-dd');
     try {
-      const snap = await getDocs(
-        query(collection(db, 'petty_cash'),
-          where('company_id', '==', companyId),
-          where('date', '==', todayStr),
-          orderBy('created_at', 'asc')
-        )
-      );
-      setPettyItems(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const constraints: any[] = [
+        where('company_id', '==', companyId),
+        where('date', '==', todayStr),
+        orderBy('created_at', 'asc'),
+      ];
+      const snap = await getDocs(query(collection(db, 'petty_cash'), ...constraints));
+      let items = snap.docs.map(d => ({ id: d.id, ...d.data() })) as any[];
+      // Filter by drawer client-side if a drawer is selected
+      if (selectedDrawerId) {
+        items = items.filter((p: any) => !p.drawer_id || p.drawer_id === selectedDrawerId);
+      }
+      setPettyItems(items);
     } catch { /* index might not exist yet */ }
   }
 
@@ -187,6 +219,8 @@ export default function EndOfDay() {
       amount: parseFloat(newPettyAmount) || 0,
       date: format(new Date(), 'yyyy-MM-dd'),
       staff_id: auth.currentUser?.uid || '',
+      drawer_id: selectedDrawerId || null,
+      drawer_name: selectedDrawerName || null,
       created_at: now,
     };
     try {
@@ -213,6 +247,8 @@ export default function EndOfDay() {
       await addDoc(collection(db, 'end_of_day'), {
         company_id: cid,
         date: format(new Date(), 'yyyy-MM-dd'),
+        drawer_id: selectedDrawerId || null,
+        drawer_name: selectedDrawerName || null,
         starting_balance: parseFloat(startingBalance) || 0,
         counted_cash: parseFloat(countedCash) || 0,
         calculated_cash: calcCash,
@@ -253,14 +289,29 @@ export default function EndOfDay() {
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-16">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-2">
             <Moon className="w-6 h-6 text-[#22C55E]" /> End of Day Report
           </h1>
           <p className="text-zinc-400 text-sm mt-0.5">{safeFormatDate(new Date(), 'EEEE, dd MMMM yyyy')}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 items-center">
+          {drawers.length > 0 && (
+            <div className="flex items-center gap-2 bg-[#141416] border border-[#2A2A2E] rounded-xl px-3 py-2">
+              <Landmark className="w-4 h-4 text-[#22C55E]" />
+              <select
+                value={selectedDrawerId}
+                onChange={(e) => handleDrawerChange(e.target.value)}
+                className="text-sm font-semibold bg-transparent text-white focus:outline-none"
+              >
+                <option value="">All Drawers</option>
+                {drawers.map(d => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 border border-[#2A2A2E] rounded-xl text-zinc-300 text-sm hover:bg-[#1C1C1F]">
             <Printer className="w-4 h-4" /> Print
           </button>
@@ -282,10 +333,13 @@ export default function EndOfDay() {
           ) : (
             <div className="space-y-2">
               {history.map(h => (
-                <div key={h.id} className="flex items-center justify-between py-2 border-b border-[#2A2A2E] text-sm">
-                  <span className="text-zinc-300">{h.date}</span>
+                <div key={h.id} className="flex items-center justify-between py-2 border-b border-[#2A2A2E] text-sm gap-3">
+                  <div>
+                    <span className="text-zinc-300">{h.date}</span>
+                    {h.drawer_name && <span className="ml-2 text-xs text-zinc-500">· {h.drawer_name}</span>}
+                  </div>
                   <span className="text-white font-bold">{formatCurrency(h.total_sales)}</span>
-                  <span className={variance != null && variance !== 0 ? 'text-red-400' : 'text-green-400'}>
+                  <span className={h.cash_variance < 0 ? 'text-red-400' : 'text-green-400'}>
                     {h.cash_variance >= 0 ? '+' : ''}{formatCurrency(h.cash_variance || 0)} variance
                   </span>
                 </div>
