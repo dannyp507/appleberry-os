@@ -1,13 +1,13 @@
 import { NavLink } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
+import {
+  LayoutDashboard,
   Megaphone,
   MessageSquareMore,
-  ShoppingCart, 
-  Package, 
-  Wrench, 
-  Users, 
-  Search, 
+  ShoppingCart,
+  Package,
+  Wrench,
+  Users,
+  Search,
   LogOut,
   User as UserIcon,
   FileText,
@@ -17,7 +17,13 @@ import {
   CheckSquare,
   Database,
   Settings,
-  X
+  X,
+  Calendar,
+  ShoppingBag,
+  BarChart2,
+  DollarSign,
+  ArrowLeftRight,
+  SunMedium,
 } from 'lucide-react';
 import { auth } from '../lib/firebase';
 import { signOut } from 'firebase/auth';
@@ -26,22 +32,35 @@ import { Company, Profile } from '../types';
 import { PermissionKey, hasPermission } from '../lib/permissions';
 
 const navItems = [
+  // Core
   { icon: LayoutDashboard, label: 'Dashboard', path: '/', permission: 'dashboard.view' as PermissionKey },
-  { icon: Megaphone, label: 'Campaigns', path: '/campaigns', permission: 'marketing.view' as PermissionKey },
-  { icon: MessageSquareMore, label: 'WhatsApp Studio', path: '/whatsapp-studio', permission: 'marketing.view' as PermissionKey },
   { icon: ShoppingCart, label: 'Cash Register', path: '/pos', permission: 'pos.use' as PermissionKey },
   { icon: Wrench, label: 'Repairs', path: '/repairs', permission: 'repairs.view' as PermissionKey },
-  { icon: FileText, label: 'Invoices', path: '/invoices', permission: 'invoices.view' as PermissionKey },
+  { icon: Calendar, label: 'Appointments', path: '/appointments', permission: 'appointments.view' as PermissionKey },
   { icon: Users, label: 'Customers', path: '/customers', permission: 'customers.view' as PermissionKey },
+  // Sales & Finance
+  { icon: FileText, label: 'Invoices', path: '/invoices', permission: 'invoices.view' as PermissionKey },
+  { icon: ShoppingBag, label: 'Orders', path: '/orders', permission: 'orders.view' as PermissionKey },
+  { icon: DollarSign, label: 'Expenses', path: '/expenses', permission: 'expenses.view' as PermissionKey },
+  { icon: SunMedium, label: 'End of Day', path: '/end-of-day', permission: 'end_of_day.view' as PermissionKey },
+  // Inventory
   { icon: Package, label: 'Products', path: '/inventory', permission: 'inventory.view' as PermissionKey },
-  { icon: Users, label: 'Staff', path: '/staff', permission: 'staff.manage' as PermissionKey },
-  { icon: FileText, label: 'Sales Reports', path: '/reports/sales', permission: 'reports.sales' as PermissionKey },
-  { icon: ClipboardList, label: 'Activity Log', path: '/activity', permission: 'activity.view' as PermissionKey },
-  { icon: Truck, label: 'Purchase Orders', path: '/purchase-orders', permission: 'purchase_orders.view' as PermissionKey },
-  { icon: Smartphone, label: 'Devices Inventory', path: '/devices', permission: 'devices.view' as PermissionKey },
+  { icon: Smartphone, label: 'Devices', path: '/devices', permission: 'devices.view' as PermissionKey },
   { icon: CheckSquare, label: 'Stock Take', path: '/stock-take', permission: 'stock_take.view' as PermissionKey },
-  { icon: Database, label: 'Manage Data', path: '/manage-data', permission: 'manage_data.view' as PermissionKey },
+  { icon: ArrowLeftRight, label: 'Transfers', path: '/transfer', permission: 'transfer.view' as PermissionKey },
+  { icon: Truck, label: 'Purchase Orders', path: '/purchase-orders', permission: 'purchase_orders.view' as PermissionKey },
+  // Reports
+  { icon: BarChart2, label: 'Sales Reports', path: '/reports/sales', permission: 'reports.sales' as PermissionKey },
+  { icon: BarChart2, label: 'Repairs Reports', path: '/reports/repairs', permission: 'reports.repairs' as PermissionKey },
+  { icon: BarChart2, label: 'Inventory Reports', path: '/reports/inventory', permission: 'reports.inventory' as PermissionKey },
+  // Marketing
+  { icon: Megaphone, label: 'Campaigns', path: '/campaigns', permission: 'marketing.view' as PermissionKey },
+  { icon: MessageSquareMore, label: 'WhatsApp Studio', path: '/whatsapp-studio', permission: 'marketing.view' as PermissionKey },
+  // Admin
   { icon: Search, label: 'IMEI Search', path: '/imei', permission: 'imei.view' as PermissionKey },
+  { icon: ClipboardList, label: 'Activity Log', path: '/activity', permission: 'activity.view' as PermissionKey },
+  { icon: Database, label: 'Manage Data', path: '/manage-data', permission: 'manage_data.view' as PermissionKey },
+  { icon: Users, label: 'Staff', path: '/staff', permission: 'staff.manage' as PermissionKey },
   { icon: Settings, label: 'Setup', path: '/setup', permission: 'staff.manage' as PermissionKey },
 ];
 
