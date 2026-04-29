@@ -1,163 +1,309 @@
 import { useEffect, useMemo, useState } from 'react';
-import { BarChart, Bar, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { BarChart, Bar, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, Cell } from 'recharts';
 import { collection, getDocs } from 'firebase/firestore';
-import { Package, TrendingUp, AlertTriangle, DollarSign } from 'lucide-react';
+import { Package, AlertTriangle, DollarSign, TrendingDown, ArrowUpDown } from 'lucide-react';
 import { db } from '../lib/firebase';
 import { formatCurrency } from '../lib/utils';
 import { useTenant } from '../lib/tenant';
-import { filterByCompany } from '../lib/companyData';
+import { companyQuery } from '../lib/db';
+import { Product } from '../types';
 
-type InventoryItem = {
-  id: string;
-  company_id?: string | null;
-  name?: string;
-  quantity?: number;
-  cost_price?: number;
-  selling_price?: number;
-  category?: string;
-  low_stock_threshold?: number;
-};
+type SortField = 'name' | 'stock' | 'cost_price' | 'selling_price' | 'value';
+type SortDir = 'asc' | 'desc';
+
+const CHART_COLORS = ['#22C55E', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4', '#f97316'];
 
 export default function InventoryReports() {
   const { companyId } = useTenant();
-  const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<'overview' | 'by_category' | 'low_stock' | 'valuation'>('overview');
+  const [sortField, setSortField] = useState<SortField>('name');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
 
   useEffect(() => {
-    fetchInventoryData();
+    fetchInventory();
   }, [companyId]);
 
-  async function fetchInventoryData() {
+  async function fetchInventory() {
+    if (!companyId) return;
     setLoading(true);
     try {
-      const inventorySnapshot = await getDocs(collection(db, 'inventory'));
-      setInventory(filterByCompany(inventorySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as InventoryItem)), companyId));
+      const snap = await getDocs(companyQuery(companyId, 'products'));
+      setProducts(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Product)));
     } catch (error) {
-      console.error('Error fetching inventory:', error);
+      console.error('Error fetching products:', error);
     } finally {
       setLoading(false);
     }
   }
 
-  const stats = useMemo(() => {
-    const totalItems = inventory.length;
-    const totalValue = inventory.reduce((sum, item) => sum + ((item.quantity || 0) * (item.cost_price || 0)), 0);
-    const lowStockItems = inventory.filter(item => (item.quantity || 0) <= (item.low_stock_threshold || 0)).length;
-    const outOfStockItems = inventory.filter(item => (item.quantity || 0) === 0).length;
+  const physicalProducts = useMemo(() => products.filter((p) => p.product_type !== 'service'), [products]);
 
-    return { totalItems, totalValue, lowStockItems, outOfStockItems };
-  }, [inventory]);
+  const stats = useMemo(() => {
+    const totalSkus = physicalProducts.length;
+    const totalUnits = physicalProducts.reduce((s, p) => s + p.stock, 0);
+    const costValue = physicalProducts.reduce((s, p) => s + p.stock * p.cost_price, 0);
+    const retailValue = physicalProducts.reduce((s, p) => s + p.stock * p.selling_price, 0);
+    const potentialProfit = retailValue - costValue;
+    const lowStock = physicalProducts.filter((p) => p.stock > 0 && p.stock <= p.low_stock_threshold).length;
+    const outOfStock = physicalProducts.filter((p) => p.stock === 0).length;
+    return { totalSkus, totalUnits, costValue, retailValue, potentialProfit, lowStock, outOfStock };
+  }, [physicalProducts]);
 
   const categoryData = useMemo(() => {
-    const categories = inventory.reduce((acc, item) => {
-      const category = item.category || 'Uncategorized';
-      acc[category] = (acc[category] || 0) + (item.quantity || 0);
-      return acc;
-    }, {} as Record<string, number>);
+    const map: Record<string, { units: number; costValue: number; retailValue: number; skus: number }> = {};
+    physicalProducts.forEach((p) => {
+      const cat = p.category || 'Uncategorised';
+      if (!map[cat]) map[cat] = { units: 0, costValue: 0, retailValue: 0, skus: 0 };
+      map[cat].units += p.stock;
+      map[cat].costValue += p.stock * p.cost_price;
+      map[cat].retailValue += p.stock * p.selling_price;
+      map[cat].skus += 1;
+    });
+    return Object.entries(map)
+      .map(([category, d]) => ({ category, ...d }))
+      .sort((a, b) => b.retailValue - a.retailValue);
+  }, [physicalProducts]);
 
-    return Object.entries(categories).map(([category, quantity]) => ({
-      category,
-      quantity,
-    }));
-  }, [inventory]);
+  const sortedProducts = useMemo(() => {
+    return [...physicalProducts].sort((a, b) => {
+      let av: string | number = '';
+      let bv: string | number = '';
+      if (sortField === 'name') { av = a.name; bv = b.name; }
+      else if (sortField === 'stock') { av = a.stock; bv = b.stock; }
+      else if (sortField === 'cost_price') { av = a.cost_price; bv = b.cost_price; }
+      else if (sortField === 'selling_price') { av = a.selling_price; bv = b.selling_price; }
+      else if (sortField === 'value') { av = a.stock * a.cost_price; bv = b.stock * b.cost_price; }
+      if (typeof av === 'string') return sortDir === 'asc' ? av.localeCompare(bv as string) : (bv as string).localeCompare(av);
+      return sortDir === 'asc' ? (av as number) - (bv as number) : (bv as number) - (av as number);
+    });
+  }, [physicalProducts, sortField, sortDir]);
+
+  function toggleSort(field: SortField) {
+    if (sortField === field) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else { setSortField(field); setSortDir('asc'); }
+  }
+
+  const TABS = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'by_category', label: 'By Category' },
+    { id: 'low_stock', label: `Low Stock (${stats.lowStock + stats.outOfStock})` },
+    { id: 'valuation', label: 'Valuation' },
+  ] as const;
 
   if (loading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#22C55E]" />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Inventory Reports</h1>
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-lg bg-white p-6 shadow-sm border border-gray-200">
-          <div className="flex items-center">
-            <Package className="h-8 w-8 text-blue-600" />
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Items</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.totalItems}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-lg bg-white p-6 shadow-sm border border-gray-200">
-          <div className="flex items-center">
-            <DollarSign className="h-8 w-8 text-green-600" />
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Value</p>
-              <p className="text-2xl font-bold text-gray-900">{formatCurrency(stats.totalValue)}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-lg bg-white p-6 shadow-sm border border-gray-200">
-          <div className="flex items-center">
-            <AlertTriangle className="h-8 w-8 text-yellow-600" />
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Low Stock</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.lowStockItems}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-lg bg-white p-6 shadow-sm border border-gray-200">
-          <div className="flex items-center">
-            <TrendingUp className="h-8 w-8 text-red-600" />
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Out of Stock</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.outOfStockItems}</p>
-            </div>
-          </div>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold text-white">Inventory Reports</h1>
+        <p className="text-sm text-zinc-400 mt-0.5">{stats.totalSkus} SKUs · {stats.totalUnits.toLocaleString()} units on hand</p>
       </div>
 
-      <div className="rounded-lg bg-white p-6 shadow-sm border border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Inventory by Category</h2>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={categoryData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="category" />
-            <YAxis />
-            <Tooltip />
-            <Legend />
-            <Bar dataKey="quantity" fill="#0ea5e9" />
-          </BarChart>
-        </ResponsiveContainer>
+      {/* Stats row */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {[
+          { icon: Package, label: 'Cost Value', value: formatCurrency(stats.costValue), sub: `${stats.totalSkus} SKUs`, color: 'text-blue-400' },
+          { icon: DollarSign, label: 'Retail Value', value: formatCurrency(stats.retailValue), sub: 'at selling price', color: 'text-[#22C55E]' },
+          { icon: TrendingDown, label: 'Potential Profit', value: formatCurrency(stats.potentialProfit), sub: 'if all sold', color: 'text-purple-400' },
+          { icon: AlertTriangle, label: 'Stock Alerts', value: `${stats.lowStock + stats.outOfStock}`, sub: `${stats.outOfStock} out · ${stats.lowStock} low`, color: 'text-amber-400' },
+        ].map((card) => (
+          <div key={card.label} className="rounded-2xl border border-[#2A2A2E] bg-[#141416] p-5">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl bg-[#1C1C1F] p-2.5">
+                <card.icon className={`h-5 w-5 ${card.color}`} />
+              </div>
+              <div>
+                <p className="text-xs text-zinc-500 font-medium">{card.label}</p>
+                <p className="text-xl font-bold text-white">{card.value}</p>
+                <p className="text-[10px] text-zinc-600 mt-0.5">{card.sub}</p>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
 
-      <div className="rounded-lg bg-white shadow-sm border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Low Stock Items</h2>
+      {/* Tabs */}
+      <div className="flex gap-1 rounded-xl border border-[#2A2A2E] bg-[#141416] p-1 w-fit">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+              tab === t.id ? 'bg-[#22C55E] text-white' : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Overview */}
+      {tab === 'overview' && (
+        <div className="rounded-2xl border border-[#2A2A2E] bg-[#141416] p-6">
+          <h2 className="text-base font-semibold text-white mb-4">Stock by Category</h2>
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart data={categoryData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#2A2A2E" />
+              <XAxis dataKey="category" tick={{ fill: '#71717a', fontSize: 11 }} />
+              <YAxis tick={{ fill: '#71717a', fontSize: 11 }} />
+              <Tooltip
+                contentStyle={{ background: '#141416', border: '1px solid #2A2A2E', borderRadius: 8, color: '#fff' }}
+                formatter={(val: number) => [val.toLocaleString(), 'Units']}
+              />
+              <Bar dataKey="units" radius={[4, 4, 0, 0]}>
+                {categoryData.map((_, i) => (
+                  <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
         </div>
-        <div className="overflow-x-auto">
+      )}
+
+      {/* By Category table */}
+      {tab === 'by_category' && (
+        <div className="rounded-2xl border border-[#2A2A2E] bg-[#141416] overflow-hidden">
           <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Stock</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Threshold</th>
+            <thead>
+              <tr className="border-b border-[#2A2A2E]">
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wider">Category</th>
+                <th className="px-5 py-3.5 text-right text-xs font-semibold text-zinc-500 uppercase tracking-wider">SKUs</th>
+                <th className="px-5 py-3.5 text-right text-xs font-semibold text-zinc-500 uppercase tracking-wider">Units</th>
+                <th className="px-5 py-3.5 text-right text-xs font-semibold text-zinc-500 uppercase tracking-wider">Cost Value</th>
+                <th className="px-5 py-3.5 text-right text-xs font-semibold text-zinc-500 uppercase tracking-wider">Retail Value</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
-              {inventory
-                .filter(item => (item.quantity || 0) <= (item.low_stock_threshold || 0))
-                .map((item) => (
-                  <tr key={item.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.category}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.quantity}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.low_stock_threshold}</td>
-                  </tr>
+            <tbody className="divide-y divide-[#2A2A2E]">
+              {categoryData.map((row, i) => (
+                <tr key={row.category} className="hover:bg-white/[0.02]">
+                  <td className="px-5 py-3.5">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
+                      <span className="text-sm font-medium text-white">{row.category}</span>
+                    </div>
+                  </td>
+                  <td className="px-5 py-3.5 text-right text-sm text-zinc-300">{row.skus}</td>
+                  <td className="px-5 py-3.5 text-right text-sm text-zinc-300">{row.units.toLocaleString()}</td>
+                  <td className="px-5 py-3.5 text-right text-sm text-zinc-300">{formatCurrency(row.costValue)}</td>
+                  <td className="px-5 py-3.5 text-right text-sm font-semibold text-[#22C55E]">{formatCurrency(row.retailValue)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t border-[#2A2A2E] bg-[#1C1C1F]">
+                <td className="px-5 py-3.5 text-sm font-bold text-white">Total</td>
+                <td className="px-5 py-3.5 text-right text-sm font-bold text-white">{stats.totalSkus}</td>
+                <td className="px-5 py-3.5 text-right text-sm font-bold text-white">{stats.totalUnits.toLocaleString()}</td>
+                <td className="px-5 py-3.5 text-right text-sm font-bold text-white">{formatCurrency(stats.costValue)}</td>
+                <td className="px-5 py-3.5 text-right text-sm font-bold text-[#22C55E]">{formatCurrency(stats.retailValue)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
+
+      {/* Low Stock */}
+      {tab === 'low_stock' && (
+        <div className="rounded-2xl border border-[#2A2A2E] bg-[#141416] overflow-hidden">
+          {physicalProducts.filter((p) => p.stock <= p.low_stock_threshold).length === 0 ? (
+            <div className="p-12 text-center">
+              <Package className="mx-auto h-10 w-10 text-zinc-600" />
+              <p className="mt-3 text-sm text-zinc-400">All products are sufficiently stocked</p>
+            </div>
+          ) : (
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-[#2A2A2E]">
+                  <th className="px-5 py-3.5 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wider">Product</th>
+                  <th className="px-5 py-3.5 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wider">Category</th>
+                  <th className="px-5 py-3.5 text-right text-xs font-semibold text-zinc-500 uppercase tracking-wider">Stock</th>
+                  <th className="px-5 py-3.5 text-right text-xs font-semibold text-zinc-500 uppercase tracking-wider">Threshold</th>
+                  <th className="px-5 py-3.5 text-right text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#2A2A2E]">
+                {physicalProducts
+                  .filter((p) => p.stock <= p.low_stock_threshold)
+                  .sort((a, b) => a.stock - b.stock)
+                  .map((p) => (
+                    <tr key={p.id} className="hover:bg-white/[0.02]">
+                      <td className="px-5 py-3.5">
+                        <p className="text-sm font-medium text-white">{p.name}</p>
+                        {p.sku && <p className="text-xs text-zinc-500 mt-0.5">SKU: {p.sku}</p>}
+                      </td>
+                      <td className="px-5 py-3.5 text-sm text-zinc-400">{p.category}</td>
+                      <td className="px-5 py-3.5 text-right">
+                        <span className={`text-sm font-bold ${p.stock === 0 ? 'text-red-400' : 'text-amber-400'}`}>
+                          {p.stock}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5 text-right text-sm text-zinc-500">{p.low_stock_threshold}</td>
+                      <td className="px-5 py-3.5 text-right">
+                        <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
+                          p.stock === 0 ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'
+                        }`}>
+                          {p.stock === 0 ? 'Out of Stock' : 'Low Stock'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {/* Valuation */}
+      {tab === 'valuation' && (
+        <div className="rounded-2xl border border-[#2A2A2E] bg-[#141416] overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-[#2A2A2E]">
+                {[
+                  { label: 'Product', field: 'name' as SortField },
+                  { label: 'Stock', field: 'stock' as SortField },
+                  { label: 'Cost Price', field: 'cost_price' as SortField },
+                  { label: 'Sell Price', field: 'selling_price' as SortField },
+                  { label: 'Stock Value', field: 'value' as SortField },
+                ].map((col) => (
+                  <th
+                    key={col.field}
+                    onClick={() => toggleSort(col.field)}
+                    className="px-5 py-3.5 text-right text-xs font-semibold text-zinc-500 uppercase tracking-wider cursor-pointer hover:text-white first:text-left"
+                  >
+                    <span className="flex items-center gap-1 justify-end first:justify-start">
+                      {col.label}
+                      <ArrowUpDown className="h-3 w-3" />
+                    </span>
+                  </th>
                 ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#2A2A2E]">
+              {sortedProducts.map((p) => (
+                <tr key={p.id} className="hover:bg-white/[0.02]">
+                  <td className="px-5 py-3.5">
+                    <p className="text-sm font-medium text-white">{p.name}</p>
+                    <p className="text-xs text-zinc-500">{p.category}</p>
+                  </td>
+                  <td className="px-5 py-3.5 text-right text-sm text-zinc-300">{p.stock}</td>
+                  <td className="px-5 py-3.5 text-right text-sm text-zinc-300">{formatCurrency(p.cost_price)}</td>
+                  <td className="px-5 py-3.5 text-right text-sm text-zinc-300">{formatCurrency(p.selling_price)}</td>
+                  <td className="px-5 py-3.5 text-right text-sm font-semibold text-white">{formatCurrency(p.stock * p.cost_price)}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
-      </div>
+      )}
     </div>
   );
 }
