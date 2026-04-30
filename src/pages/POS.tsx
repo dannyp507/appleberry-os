@@ -37,7 +37,7 @@ import CustomerModal from '../components/repairs/CustomerModal';
 import PostSaleModal from '../components/pos/PostSaleModal';
 import { useTenant } from '../lib/tenant';
 import { isCompanyScopedRecord, withCompanyId } from '../lib/companyData';
-import { buildInvoiceNumber, isStockTrackedProduct, roundMoney, TAX_RATE } from '../lib/business';
+import { getNextInvoiceNumber, isStockTrackedProduct, roundMoney, TAX_RATE } from '../lib/business';
 import { companyQuery, companySubcollection, requireCompanyId } from '../lib/db';
 
 interface InvoiceSummary {
@@ -426,7 +426,8 @@ export default function POS() {
       const workspaceId = requireCompanyId(companyId);
       const now = new Date().toISOString();
       const saleRef = doc(collection(db, 'sales'));
-      const invoiceNumber = buildInvoiceNumber();
+      // Get sequential invoice number before the stock transaction
+      const invoiceNumber = await getNextInvoiceNumber(workspaceId);
 
       await runTransaction(db, async (transaction) => {
         const productSnapshots = new Map<string, Product>();
@@ -465,7 +466,7 @@ export default function POS() {
           customer_name: selectedCustomer?.name || `${selectedCustomer?.first_name || ''} ${selectedCustomer?.last_name || ''}`.trim() || null,
           customer_phone: selectedCustomer?.phone || null,
           invoice_number: invoiceNumber,
-          ticket_number: currentRepair?.ticket_number || null,
+          ticket_number: currentRepair?.ticket_number || invoiceNumber,
           repair_id: currentRepair?.id || null,
           device_name: currentRepair?.device_name || null,
           subtotal: roundMoney(subtotal),

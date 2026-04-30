@@ -236,19 +236,22 @@ export async function generateInvoicePDF(
     doc.text(addressLines, left, shopY);
     shopY += addressLines.length * (isWhatsApp ? 3.8 : 5);
   }
-  doc.text(`Phone: ${shop?.phone || '+1 234 567 890'}`, left, shopY);
-  shopY += isWhatsApp ? 4 : 5;
+  if (shop?.phone) {
+    doc.text(`Phone: ${shop.phone}`, left, shopY);
+    shopY += isWhatsApp ? 4 : 5;
+  }
   if (shop?.email) {
     doc.text(`Email: ${shop.email}`, left, shopY);
+    shopY += isWhatsApp ? 4 : 5;
   }
 
-  // Invoice Details
+  // Invoice Details (right-aligned, anchored to top — not tied to shopY)
   doc.setTextColor(51, 65, 85);
   doc.text(`Invoice #: ${repair.ticket_number || repair.id?.slice(0, 8) || 'Sale'}`, right, isWhatsApp ? top + 12 : 35, { align: 'right' });
   doc.text(`Date: ${invoiceDate.toLocaleDateString()}`, right, isWhatsApp ? top + 16 : 40, { align: 'right' });
 
-  // Customer Info
-  const infoTop = isWhatsApp ? top + 28 : 60;
+  // Customer / Device info starts below the shop block — never overlaps it
+  const infoTop = isWhatsApp ? top + 28 : Math.max(60, shopY + 8);
   doc.setFontSize(labelSize);
   doc.text('BILL TO:', left, infoTop);
   doc.setFontSize(bodySize);
@@ -321,26 +324,37 @@ export async function generateInvoicePDF(
 
   const finalY = (doc as any).lastAutoTable.finalY;
 
-  // Totals
+  // Totals — label column anchored at right-60 to prevent overlap with values
   doc.setFontSize(bodySize);
-  const totalsLabelX = right - (isWhatsApp ? 38 : 40);
+  const totalsLabelX = isWhatsApp ? right - 38 : right - 65;
   const totalsStartY = finalY + (isWhatsApp ? 7 : 15);
   if (isWhatsApp) {
     doc.setDrawColor(230, 236, 242);
     doc.line(left, totalsStartY - 4, right, totalsStartY - 4);
   }
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 116, 139);
   doc.text('Subtotal:', totalsLabelX, totalsStartY);
+  doc.setTextColor(51, 65, 85);
   doc.text(formatCurrency(subtotal), right, totalsStartY, { align: 'right' });
 
   let totalsY = finalY + (isWhatsApp ? 12 : 22);
   if (discount > 0) {
+    doc.setTextColor(100, 116, 139);
     doc.text('Discount:', totalsLabelX, totalsY);
+    doc.setTextColor(180, 50, 50);
     doc.text(`-${formatCurrency(discount)}`, right, totalsY, { align: 'right' });
     totalsY += isWhatsApp ? 5 : 10;
   }
 
-  doc.setFontSize(isWhatsApp ? 12.5 : 14);
+  // Separator line before grand total
+  if (!isWhatsApp) {
+    doc.setDrawColor(200, 210, 220);
+    doc.line(totalsLabelX, totalsY - 4, right, totalsY - 4);
+  }
+  doc.setFontSize(isWhatsApp ? 12.5 : 13);
   doc.setFont('helvetica', 'bold');
+  doc.setTextColor(51, 65, 85);
   doc.text('Grand Total:', totalsLabelX, totalsY);
   doc.text(formatCurrency(grandTotal), right, totalsY, { align: 'right' });
 

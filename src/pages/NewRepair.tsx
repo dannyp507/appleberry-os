@@ -30,7 +30,7 @@ import CustomerModal from '../components/repairs/CustomerModal';
 import DeviceModal from '../components/repairs/DeviceModal';
 import { useTenant } from '../lib/tenant';
 import { withCompanyId } from '../lib/companyData';
-import { buildTicketNumber, roundMoney } from '../lib/business';
+import { getNextInvoiceNumber, roundMoney } from '../lib/business';
 import { companyQuery, requireCompanyId } from '../lib/db';
 
 export default function NewRepair() {
@@ -159,10 +159,11 @@ export default function NewRepair() {
       const workspaceId = requireCompanyId(companyId);
       const initialStatus = statuses.find(s => s.order_index === 0) || statuses[0];
       const now = new Date().toISOString();
+      const ticketNumber = await getNextInvoiceNumber(workspaceId);
 
       const repairData = {
         ...withCompanyId(workspaceId, {}),
-        ticket_number: buildTicketNumber(),
+        ticket_number: ticketNumber,
         customer_id: selectedCustomer.id,
         device_name: selectedDevice.name,
         imei: selectedDevice.imei,
