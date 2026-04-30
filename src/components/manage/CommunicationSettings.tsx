@@ -8,6 +8,11 @@ import { useTenant } from '../../lib/tenant';
 import { getCompanySettingsDocId } from '../../lib/company';
 import { requireCompanyId } from '../../lib/db';
 
+const inputCls = 'w-full px-3 py-2.5 bg-[#0F0F11] border border-[#2A2A2E] rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:border-[#22C55E]/50 focus:ring-1 focus:ring-[#22C55E]/20 text-sm';
+const labelCls = 'block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1.5';
+const cardCls = 'rounded-2xl border border-[#2A2A2E] bg-[#1C1C1F] overflow-hidden';
+const cardHeaderCls = 'p-5 border-b border-[#2A2A2E]';
+
 export default function CommunicationSettingsComponent() {
   const { companyId } = useTenant();
   const [settings, setSettings] = useState<CommunicationSettings>({
@@ -77,7 +82,7 @@ export default function CommunicationSettingsComponent() {
       const workspaceId = requireCompanyId(companyId);
       const docId = getCompanySettingsDocId('communication', workspaceId);
       await setDoc(doc(db, 'settings', docId), { ...settings, company_id: workspaceId }, { merge: true });
-      toast.success('Communication settings saved successfully');
+      toast.success('Communication settings saved');
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -86,78 +91,79 @@ export default function CommunicationSettingsComponent() {
   }
 
   if (loading) {
-    return <div className="p-8 text-center text-gray-500">Loading settings...</div>;
+    return <div className="p-8 text-center text-zinc-500">Loading settings...</div>;
   }
 
   return (
-    <div className="space-y-8">
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-gray-100 bg-gray-50/50">
-          <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <AlertCircle className="w-5 h-5 text-amber-500" />
+    <div className="space-y-6">
+
+      {/* Messaging Mode */}
+      <div className={cardCls}>
+        <div className={cardHeaderCls}>
+          <h2 className="text-base font-bold text-white flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-amber-400" />
             Messaging Mode
           </h2>
-          <p className="text-sm text-gray-500">Keep Appleberry OS in safe testing mode until you intentionally allow live outbound messages.</p>
+          <p className="text-xs text-zinc-500 mt-1">Must be set to Live Mode before any emails or WhatsApp messages will send.</p>
         </div>
-        <div className="p-6 space-y-4">
-          <div className="flex gap-4 p-1 bg-gray-100 rounded-xl w-fit">
+        <div className="p-5 space-y-4">
+          <div className="flex gap-2 p-1 bg-[#0F0F11] rounded-xl w-fit border border-[#2A2A2E]">
             <button
               onClick={() => setSettings({ ...settings, mode: 'test' })}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${settings.mode !== 'live' ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${settings.mode !== 'live' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'text-zinc-500 hover:text-zinc-300'}`}
             >
               Test Mode
             </button>
             <button
               onClick={() => setSettings({ ...settings, mode: 'live' })}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${settings.mode === 'live' ? 'bg-white text-green-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${settings.mode === 'live' ? 'bg-[#22C55E]/20 text-[#22C55E] border border-[#22C55E]/30' : 'text-zinc-500 hover:text-zinc-300'}`}
             >
               Live Mode
             </button>
           </div>
 
-          <div className={`rounded-xl border p-4 flex gap-3 ${settings.mode === 'live' ? 'bg-green-50 border-green-100' : 'bg-amber-50 border-amber-100'}`}>
-            <Shield className={`w-5 h-5 shrink-0 ${settings.mode === 'live' ? 'text-green-600' : 'text-amber-600'}`} />
-            <div className={`text-sm ${settings.mode === 'live' ? 'text-green-800' : 'text-amber-800'}`}>
-              <p className="font-bold mb-1">{settings.mode === 'live' ? 'Live sending is enabled' : 'Test mode is protecting outbound messaging'}</p>
-              <p>
+          <div className={`rounded-xl border p-4 flex gap-3 ${settings.mode === 'live' ? 'bg-[#22C55E]/5 border-[#22C55E]/20' : 'bg-amber-500/5 border-amber-500/20'}`}>
+            <Shield className={`w-5 h-5 shrink-0 mt-0.5 ${settings.mode === 'live' ? 'text-[#22C55E]' : 'text-amber-400'}`} />
+            <div className={`text-sm ${settings.mode === 'live' ? 'text-[#86EFAC]' : 'text-amber-300'}`}>
+              <p className="font-bold mb-1">{settings.mode === 'live' ? '✓ Live sending is enabled' : '⚠ Test mode is active — no messages will send'}</p>
+              <p className="text-xs opacity-80">
                 {settings.mode === 'live'
-                  ? 'Emails and WhatsApp messages can be sent to real customers if valid credentials are present.'
-                  : 'The server will block WhatsApp and email sends even if credentials are entered, so you can test the app safely.'}
+                  ? 'Emails and WhatsApp messages will be sent to real customers when credentials are valid.'
+                  : 'The server blocks all outbound sends even if credentials are entered. Safe for testing the app.'}
               </p>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-              <Mail className="w-5 h-5 text-primary" />
-              Email Settings (SMTP)
-            </h2>
-            <p className="text-sm text-gray-500">Configure your email server to send invoices to customers.</p>
-          </div>
+      {/* Email Settings */}
+      <div className={cardCls}>
+        <div className={cardHeaderCls}>
+          <h2 className="text-base font-bold text-white flex items-center gap-2">
+            <Mail className="w-4 h-4 text-[#22C55E]" />
+            Email Settings (SMTP)
+          </h2>
+          <p className="text-xs text-zinc-500 mt-1">Configure your email server to send invoices to customers.</p>
         </div>
-        <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-5">
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">SMTP Host</label>
+              <label className={labelCls}>SMTP Host</label>
               <input
                 type="text"
                 placeholder="smtp.gmail.com"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 outline-none"
+                className={inputCls}
                 value={settings.email.host}
                 onChange={e => setSettings({ ...settings, email: { ...settings.email, host: e.target.value } })}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Port</label>
+                <label className={labelCls}>Port</label>
                 <input
                   type="text"
                   placeholder="465"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 outline-none"
+                  className={inputCls}
                   value={settings.email.port}
                   onChange={e => setSettings({ ...settings, email: { ...settings.email, port: e.target.value } })}
                 />
@@ -166,28 +172,30 @@ export default function CommunicationSettingsComponent() {
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
-                    className="w-4 h-4 text-primary rounded border-gray-300"
+                    className="w-4 h-4 rounded border-[#2A2A2E] accent-[#22C55E]"
                     checked={settings.email.secure}
                     onChange={e => setSettings({ ...settings, email: { ...settings.email, secure: e.target.checked } })}
                   />
-                  <span className="text-sm text-gray-600">Secure (SSL/TLS)</span>
+                  <span className="text-sm text-zinc-400">Secure (SSL/TLS)</span>
                 </label>
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Username / Email</label>
+              <label className={labelCls}>Username / Email</label>
               <input
                 type="text"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 outline-none"
+                placeholder="you@gmail.com"
+                className={inputCls}
                 value={settings.email.user}
                 onChange={e => setSettings({ ...settings, email: { ...settings.email, user: e.target.value } })}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Password / App Password</label>
+              <label className={labelCls}>Password / App Password</label>
               <input
                 type="password"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 outline-none"
+                placeholder="••••••••••••••••"
+                className={inputCls}
                 value={settings.email.pass}
                 onChange={e => setSettings({ ...settings, email: { ...settings.email, pass: e.target.value } })}
               />
@@ -195,113 +203,124 @@ export default function CommunicationSettingsComponent() {
           </div>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">From Name</label>
+              <label className={labelCls}>From Name</label>
               <input
                 type="text"
-                placeholder="My Repair Shop"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 outline-none"
+                placeholder="Appleberry Care Centre"
+                className={inputCls}
                 value={settings.email.fromName}
                 onChange={e => setSettings({ ...settings, email: { ...settings.email, fromName: e.target.value } })}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">From Email</label>
+              <label className={labelCls}>From Email</label>
               <input
                 type="email"
-                placeholder="noreply@myshop.com"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 outline-none"
+                placeholder="invoices@myshop.com"
+                className={inputCls}
                 value={settings.email.fromEmail}
                 onChange={e => setSettings({ ...settings, email: { ...settings.email, fromEmail: e.target.value } })}
               />
             </div>
-            <div className="p-4 bg-blue-50 rounded-xl border border-blue-100 flex gap-3">
-              <Shield className="w-5 h-5 text-blue-500 shrink-0" />
-              <p className="text-xs text-blue-700">
-                For Gmail, you must use an <strong>App Password</strong>. Standard passwords will be blocked by Google's security.
-              </p>
+            <div className="p-4 bg-blue-500/5 rounded-xl border border-blue-500/20 flex gap-3">
+              <Shield className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+              <div className="text-xs text-blue-300">
+                <p className="font-bold mb-1">Gmail users — use an App Password</p>
+                <p className="opacity-80">Go to <span className="font-mono">myaccount.google.com/apppasswords</span>, generate a password for "Appleberry", and paste it above. Your regular Gmail password will be rejected.</p>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-              <MessageSquare className="w-5 h-5 text-green-500" />
-              WhatsApp Settings (Meta API)
-            </h2>
-            <p className="text-sm text-gray-500">Connect to Meta WhatsApp Business API to send automated messages.</p>
-          </div>
+      {/* WhatsApp Settings */}
+      <div className={cardCls}>
+        <div className={cardHeaderCls}>
+          <h2 className="text-base font-bold text-white flex items-center gap-2">
+            <MessageSquare className="w-4 h-4 text-[#22C55E]" />
+            WhatsApp Settings
+          </h2>
+          <p className="text-xs text-zinc-500 mt-1">Connect to WhatsApp to send automated invoice notifications.</p>
         </div>
-        <div className="p-6 space-y-6">
-          <div className="flex gap-4 p-1 bg-gray-100 rounded-xl w-fit mb-6">
+        <div className="p-5 space-y-5">
+          <div className="flex gap-2 p-1 bg-[#0F0F11] rounded-xl w-fit border border-[#2A2A2E]">
             <button
               onClick={() => setSettings({ ...settings, whatsapp: { ...settings.whatsapp, provider: 'official' } })}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${settings.whatsapp.provider === 'official' ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${settings.whatsapp.provider === 'official' ? 'bg-[#22C55E]/20 text-[#22C55E] border border-[#22C55E]/30' : 'text-zinc-500 hover:text-zinc-300'}`}
             >
               Official (Meta API)
             </button>
             <button
               onClick={() => setSettings({ ...settings, whatsapp: { ...settings.whatsapp, provider: 'unofficial' } })}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${settings.whatsapp.provider === 'unofficial' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${settings.whatsapp.provider === 'unofficial' ? 'bg-[#22C55E]/20 text-[#22C55E] border border-[#22C55E]/30' : 'text-zinc-500 hover:text-zinc-300'}`}
             >
-              Unofficial (Instance-based)
+              Unofficial (Instance)
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {settings.whatsapp.provider === 'official' ? (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Permanent Access Token</label>
+                  <label className={labelCls}>Permanent Access Token</label>
                   <input
                     type="password"
                     placeholder="EAAB..."
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 outline-none"
+                    className={inputCls}
                     value={settings.whatsapp.accessToken}
                     onChange={e => setSettings({ ...settings, whatsapp: { ...settings.whatsapp, accessToken: e.target.value } })}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number ID</label>
+                  <label className={labelCls}>Phone Number ID</label>
                   <input
                     type="text"
                     placeholder="1092..."
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 outline-none"
+                    className={inputCls}
                     value={settings.whatsapp.phoneId}
                     onChange={e => setSettings({ ...settings, whatsapp: { ...settings.whatsapp, phoneId: e.target.value } })}
                   />
+                </div>
+                <div className="md:col-span-2">
+                  <label className={labelCls}>Template Name</label>
+                  <input
+                    type="text"
+                    placeholder="invoice_notification"
+                    className={inputCls}
+                    value={settings.whatsapp.templateName}
+                    onChange={e => setSettings({ ...settings, whatsapp: { ...settings.whatsapp, templateName: e.target.value } })}
+                  />
+                  <p className="text-[10px] text-zinc-600 mt-1">Must match an approved template in your Meta Business Manager.</p>
                 </div>
               </>
             ) : (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">API Endpoint URL</label>
+                  <label className={labelCls}>API Endpoint URL</label>
                   <input
                     type="text"
                     placeholder="https://socialposter.planifyx.com/api/send"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 outline-none"
+                    className={inputCls}
                     value={settings.whatsapp.apiUrl}
                     onChange={e => setSettings({ ...settings, whatsapp: { ...settings.whatsapp, apiUrl: e.target.value } })}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Instance ID</label>
+                  <label className={labelCls}>Instance ID</label>
                   <input
                     type="text"
                     placeholder="68AF..."
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 outline-none"
+                    className={inputCls}
                     value={settings.whatsapp.instanceId}
                     onChange={e => setSettings({ ...settings, whatsapp: { ...settings.whatsapp, instanceId: e.target.value } })}
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Access Token</label>
+                  <label className={labelCls}>Access Token</label>
                   <input
                     type="password"
                     placeholder="Your access token"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 outline-none"
+                    className={inputCls}
                     value={settings.whatsapp.accessToken}
                     onChange={e => setSettings({ ...settings, whatsapp: { ...settings.whatsapp, accessToken: e.target.value } })}
                   />
@@ -310,34 +329,16 @@ export default function CommunicationSettingsComponent() {
             )}
           </div>
 
-          {settings.whatsapp.provider === 'official' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Template Name</label>
-              <input
-                type="text"
-                placeholder="invoice_notification"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 outline-none"
-                value={settings.whatsapp.templateName}
-                onChange={e => setSettings({ ...settings, whatsapp: { ...settings.whatsapp, templateName: e.target.value } })}
-              />
-              <p className="text-[10px] text-gray-500 mt-1">The name of the approved template in your Meta Business Manager.</p>
-            </div>
-          )}
-
-          <div className={`p-4 rounded-xl border flex gap-3 ${settings.whatsapp.provider === 'official' ? 'bg-green-50 border-green-100' : 'bg-orange-50 border-orange-100'}`}>
+          <div className={`p-4 rounded-xl border flex gap-3 ${settings.whatsapp.provider === 'official' ? 'bg-[#22C55E]/5 border-[#22C55E]/20' : 'bg-amber-500/5 border-amber-500/20'}`}>
             {settings.whatsapp.provider === 'official' ? (
               <>
-                <Globe className="w-5 h-5 text-green-500 shrink-0" />
-                <p className="text-xs text-green-700">
-                  WhatsApp messages require pre-approved templates. Ensure your "Invoice" template is approved before sending.
-                </p>
+                <Globe className="w-4 h-4 text-[#22C55E] shrink-0 mt-0.5" />
+                <p className="text-xs text-[#86EFAC]">WhatsApp messages require pre-approved templates. Ensure your template is approved in Meta Business Manager before going live.</p>
               </>
             ) : (
               <>
-                <AlertCircle className="w-5 h-5 text-orange-500 shrink-0" />
-                <p className="text-xs text-orange-700">
-                  Unofficial APIs do not require templates, but carry a higher risk of account suspension. Use responsibly for transactional messages only.
-                </p>
+                <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-300">Unofficial APIs don't require templates but carry a risk of account suspension. Use for transactional messages only.</p>
               </>
             )}
           </div>
@@ -348,10 +349,10 @@ export default function CommunicationSettingsComponent() {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="bg-primary text-white px-8 py-3 rounded-xl font-bold hover:opacity-90 transition-all flex items-center gap-2 shadow-lg shadow-primary/20 disabled:opacity-50"
+          className="flex items-center gap-2 bg-[#22C55E] text-black px-8 py-3 rounded-xl font-bold hover:bg-[#16A34A] transition-colors disabled:opacity-50"
         >
-          <Save className="w-5 h-5" />
-          {saving ? 'Saving...' : 'Save All Settings'}
+          <Save className="w-4 h-4" />
+          {saving ? 'Saving...' : 'Save Settings'}
         </button>
       </div>
     </div>
