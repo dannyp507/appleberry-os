@@ -47,8 +47,33 @@ async function requireRequestContext(req: express.Request) {
   }
 
   const decoded = await adminAuth.verifyIdToken(token);
-  const profileSnap = await adminDb.collection('profiles').doc(decoded.uid).get();
-  const profile = profileSnap.exists ? profileSnap.data() : null;
+
+  // Primary lookup: profile doc ID equals the Firebase UID (standard case)
+  let profileSnap = await adminDb.collection('profiles').doc(decoded.uid).get();
+  let profile = profileSnap.exists ? profileSnap.data() : null;
+
+  // Fallback: profile was created with an auto-generated ID but has auth_uid field set
+  if (!profile?.company_id) {
+    const fallback = await adminDb.collection('profiles')
+      .where('auth_uid', '==', decoded.uid)
+      .limit(1)
+      .get();
+    if (!fallback.empty) {
+      profile = fallback.docs[0].data();
+    }
+  }
+
+  // Second fallback: match by email (covers owner accounts created before auth_uid was stored)
+  if (!profile?.company_id && decoded.email) {
+    const byEmail = await adminDb.collection('profiles')
+      .where('email', '==', decoded.email)
+      .limit(1)
+      .get();
+    if (!byEmail.empty) {
+      profile = byEmail.docs[0].data();
+    }
+  }
+
   if (!profile?.company_id) {
     const error = new Error('User profile or company workspace not found');
     (error as any).status = 403;
@@ -161,7 +186,8 @@ async function findInviteByToken(token: string) {
 
 function sendApiError(res: express.Response, error: any) {
   const status = Number(error?.status || 500);
-  const message = status >= 500 ? 'Server error' : error.message;
+  // Always surface the real message so the client can display it meaningfully
+  const message = error?.message || 'Server error';
   if (status >= 500) {
     console.error(error);
   }
