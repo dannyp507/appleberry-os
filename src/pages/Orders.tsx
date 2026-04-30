@@ -66,7 +66,7 @@ export default function Orders() {
     if (!companyId) return;
     setLoading(true);
     try {
-      const snap = await getDocs(companyQuery(companyId, 'orders'));
+      const snap = await getDocs(companyQuery('orders', companyId));
       const orders = snap.docs.map((d) => ({ id: d.id, ...d.data() } as OrderRecord));
 
       const customerIds = [...new Set(orders.map((o) => o.customer_id).filter(Boolean))] as string[];

@@ -60,7 +60,7 @@ export default function Appointments() {
     if (!companyId) return;
     setLoading(true);
     try {
-      const snap = await getDocs(companyQuery(companyId, 'appointments', [orderBy('date', 'asc'), orderBy('time', 'asc')]));
+      const snap = await getDocs(companyQuery('appointments', companyId, orderBy('date', 'asc'), orderBy('time', 'asc')));
       setAppointments(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Appointment)));
     } catch (error) {
       console.error('Error fetching appointments:', error);

@@ -96,7 +96,7 @@ function ExportPanel({ companyId }: { companyId: string | null }) {
     if (!companyId) { toast.error('No workspace selected'); return; }
     setExporting(exp.id);
     try {
-      const snap = await getDocs(companyQuery(companyId, exp.collection));
+      const snap = await getDocs(companyQuery(exp.collection, companyId));
       const rows = snap.docs.map(d => {
         const data = d.data();
         const row: Record<string, any> = { id: d.id };

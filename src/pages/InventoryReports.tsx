@@ -29,7 +29,7 @@ export default function InventoryReports() {
     if (!companyId) return;
     setLoading(true);
     try {
-      const snap = await getDocs(companyQuery(companyId, 'products'));
+      const snap = await getDocs(companyQuery('products', companyId));
       setProducts(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Product)));
     } catch (error) {
       console.error('Error fetching products:', error);
