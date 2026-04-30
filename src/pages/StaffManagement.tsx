@@ -10,6 +10,7 @@ import { getCompanySettingsDocId } from '../lib/company';
 import axios from 'axios';
 import { companyQuery, requireCompanyId } from '../lib/db';
 import { useTenant } from '../lib/tenant';
+import { getAuthHeaders } from '../lib/authHeaders';
 
 type StaffStatus = 'active' | 'inactive';
 
@@ -246,14 +247,17 @@ export default function StaffManagement() {
       const sendTasks: Promise<{ channel: 'email' | 'whatsapp' }>[] = [];
 
       if (communicationSettings?.email?.host) {
-        sendTasks.push(axios.post('/api/send-email', {
-          to: member.email,
-          subject: 'Your Appleberry OS staff invite',
-          text: `Hello ${member.full_name || 'there'},\n\nYou have been invited to Appleberry OS.\nActivation link: ${inviteLink}\nTemporary password: ${tempPassword}\n\nPlease use the link to create your own password.`,
-          html: `<p>Hello ${member.full_name || 'there'},</p><p>You have been invited to Appleberry OS.</p><p><strong>Activation link:</strong> <a href="${inviteLink}">${inviteLink}</a></p><p><strong>Temporary password:</strong> ${tempPassword}</p><p>Please use the link to create your own password.</p>`,
-          companyId: inviteCompanyId,
-          settings: communicationSettings.email,
-        }, { timeout: 15000 }).then(() => ({ channel: 'email' as const })));
+        sendTasks.push((async () => {
+          const headers = await getAuthHeaders();
+          await axios.post('/api/send-email', {
+            to: member.email,
+            subject: 'Your Appleberry OS staff invite',
+            text: `Hello ${member.full_name || 'there'},\n\nYou have been invited to Appleberry OS.\nActivation link: ${inviteLink}\nTemporary password: ${tempPassword}\n\nPlease use the link to set up your account.`,
+            html: `<p>Hello <strong>${member.full_name || 'there'}</strong>,</p><p>You have been invited to join Appleberry OS.</p><p><strong>Activation link:</strong> <a href="${inviteLink}">${inviteLink}</a></p><p><strong>Temporary password:</strong> <code>${tempPassword}</code></p><p>Click the link above to activate your account and set a new password.</p>`,
+            companyId: inviteCompanyId,
+          }, { headers, timeout: 15000 });
+          return { channel: 'email' as const };
+        })());
       }
 
       if (communicationSettings?.whatsapp && member.phone) {
@@ -262,12 +266,15 @@ export default function StaffManagement() {
           throw new Error('Staff WhatsApp number looks invalid. Use the full mobile number with country code.');
         }
 
-        sendTasks.push(axios.post('/api/send-whatsapp', {
-          phone: normalizedPhone,
-          message: `Hello ${member.full_name || ''}, you have been invited to Appleberry OS. Activate here: ${inviteLink} Temp password: ${tempPassword}`,
-          companyId: inviteCompanyId,
-          settings: communicationSettings.whatsapp,
-        }, { timeout: 15000 }).then(() => ({ channel: 'whatsapp' as const })));
+        sendTasks.push((async () => {
+          const headers = await getAuthHeaders();
+          await axios.post('/api/send-whatsapp', {
+            phone: normalizedPhone,
+            message: `Hello ${member.full_name || ''}, you have been invited to Appleberry OS. Activate here: ${inviteLink} Temp password: ${tempPassword}`,
+            companyId: inviteCompanyId,
+          }, { headers, timeout: 15000 });
+          return { channel: 'whatsapp' as const };
+        })());
       }
 
       if (sendTasks.length === 0) {
