@@ -3,9 +3,9 @@ import { useParams } from 'react-router-dom';
 import { db } from '../lib/firebase';
 import { doc, getDoc, getDocs, orderBy } from 'firebase/firestore';
 import { formatCurrency, safeFormatDate } from '../lib/utils';
-import { Printer, Download, RotateCcw, FileText } from 'lucide-react';
+import { Printer, Download, RotateCcw, FileText, Mail, MessageSquare, Loader2 } from 'lucide-react';
 import { generateInvoicePDF } from '../lib/pdf';
-import { Refund, Repair, Sale, ShopSettings } from '../types';
+import { CommunicationSettings, Refund, Repair, Sale, ShopSettings } from '../types';
 import { getCompanySettingsDocId } from '../lib/company';
 import { isCompanyScopedRecord } from '../lib/companyData';
 import { useTenant } from '../lib/tenant';
@@ -13,6 +13,8 @@ import { companyQuery, companySubcollection } from '../lib/db';
 import { hasPermission } from '../lib/permissions';
 import RefundModal from '../components/pos/RefundModal';
 import { toast } from 'sonner';
+import axios from 'axios';
+import { getAuthHeaders } from '../lib/authHeaders';
 
 export default function InvoiceView() {
   const { id } = useParams();
@@ -25,6 +27,8 @@ export default function InvoiceView() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [refundOpen, setRefundOpen] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [sendingWhatsApp, setSendingWhatsApp] = useState(false);
 
   useEffect(() => {
     if (id && companyId !== undefined) fetchInvoiceData();
@@ -66,21 +70,94 @@ export default function InvoiceView() {
     }
   }
 
+  const buildInvoiceRecord = () => ({
+    id: id!,
+    ticket_number: sale?.ticket_number || id?.slice(0, 8),
+    device_name: sale?.device_name || 'General Sale',
+    imei: (sale as any)?.imei || null,
+    subtotal: sale?.subtotal,
+    global_discount: sale?.global_discount ?? 0,
+    total_amount: sale?.total_amount,
+    created_at: sale?.created_at || '',
+  });
+
+  const normalizePhone = (raw: string) => {
+    const digits = raw.replace(/\D/g, '');
+    if (digits.startsWith('27')) return digits;
+    if (digits.startsWith('0')) return `27${digits.slice(1)}`;
+    return digits;
+  };
+
+  const handleSendEmail = async () => {
+    if (!customer?.email) { toast.error('Customer has no email address'); return; }
+    setSendingEmail(true);
+    const tid = toast.loading('Sending email…');
+    try {
+      const commSnap = await getDoc(doc(db, 'settings', getCompanySettingsDocId('communication', companyId || 'global')));
+      if (!commSnap.exists()) { toast.error('Email settings not configured', { id: tid }); return; }
+
+      const pdfDoc = await generateInvoicePDF(buildInvoiceRecord(), customer, items, shop || undefined);
+      const pdfBase64 = pdfDoc.output('datauristring').split(',')[1];
+      const ticketNum = sale?.ticket_number || id?.slice(0, 8) || 'Sale';
+
+      await axios.post('/api/send-email', {
+        to: customer.email,
+        subject: `Invoice #${ticketNum} — ${shop?.name || 'Appleberry Care Centre'}`,
+        text: `Hi ${customer.name || 'there'},\n\nPlease find your invoice #${ticketNum} attached.\n\nThank you for your business!\n${shop?.name || ''}`,
+        html: `<p>Hi <strong>${customer.name || 'there'}</strong>,</p><p>Please find your invoice <strong>#${ticketNum}</strong> attached.</p><p>Thank you for your business!</p><p style="color:#888">${shop?.name || ''}</p>`,
+        attachments: [{ filename: `Invoice_${ticketNum}.pdf`, content: pdfBase64 }],
+        companyId,
+      }, { headers: await getAuthHeaders() });
+
+      toast.success('Invoice emailed to ' + customer.email, { id: tid });
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Failed to send email', { id: tid });
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
+  const handleSendWhatsApp = async () => {
+    if (!customer?.phone) { toast.error('Customer has no phone number'); return; }
+    setSendingWhatsApp(true);
+    const tid = toast.loading('Sending WhatsApp…');
+    try {
+      const commSnap = await getDoc(doc(db, 'settings', getCompanySettingsDocId('communication', companyId || 'global')));
+      if (!commSnap.exists()) { toast.error('WhatsApp settings not configured', { id: tid }); return; }
+      const commSettings = commSnap.data() as CommunicationSettings;
+
+      const pdfDoc = await generateInvoicePDF(buildInvoiceRecord(), customer, items, shop || undefined, { variant: 'whatsapp' });
+      const pdfBase64 = pdfDoc.output('datauristring').split(',')[1];
+      const ticketNum = sale?.ticket_number || id?.slice(0, 8) || 'Sale';
+      const pdfFilename = `Invoice_${ticketNum}.pdf`;
+      const invoiceUrl = `${window.location.origin}/view-invoice/${id}`;
+      const isLocal = /:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/i.test(invoiceUrl);
+      const message = commSettings.whatsapp?.provider === 'official'
+        ? `Hi ${customer.name || 'there'}, your invoice #${ticketNum} is attached.`
+        : `Hi ${customer.name || 'there'}, your invoice #${ticketNum} is ready. View it here: ${invoiceUrl}`;
+
+      await axios.post('/api/send-whatsapp', {
+        phone: normalizePhone(customer.phone),
+        message,
+        pdfUrl: commSettings.whatsapp?.provider === 'official' && !isLocal ? `${window.location.origin}/api/invoices/${id}.pdf?compact=1` : null,
+        pdfBase64,
+        pdfFilename,
+        companyId,
+      }, { headers: await getAuthHeaders() });
+
+      toast.success('WhatsApp sent to ' + customer.phone, { id: tid });
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Failed to send WhatsApp', { id: tid });
+    } finally {
+      setSendingWhatsApp(false);
+    }
+  };
+
   const handleDownload = async () => {
     const tid = toast.loading('Generating PDF…');
     try {
-      const invoiceData: Partial<Repair> = {
-        id: id!,
-        ticket_number: sale?.ticket_number || id?.slice(0, 8),
-        device_name: sale?.device_name || 'General Sale',
-        imei: (sale as any)?.imei || null,
-        subtotal: sale?.subtotal,
-        global_discount: sale?.global_discount ?? 0,
-        total_amount: sale?.total_amount,
-        created_at: sale?.created_at || '',
-      };
-      const pdfDoc = await generateInvoicePDF(invoiceData, customer, items, shop || undefined);
-      pdfDoc.save(`Invoice_${id?.slice(0, 8)}.pdf`);
+      const pdfDoc = await generateInvoicePDF(buildInvoiceRecord(), customer, items, shop || undefined);
+      pdfDoc.save(`Invoice_${sale?.ticket_number || id?.slice(0, 8)}.pdf`);
       toast.success('PDF downloaded', { id: tid });
     } catch (error: any) {
       console.error('PDF generation failed:', error);
@@ -127,7 +204,7 @@ export default function InvoiceView() {
             <p className="text-xs text-zinc-500">{safeFormatDate(sale.created_at, 'dd MMM yyyy')}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => window.print()}
             className="flex items-center gap-2 rounded-xl border border-[#2A2A2E] bg-[#141416] px-3 py-2 text-sm font-semibold text-zinc-300 hover:text-white transition-colors"
@@ -140,6 +217,26 @@ export default function InvoiceView() {
           >
             <Download className="h-4 w-4" /> PDF
           </button>
+          {customer?.email && (
+            <button
+              onClick={handleSendEmail}
+              disabled={sendingEmail}
+              className="flex items-center gap-2 rounded-xl border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-sm font-semibold text-blue-400 hover:bg-blue-500/20 transition-colors disabled:opacity-50"
+            >
+              {sendingEmail ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+              Email
+            </button>
+          )}
+          {customer?.phone && (
+            <button
+              onClick={handleSendWhatsApp}
+              disabled={sendingWhatsApp}
+              className="flex items-center gap-2 rounded-xl border border-[#22C55E]/30 bg-[#22C55E]/10 px-3 py-2 text-sm font-semibold text-[#22C55E] hover:bg-[#22C55E]/20 transition-colors disabled:opacity-50"
+            >
+              {sendingWhatsApp ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageSquare className="h-4 w-4" />}
+              WhatsApp
+            </button>
+          )}
           {hasPermission(profile, 'refunds.process') && (sale.refund_status || 'none') !== 'full' && (
             <button
               onClick={() => setRefundOpen(true)}
