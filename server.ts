@@ -16,17 +16,46 @@ const __dirname = path.dirname(__filename);
 function initializeAdmin() {
   if (getApps().length) return;
 
-  const rawServiceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-  if (rawServiceAccount) {
-    initializeApp({
-      credential: cert(JSON.parse(rawServiceAccount)),
-    });
+  // --- Option 1: individual env vars (most reliable on Railway) ---
+  const projectId   = process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey  = process.env.FIREBASE_PRIVATE_KEY;
+
+  if (projectId && clientEmail && privateKey) {
+    // Railway sometimes strips quotes around the key — replace literal \n with newlines
+    const normalizedKey = privateKey.replace(/\\n/g, '\n');
+    initializeApp({ credential: cert({ projectId, clientEmail, privateKey: normalizedKey }) });
     return;
   }
 
-  initializeApp({
-    credential: applicationDefault(),
-  });
+  // --- Option 2: full JSON blob (FIREBASE_SERVICE_ACCOUNT_JSON) ---
+  const rawJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  if (rawJson) {
+    try {
+      initializeApp({ credential: cert(JSON.parse(rawJson)) });
+      return;
+    } catch {
+      // Railway may convert \n sequences to real newlines, breaking JSON.
+      // Extract the three required fields with a regex instead.
+      const projectIdMatch   = rawJson.match(/"project_id"\s*:\s*"([^"]+)"/);
+      const clientEmailMatch = rawJson.match(/"client_email"\s*:\s*"([^"]+)"/);
+      const pkMatch          = rawJson.match(/-----BEGIN PRIVATE KEY-----([\s\S]*?)-----END PRIVATE KEY-----/);
+      if (projectIdMatch && clientEmailMatch && pkMatch) {
+        initializeApp({
+          credential: cert({
+            projectId:   projectIdMatch[1],
+            clientEmail: clientEmailMatch[1],
+            privateKey:  `-----BEGIN PRIVATE KEY-----${pkMatch[1]}-----END PRIVATE KEY-----\n`,
+          }),
+        });
+        return;
+      }
+      console.error('FIREBASE_SERVICE_ACCOUNT_JSON is set but could not be parsed.');
+    }
+  }
+
+  // --- Fallback: GCP Application Default Credentials (only works on Google Cloud) ---
+  initializeApp({ credential: applicationDefault() });
 }
 
 initializeAdmin();
