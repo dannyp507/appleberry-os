@@ -298,9 +298,7 @@ export default function StaffManagement() {
       }
 
       if (failedMessages.length > 0) {
-        if (!options?.suppressErrorToast) {
-          toast.error(failedMessages[0]);
-        }
+        // Don't toast here — the catch block below handles it to avoid duplicate toasts
         throw new Error(failedMessages[0]);
       }
     } catch (error: any) {

@@ -477,22 +477,62 @@ async function startServer() {
         },
       });
 
-      await transporter.sendMail({
-        from: `"${settings.fromName}" <${settings.fromEmail}>`,
-        to,
-        subject,
-        text,
-        html,
-        attachments: attachments?.map((a: any) => ({
-          filename: a.filename,
-          content: Buffer.from(a.content, 'base64'),
-          contentType: 'application/pdf'
-        }))
-      });
+      try {
+        await transporter.sendMail({
+          from: `"${settings.fromName}" <${settings.fromEmail}>`,
+          to,
+          subject,
+          text,
+          html,
+          attachments: attachments?.map((a: any) => ({
+            filename: a.filename,
+            content: Buffer.from(a.content, 'base64'),
+            contentType: 'application/pdf'
+          }))
+        });
+      } catch (smtpError: any) {
+        console.error("SMTP send error:", smtpError);
+        // Surface a human-readable SMTP error rather than the generic "Server error"
+        const smtpMsg =
+          smtpError?.response ||              // e.g. "535 Authentication failed"
+          smtpError?.message ||               // e.g. "connect ECONNREFUSED 1.2.3.4:587"
+          'SMTP delivery failed';
+        return res.status(400).json({ error: `Email delivery failed: ${smtpMsg}` });
+      }
 
       res.json({ success: true });
     } catch (error: any) {
       console.error("Email error:", error);
+      sendApiError(res, error);
+    }
+  });
+
+  // Test SMTP credentials without sending a real email
+  app.post("/api/test-email-connection", async (req, res) => {
+    try {
+      const ctx = await requireRequestContext(req);
+      if (!ctx.isAdmin) {
+        return res.status(403).json({ error: "Only owners and admins can test email connections." });
+      }
+      const { host, port, secure, user, pass } = req.body;
+      if (!host || !user || !pass) {
+        return res.status(400).json({ error: "host, user and pass are required" });
+      }
+      const transporter = nodemailer.createTransport({
+        host,
+        port: parseInt(port) || 465,
+        secure: !!secure,
+        auth: { user, pass },
+      });
+      try {
+        await transporter.verify();
+        res.json({ success: true, message: "SMTP connection verified successfully." });
+      } catch (smtpError: any) {
+        const smtpMsg = smtpError?.response || smtpError?.message || 'SMTP verification failed';
+        return res.status(400).json({ error: `Connection failed: ${smtpMsg}` });
+      }
+    } catch (error: any) {
+      console.error("Test email connection error:", error);
       sendApiError(res, error);
     }
   });

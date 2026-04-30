@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../../lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { Mail, MessageSquare, Save, Shield, Globe, Smartphone, AlertCircle } from 'lucide-react';
+import { Mail, MessageSquare, Save, Shield, Globe, Smartphone, AlertCircle, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { CommunicationSettings } from '../../types';
 import { toast } from 'sonner';
 import { useTenant } from '../../lib/tenant';
 import { getCompanySettingsDocId } from '../../lib/company';
 import { requireCompanyId } from '../../lib/db';
+import axios from 'axios';
+import { getAuthHeaders } from '../../lib/authHeaders';
 
 const inputCls = 'w-full px-3 py-2.5 bg-[#0F0F11] border border-[#2A2A2E] rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:border-[#22C55E]/50 focus:ring-1 focus:ring-[#22C55E]/20 text-sm';
 const labelCls = 'block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1.5';
@@ -37,6 +39,8 @@ export default function CommunicationSettingsComponent() {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testingConnection, setTestingConnection] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   useEffect(() => {
     fetchSettings();
@@ -73,6 +77,33 @@ export default function CommunicationSettingsComponent() {
       console.error('Error fetching settings:', error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleTestConnection() {
+    if (!settings.email.host || !settings.email.user || !settings.email.pass) {
+      toast.error('Fill in SMTP Host, Username and Password before testing.');
+      return;
+    }
+    setTestingConnection(true);
+    setTestResult(null);
+    try {
+      const headers = await getAuthHeaders();
+      await axios.post('/api/test-email-connection', {
+        host: settings.email.host,
+        port: settings.email.port,
+        secure: settings.email.secure,
+        user: settings.email.user,
+        pass: settings.email.pass,
+      }, { headers, timeout: 15000 });
+      setTestResult({ ok: true, message: 'SMTP connection verified — credentials are working!' });
+    } catch (err: any) {
+      const msg = axios.isAxiosError(err)
+        ? (err.response?.data?.error || err.message)
+        : String(err);
+      setTestResult({ ok: false, message: msg });
+    } finally {
+      setTestingConnection(false);
     }
   }
 
@@ -230,6 +261,22 @@ export default function CommunicationSettingsComponent() {
               </div>
             </div>
           </div>
+        </div>
+        <div className="px-5 pb-5 flex items-center gap-3">
+          <button
+            onClick={handleTestConnection}
+            disabled={testingConnection}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-[#2A2A2E] bg-[#0F0F11] text-zinc-300 hover:border-[#22C55E]/40 hover:text-[#22C55E] transition-all text-sm font-semibold disabled:opacity-50"
+          >
+            {testingConnection ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+            {testingConnection ? 'Testing…' : 'Test SMTP Connection'}
+          </button>
+          {testResult && (
+            <div className={`flex items-center gap-2 text-sm font-medium ${testResult.ok ? 'text-[#22C55E]' : 'text-red-400'}`}>
+              {testResult.ok ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <XCircle className="w-4 h-4 shrink-0" />}
+              <span>{testResult.message}</span>
+            </div>
+          )}
         </div>
       </div>
 
