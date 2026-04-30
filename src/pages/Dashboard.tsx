@@ -70,9 +70,9 @@ export default function Dashboard({ profile }: { profile: Profile | null }) {
 
       const dailyQuery = companyQuery('sales', companyId, where('created_at', '>=', today.toISOString()));
       const monthlyQuery = companyQuery('sales', companyId, where('created_at', '>=', monthStart.toISOString()));
-      const repairsQuery = companyQuery('repairs', companyId);
+      const repairsQuery = companyQuery('repairs', companyId, orderBy('updated_at', 'desc'), limit(500));
       const repairStatusesQuery = companyQuery('repair_status_options', companyId);
-      const productsQuery = companyQuery('products', companyId);
+      const productsQuery = companyQuery('products', companyId, limit(500));
       const chartQuery = companyQuery('sales', companyId, where('created_at', '>=', sevenDaysAgo.toISOString()));
       const topItemsQuery = companyQuery('sale_items', companyId, orderBy('created_at', 'desc'), limit(200));
 

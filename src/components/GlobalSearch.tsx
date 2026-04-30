@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { doc, getDoc, getDocs, limit, orderBy } from 'firebase/firestore';
+import { getDocs, limit, orderBy } from 'firebase/firestore';
 import {
   ClipboardList,
   FileText,
@@ -12,12 +12,11 @@ import {
   Wrench,
   X,
 } from 'lucide-react';
-import { db } from '../lib/firebase';
 import { useTenant } from '../lib/tenant';
-import { Customer, Product, Profile, Repair, Sale } from '../types';
+import { Product, Profile, Repair, Sale } from '../types';
 import { hasPermission } from '../lib/permissions';
 import { safeFormatDate } from '../lib/utils';
-import { companyQuery, companySubcollection } from '../lib/db';
+import { companyQuery } from '../lib/db';
 
 type SearchCategory = 'customers' | 'repairs' | 'sales' | 'purchase_orders' | 'orders' | 'products';
 
@@ -159,7 +158,7 @@ export default function GlobalSearch({
     }, 220);
 
     return () => window.clearTimeout(timeout);
-  }, [term, open, companyId, profile]);
+  }, [term, open, companyId, profile?.id]);
 
   const grouped = useMemo(() => {
     return {
@@ -452,38 +451,12 @@ async function searchRepairs(term: string, companyId: string | null): Promise<Se
 }
 
 async function searchSales(term: string, companyId: string | null): Promise<SearchResult[]> {
-  const snapshot = await getDocs(companyQuery('sales', companyId, orderBy('created_at', 'desc'), limit(200)));
+  // Limit to 50 — sale docs already carry customer_name/phone so no extra reads needed
+  const snapshot = await getDocs(companyQuery('sales', companyId, orderBy('created_at', 'desc'), limit(50)));
   const sales = snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() } as Sale & { external_invoice_number?: string | null; payments?: { method?: string }[] }));
-
-  const customerIds = Array.from(new Set(sales.map((sale) => sale.customer_id).filter(Boolean))) as string[];
-  const customerEntries = await Promise.all(
-    customerIds.map(async (customerId) => {
-      const customerSnap = await getDoc(doc(db, 'customers', customerId));
-      return [customerId, customerSnap.exists() ? ({ id: customerSnap.id, ...customerSnap.data() } as Customer) : null] as const;
-    })
-  );
-  const customerMap = new Map<string, Customer | null>(customerEntries);
-
-  const itemEntries = await Promise.all(
-    sales.slice(0, 120).map(async (sale) => {
-      try {
-        const itemsSnap = await getDocs(companySubcollection(`sales/${sale.id}/items`, companyId));
-        const itemNames = itemsSnap.docs
-          .map((itemDoc) => String(itemDoc.data().name || '').trim())
-          .filter(Boolean)
-          .slice(0, 4);
-        return [sale.id, itemNames] as [string, string[]];
-      } catch {
-        return [sale.id, [] as string[]] as [string, string[]];
-      }
-    })
-  );
-  const itemMap = new Map<string, string[]>(itemEntries);
 
   return sales
     .map((sale) => {
-      const customer = sale.customer_id ? customerMap.get(sale.customer_id) || null : null;
-      const itemNames = itemMap.get(sale.id) || [];
       const paymentSummary = Array.isArray((sale as any).payments)
         ? (sale as any).payments.map((payment: { method?: string }) => payment.method || '').filter(Boolean).join(' ')
         : sale.payment_method || '';
@@ -495,27 +468,21 @@ async function searchSales(term: string, companyId: string | null): Promise<Sear
         scoreMatch(sale.device_name || '', term) +
         scoreMatch(sale.customer_name || '', term) +
         scoreMatch(sale.customer_phone || '', term) +
-        scoreMatch(customer?.name || '', term) +
-        scoreMatch(customer?.phone || '', term) +
-        scoreMatch(customer?.email || '', term) +
-        scoreMatch(paymentSummary, term) +
-        itemNames.reduce((sum, itemName) => sum + scoreMatch(itemName, term), 0);
+        scoreMatch(paymentSummary, term);
 
-      return { sale, customer, itemNames, score };
+      return { sale, score };
     })
     .filter(({ score }) => score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, 5)
-    .map(({ sale, customer, itemNames, score }) => ({
+    .map(({ sale, score }) => ({
       id: sale.id,
       category: 'sales',
       title: (sale as any).external_invoice_number || `Invoice ${sale.id.slice(0, 8)}`,
       subtitle: [
-        customer?.name || sale.customer_name || 'Walk-in customer',
+        sale.customer_name || 'Walk-in customer',
         sale.ticket_number || null,
         sale.device_name || null,
-        itemNames[0],
-        itemNames.length > 1 ? `+${itemNames.length - 1} more` : null,
         safeFormatDate(sale.created_at, 'dd MMM yyyy'),
       ].filter(Boolean).join(' • '),
       meta: 'invoice',
