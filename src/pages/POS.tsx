@@ -588,7 +588,14 @@ export default function POS() {
       setIsPostSaleModalOpen(true);
       clearSale();
     } catch (error: any) {
-      toast.error(error.message);
+      const msg: string = error?.message || 'Transaction failed';
+      if (msg.toLowerCase().includes('quota') || msg.toLowerCase().includes('resource-exhausted') || msg.toLowerCase().includes('resource_exhausted')) {
+        toast.error('Firebase daily quota exceeded. Please ask your admin to upgrade the Firebase project to the Blaze plan at console.firebase.google.com.');
+      } else if (msg.toLowerCase().includes('permission') || msg.toLowerCase().includes('insufficient')) {
+        toast.error('Permission denied — make sure your account has the POS permission enabled in Staff Management.');
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setLoading(false);
     }

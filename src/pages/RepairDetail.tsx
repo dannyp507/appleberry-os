@@ -91,7 +91,10 @@ export default function RepairDetail() {
   const isDrawingRef = useRef(false);
 
   useEffect(() => {
-    if (!id) return;
+    // Wait for both the repair ID and the company to load before subscribing.
+    // If companyId is null, the isCompanyScopedRecord check below would falsely
+    // reject the repair and redirect back — causing the blank-on-first-click bug.
+    if (!id || !companyId) return;
 
     // Load Repair
     const unsubscribeRepair = onSnapshot(doc(db, 'repairs', id), async (docSnap) => {
