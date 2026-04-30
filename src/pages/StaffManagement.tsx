@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
-import { addDoc, collection, deleteDoc, doc, getDocs, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, updateDoc } from 'firebase/firestore';
 import { Plus, Users, Shield, Wrench, Search, Mail, Phone, Building2, Briefcase, Trash2, Edit2, UserCheck, Send } from 'lucide-react';
 import { auth, db } from '../lib/firebase';
 import { Profile, Role } from '../types';
