@@ -419,5 +419,19 @@ service cloud.firestore {
         && request.resource.data.actor_id == request.auth.uid;
       allow update, delete: if false;
     }
+
+    match /petty_cash/{entryId} {
+      allow read: if canReadCompanyRecord();
+      allow create: if isStaff() && incomingCompanyRecord();
+      allow update: if isStaff() && canUpdateCompanyRecord();
+      allow delete: if isOwnerOrAdmin() && existingCompanyRecord();
+    }
+
+    match /end_of_day/{reportId} {
+      allow read: if canReadCompanyRecord();
+      allow create: if isStaff() && incomingCompanyRecord();
+      allow update: if isOwnerOrAdmin() && canUpdateCompanyRecord();
+      allow delete: if false;
+    }
   }
 }
