@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
-import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDocs, updateDoc } from 'firebase/firestore';
 import { Plus, Users, Shield, Wrench, Search, Mail, Phone, Building2, Briefcase, Trash2, Edit2, UserCheck, Send } from 'lucide-react';
 import { auth, db } from '../lib/firebase';
 import { Profile, Role } from '../types';
@@ -9,6 +9,7 @@ import { ALL_PERMISSIONS, PERMISSION_GROUPS, PermissionKey, PermissionPreset, PR
 import { getCompanySettingsDocId } from '../lib/company';
 import axios from 'axios';
 import { companyQuery, requireCompanyId } from '../lib/db';
+import { useTenant } from '../lib/tenant';
 
 type StaffStatus = 'active' | 'inactive';
 
@@ -54,6 +55,7 @@ const getRequestErrorMessage = (error: unknown) => {
 const normalizeWhatsAppPhone = (phone: string) => phone.replace(/\D/g, '');
 
 export default function StaffManagement() {
+  const { companyId } = useTenant();
   const [staff, setStaff] = useState<StaffProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -61,28 +63,11 @@ export default function StaffManagement() {
   const [editingStaff, setEditingStaff] = useState<StaffProfile | null>(null);
   const [formData, setFormData] = useState(defaultForm);
   const [sendingInviteId, setSendingInviteId] = useState<string | null>(null);
-  const [companyId, setCompanyId] = useState<string | null>(null);
   const currentUserId = auth.currentUser?.uid || null;
 
   useEffect(() => {
-    loadAdminCompany();
-  }, []);
-
-  useEffect(() => {
-    fetchStaff();
+    if (companyId) fetchStaff();
   }, [companyId]);
-
-  async function loadAdminCompany() {
-    if (!auth.currentUser) return;
-    try {
-      const adminProfile = await getDoc(doc(db, 'profiles', auth.currentUser.uid));
-      if (adminProfile.exists()) {
-        setCompanyId((adminProfile.data().company_id as string | null) || null);
-      }
-    } catch (error) {
-      console.error('Failed to load admin company', error);
-    }
-  }
 
   async function fetchStaff() {
     setLoading(true);
