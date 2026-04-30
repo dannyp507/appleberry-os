@@ -12,6 +12,7 @@ import { useTenant } from '../lib/tenant';
 import { companyQuery, companySubcollection } from '../lib/db';
 import { hasPermission } from '../lib/permissions';
 import RefundModal from '../components/pos/RefundModal';
+import { toast } from 'sonner';
 
 export default function InvoiceView() {
   const { id } = useParams();
@@ -63,18 +64,25 @@ export default function InvoiceView() {
   }
 
   const handleDownload = async () => {
-    const invoiceData: Partial<Repair> = {
-      id: id!,
-      ticket_number: sale?.ticket_number || id?.slice(0, 8),
-      device_name: sale?.device_name || 'General Sale',
-      imei: (sale as any)?.imei || null,
-      subtotal: sale?.subtotal,
-      global_discount: sale?.global_discount ?? 0,
-      total_amount: sale?.total_amount,
-      created_at: sale?.created_at || '',
-    };
-    const pdfDoc = await generateInvoicePDF(invoiceData, customer, items, shop || undefined);
-    pdfDoc.save(`Invoice_${id?.slice(0, 8)}.pdf`);
+    const tid = toast.loading('Generating PDF…');
+    try {
+      const invoiceData: Partial<Repair> = {
+        id: id!,
+        ticket_number: sale?.ticket_number || id?.slice(0, 8),
+        device_name: sale?.device_name || 'General Sale',
+        imei: (sale as any)?.imei || null,
+        subtotal: sale?.subtotal,
+        global_discount: sale?.global_discount ?? 0,
+        total_amount: sale?.total_amount,
+        created_at: sale?.created_at || '',
+      };
+      const pdfDoc = await generateInvoicePDF(invoiceData, customer, items, shop || undefined);
+      pdfDoc.save(`Invoice_${id?.slice(0, 8)}.pdf`);
+      toast.success('PDF downloaded', { id: tid });
+    } catch (error: any) {
+      console.error('PDF generation failed:', error);
+      toast.error(error.message || 'Failed to generate PDF', { id: tid });
+    }
   };
 
   if (loading) {

@@ -4,13 +4,15 @@ import { doc, getDoc, getDocs } from 'firebase/firestore';
 import { Search, FileText, Download, Eye, Receipt, CreditCard, AlertCircle, RotateCcw } from 'lucide-react';
 import { db } from '../lib/firebase';
 import { formatCurrency, safeFormatDate } from '../lib/utils';
-import { Customer, Sale } from '../types';
+import { Customer, Sale, ShopSettings } from '../types';
 import { useTenant } from '../lib/tenant';
 import { isCompanyScopedRecord } from '../lib/companyData';
-import { companyQuery } from '../lib/db';
-import { getAuthHeaders } from '../lib/authHeaders';
+import { companyQuery, companySubcollection } from '../lib/db';
+import { generateInvoicePDF } from '../lib/pdf';
+import { getCompanySettingsDocId } from '../lib/company';
 import RefundModal from '../components/pos/RefundModal';
 import { hasPermission } from '../lib/permissions';
+import { toast } from 'sonner';
 
 type SaleRecord = {
   id: string;
@@ -121,20 +123,43 @@ export default function Invoices() {
   }, [filteredRows]);
 
   const downloadInvoicePdf = async (saleId: string) => {
+    const tid = toast.loading('Generating PDF…');
     try {
-      const response = await fetch(`/api/invoices/${saleId}.pdf`, {
-        headers: await getAuthHeaders(),
-      });
-      if (!response.ok) {
-        throw new Error(await response.text());
+      // Fetch sale + items + customer + shop from Firestore client-side
+      const saleSnap = await getDoc(doc(db, 'sales', saleId));
+      if (!saleSnap.exists()) throw new Error('Sale not found');
+      const sale = { id: saleSnap.id, ...saleSnap.data() } as any;
+
+      const [itemsSnap, shopSnap] = await Promise.all([
+        getDocs(companySubcollection(`sales/${saleId}/items`, sale.company_id)),
+        getDoc(doc(db, 'settings', getCompanySettingsDocId('shop', sale.company_id || 'global'))),
+      ]);
+      const items = itemsSnap.docs.map(d => d.data());
+      const shop = shopSnap.exists() ? shopSnap.data() as ShopSettings : undefined;
+
+      let customer: Customer | null = null;
+      if (sale.customer_id) {
+        const custSnap = await getDoc(doc(db, 'customers', sale.customer_id));
+        if (custSnap.exists()) customer = { id: custSnap.id, ...custSnap.data() } as Customer;
       }
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank', 'noopener,noreferrer');
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+
+      const invoiceRecord = {
+        id: saleId,
+        ticket_number: sale.ticket_number || saleId.slice(0, 8),
+        device_name: sale.device_name || 'General Sale',
+        imei: sale.imei || null,
+        subtotal: sale.subtotal ?? sale.total_amount,
+        global_discount: sale.global_discount ?? 0,
+        total_amount: sale.total_amount,
+        created_at: sale.created_at || new Date().toISOString(),
+      };
+
+      const pdfDoc = await generateInvoicePDF(invoiceRecord, customer, items, shop);
+      pdfDoc.save(`Invoice_${sale.ticket_number || saleId.slice(0, 8)}.pdf`);
+      toast.success('PDF downloaded', { id: tid });
     } catch (error: any) {
       console.error('Invoice PDF download failed:', error);
-      alert(error.message || 'Failed to download invoice PDF.');
+      toast.error(error.message || 'Failed to generate PDF', { id: tid });
     }
   };
 

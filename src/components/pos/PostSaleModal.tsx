@@ -66,9 +66,15 @@ export default function PostSaleModal({ isOpen, onClose, repair, customer, cart,
   };
 
   const handleDownload = async () => {
-    const doc = await generateInvoicePDF(invoiceRecord, customer, cart, shopSettings);
-    doc.save(`Invoice_${repair?.ticket_number || 'Sale'}.pdf`);
-    toast.success('Invoice downloaded');
+    const tid = toast.loading('Generating PDF…');
+    try {
+      const doc = await generateInvoicePDF(invoiceRecord, customer, cart, shopSettings);
+      doc.save(`Invoice_${repair?.ticket_number || 'Sale'}.pdf`);
+      toast.success('Invoice downloaded', { id: tid });
+    } catch (error: any) {
+      console.error('PDF generation failed:', error);
+      toast.error(error.message || 'Failed to generate PDF', { id: tid });
+    }
   };
 
   const handleSendEmail = async () => {
