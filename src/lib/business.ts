@@ -35,12 +35,13 @@ export function buildInvoiceNumber(prefix = 'INV') {
  * the next zero-padded sequential number, e.g. "0001", "0002".
  */
 export async function getNextInvoiceNumber(companyId: string): Promise<string> {
-  const counterRef = doc(db, 'settings', `invoice_counter_${companyId}`);
+  // Stored in /counters/{companyId} — any active staff member can read/write
+  const counterRef = doc(db, 'counters', companyId);
   let next = 1;
   await runTransaction(db, async (tx) => {
     const snap = await tx.get(counterRef);
-    next = snap.exists() ? (Number(snap.data().count) + 1) : 1;
-    tx.set(counterRef, { count: next, company_id: companyId });
+    next = snap.exists() ? (Number(snap.data().invoice_count) + 1) : 1;
+    tx.set(counterRef, { invoice_count: next, company_id: companyId }, { merge: true });
   });
   return String(next).padStart(4, '0');
 }

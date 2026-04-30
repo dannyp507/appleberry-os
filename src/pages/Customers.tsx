@@ -176,19 +176,22 @@ export default function Customers() {
       const querySnapshot = await getDocs(companyQuery('customers', companyId, orderBy('first_name')));
       const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
       setCustomers(data);
-      // Load store credit balances
+      // Load store credit balances (non-fatal — collection may not exist yet)
       if (companyId && data.length > 0) {
-        const creditSnap = await getDocs(
-          query(collection(db, 'store_credit'), where('company_id', '==', companyId))
-        );
-        const balMap = new Map<string, number>();
-        creditSnap.docs.forEach(d => {
-          const cid = d.data().customer_id as string;
-          balMap.set(cid, (balMap.get(cid) || 0) + Number(d.data().amount || 0));
-        });
-        // Only keep positive balances
-        balMap.forEach((v, k) => { if (v <= 0) balMap.delete(k); });
-        setCreditBalances(balMap);
+        try {
+          const creditSnap = await getDocs(
+            query(collection(db, 'store_credit'), where('company_id', '==', companyId))
+          );
+          const balMap = new Map<string, number>();
+          creditSnap.docs.forEach(d => {
+            const cid = d.data().customer_id as string;
+            balMap.set(cid, (balMap.get(cid) || 0) + Number(d.data().amount || 0));
+          });
+          balMap.forEach((v, k) => { if (v <= 0) balMap.delete(k); });
+          setCreditBalances(balMap);
+        } catch {
+          // store_credit may not be set up yet — silently skip
+        }
       }
     } catch (error: any) {
       toast.error(error.message);

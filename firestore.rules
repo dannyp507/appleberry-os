@@ -146,11 +146,37 @@ service cloud.firestore {
     }
 
     match /settings/{settingId} {
-      allow get: if signedIn() && existingCompanyRecord();
+      // resource == null when the doc doesn't exist; allow signed-in users to
+      // attempt a get so ShopSettings can load gracefully on first run.
+      allow get: if signedIn() && (resource == null || existingCompanyRecord());
       allow list: if false;
+      // Invoice counter is written by any staff member during a sale/repair.
+      // All other settings docs require owner/admin.
+      allow create: if isStaff() && incomingCompanyRecord();
+      allow update: if isStaff() && canUpdateCompanyRecord();
+      allow delete: if false;
+    }
+
+    match /counters/{counterId} {
+      allow get: if isStaff() && (resource == null || existingCompanyRecord());
+      allow list: if false;
+      allow create: if isStaff() && incomingCompanyRecord();
+      allow update: if isStaff() && canUpdateCompanyRecord();
+      allow delete: if false;
+    }
+
+    match /store_credit/{creditId} {
+      allow read: if canReadCompanyRecord();
+      allow create: if isStaff() && incomingCompanyRecord();
+      allow update: if isStaff() && canUpdateCompanyRecord();
+      allow delete: if isOwnerOrAdmin() && existingCompanyRecord();
+    }
+
+    match /drawers/{drawerId} {
+      allow read: if canReadCompanyRecord();
       allow create: if isOwnerOrAdmin() && incomingCompanyRecord();
       allow update: if isOwnerOrAdmin() && canUpdateCompanyRecord();
-      allow delete: if false;
+      allow delete: if isOwnerOrAdmin() && existingCompanyRecord();
     }
 
     match /customers/{customerId} {
