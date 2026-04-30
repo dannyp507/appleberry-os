@@ -27,16 +27,19 @@ export default function InvoiceView() {
   const [refundOpen, setRefundOpen] = useState(false);
 
   useEffect(() => {
-    if (id) fetchInvoiceData();
-  }, [id]);
+    if (id && companyId !== undefined) fetchInvoiceData();
+  }, [id, companyId]);
 
   async function fetchInvoiceData() {
     try {
+      // Require authenticated company context — never serve invoice data to unauthenticated visitors
+      if (!companyId) { setNotFound(true); return; }
+
       const saleSnap = await getDoc(doc(db, 'sales', id!));
       if (!saleSnap.exists()) { setNotFound(true); return; }
 
       const saleData = { id: saleSnap.id, ...saleSnap.data() } as Sale;
-      if (companyId && saleData.company_id !== companyId) { setNotFound(true); return; }
+      if (saleData.company_id !== companyId) { setNotFound(true); return; }
       setSale(saleData);
 
       const [custSnap, itemsSnap, refundsSnap, shopSnap] = await Promise.all([

@@ -194,7 +194,6 @@ export default function App() {
             <Route path="/signup" element={<Signup />} />
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/activate" element={<ActivateAccount />} />
-            <Route path="/view-invoice/:id" element={<InvoiceView />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
@@ -273,22 +272,22 @@ export default function App() {
                 
                 <Route path="/invoices" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'invoices.view') ? <Invoices /> : <Navigate to="/" replace />} />
                 <Route path="/purchase-orders" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'purchase_orders.view') ? <PurchaseOrders /> : <Navigate to="/" replace />} />
-                <Route path="/orders" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : <Orders />} />
+                <Route path="/orders" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'orders.view') ? <Orders /> : <Navigate to="/" replace />} />
                 <Route path="/devices" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'devices.view') ? <DevicesInventory /> : <Navigate to="/" replace />} />
                 <Route path="/stock-take" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'stock_take.view') ? <StockTake /> : <Navigate to="/" replace />} />
                 <Route path="/expenses" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'expenses.view') ? <Expenses /> : <Navigate to="/" replace />} />
                 <Route path="/transfer" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'transfer.view') ? <InventoryTransfer /> : <Navigate to="/" replace />} />
                 <Route path="/end-of-day" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'end_of_day.view') ? <EndOfDay /> : <Navigate to="/" replace />} />
-                <Route path="/appointments" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : <Appointments />} />
+                <Route path="/appointments" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'appointments.view') ? <Appointments /> : <Navigate to="/" replace />} />
                 <Route path="/staff" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'staff.manage') ? <StaffManagement /> : <Navigate to="/" replace />} />
                 <Route path="/website" element={<Navigate to="/" replace />} />
                 <Route path="/reports/sales" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'reports.sales') ? <SalesReports /> : <Navigate to="/" replace />} />
                 <Route path="/reports/repairs" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'reports.repairs') ? <RepairsReports /> : <Navigate to="/" replace />} />
-                <Route path="/reports/inventory" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : <InventoryReports />} />
+                <Route path="/reports/inventory" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'reports.inventory') ? <InventoryReports /> : <Navigate to="/" replace />} />
                 <Route path="/activity" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'activity.view') ? <ActivityLog /> : <Navigate to="/" replace />} />
                 <Route path="/getting-started" element={<Navigate to="/" replace />} />
                 <Route path="/manage-data" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'manage_data.view') ? <ManageData /> : <Navigate to="/" replace />} />
-                <Route path="/setup" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : <Setup />} />
+                <Route path="/setup" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'staff.manage') ? <Setup /> : <Navigate to="/" replace />} />
                 <Route path="/integrations" element={<Navigate to="/" replace />} />
 
                 <Route path="*" element={<Navigate to={requiresOnboarding ? "/onboarding" : "/"} replace />} />
