@@ -107,6 +107,33 @@ export default function CommunicationSettingsComponent() {
     }
   }
 
+  async function handleTestWhatsApp() {
+    const wa = settings.whatsapp;
+    if (wa.provider === 'unofficial' && (!wa.instanceId || !wa.apiUrl)) {
+      toast.error('Enter Instance ID and API URL first, then save');
+      return;
+    }
+    if (wa.provider === 'official' && (!wa.phoneId || !wa.accessToken)) {
+      toast.error('Enter Phone Number ID and Access Token first, then save');
+      return;
+    }
+    const tid = toast.loading('Checking WhatsApp connection...');
+    try {
+      const headers = await getAuthHeaders();
+      const workspaceId = requireCompanyId(companyId);
+      const res = await axios.post('/api/test-whatsapp-connection', {
+        companyId: workspaceId,
+        whatsapp: wa,
+      }, { headers, timeout: 15000 });
+      toast.success(res.data.message || 'WhatsApp connection OK ✓', { id: tid });
+    } catch (err: any) {
+      const msg = axios.isAxiosError(err)
+        ? (err.response?.data?.error || err.message)
+        : String(err);
+      toast.error(`Connection failed: ${msg}`, { id: tid });
+    }
+  }
+
   async function handleSave() {
     setSaving(true);
     try {
@@ -375,6 +402,15 @@ export default function CommunicationSettingsComponent() {
               </>
             )}
           </div>
+
+          <button
+            type="button"
+            onClick={handleTestWhatsApp}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-green-200 bg-green-50 text-green-700 text-sm font-semibold hover:bg-green-100 transition-colors"
+          >
+            <MessageSquare className="w-4 h-4" />
+            Test WhatsApp Connection
+          </button>
 
           <div className={`p-4 rounded-xl border flex gap-3 ${settings.whatsapp.provider === 'official' ? 'bg-[#22C55E]/5 border-[#22C55E]/20' : 'bg-amber-500/5 border-amber-500/20'}`}>
             {settings.whatsapp.provider === 'official' ? (

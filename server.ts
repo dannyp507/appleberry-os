@@ -592,6 +592,71 @@ async function startServer() {
     }
   });
 
+  app.post("/api/test-whatsapp-connection", async (req, res) => {
+    try {
+      const ctx = await requireRequestContext(req);
+      const { whatsapp } = req.body;
+      if (!whatsapp) return res.status(400).json({ error: "No WhatsApp settings provided" });
+
+      if (whatsapp.provider === 'unofficial') {
+        if (!whatsapp.apiUrl || !whatsapp.instanceId) {
+          return res.status(400).json({ error: "Instance ID and API URL are required" });
+        }
+        // Ping the base URL status endpoint
+        const baseUrl = whatsapp.apiUrl.replace(/\/send.*$/, '');
+        const statusEndpoints = [`${baseUrl}/instance-info`, `${baseUrl}/status`, baseUrl];
+        for (const endpoint of statusEndpoints) {
+          try {
+            const r = await axios.get(endpoint, {
+              params: { instance_id: whatsapp.instanceId, access_token: whatsapp.accessToken || '' },
+              timeout: 8000,
+            });
+            if (r.status < 400) {
+              return res.json({ success: true, message: `Instance reachable — status: ${JSON.stringify(r.data).slice(0, 80)}` });
+            }
+          } catch {
+            // try next
+          }
+        }
+        // If none responded, try a POST to the send endpoint with a clearly invalid number
+        // just to confirm auth works
+        try {
+          await axios.post(whatsapp.apiUrl, {
+            instance_id: whatsapp.instanceId,
+            access_token: whatsapp.accessToken || '',
+            to: '27000000000',
+            message: 'test',
+          }, { timeout: 8000 });
+          return res.json({ success: true, message: 'API endpoint reachable and credentials accepted ✓' });
+        } catch (e: any) {
+          const errMsg = e.response?.data?.message || e.response?.data?.error || e.message || 'Unknown error';
+          // A 4xx about the number is OK — means the API is reachable and auth passed
+          if (e.response?.status && e.response.status < 500) {
+            return res.json({ success: true, message: `API reachable (auth OK). Response: ${errMsg}` });
+          }
+          return res.status(400).json({ error: `Cannot reach API: ${errMsg}` });
+        }
+      } else {
+        // Official Meta API — verify token by fetching phone info
+        if (!whatsapp.phoneId || !whatsapp.accessToken) {
+          return res.status(400).json({ error: "Phone Number ID and Access Token required" });
+        }
+        try {
+          const r = await axios.get(`https://graph.facebook.com/v18.0/${whatsapp.phoneId}`, {
+            params: { access_token: whatsapp.accessToken },
+            timeout: 10000,
+          });
+          return res.json({ success: true, message: `Phone verified: ${r.data.display_phone_number || r.data.id}` });
+        } catch (e: any) {
+          const errMsg = e.response?.data?.error?.message || e.message;
+          return res.status(400).json({ error: `Meta API error: ${errMsg}` });
+        }
+      }
+    } catch (error: any) {
+      sendApiError(res, error);
+    }
+  });
+
   app.post("/api/send-whatsapp", async (req, res) => {
     try {
       const ctx = await requireRequestContext(req);

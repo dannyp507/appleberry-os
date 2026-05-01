@@ -122,18 +122,41 @@ export default function PostSaleModal({ isOpen, onClose, repair, customer, cart,
 
   const handleSendWhatsApp = async () => {
     if (!customer?.phone) {
-      toast.error('Customer has no phone number');
+      toast.error('No phone number on this customer record');
+      return;
+    }
+    if (!companyId) {
+      toast.error('Company not loaded yet — please try again');
       return;
     }
 
     setSendingWhatsApp(true);
     try {
-      const settingsSnap = await getDoc(doc(db, 'settings', getCompanySettingsDocId('communication', companyId || 'global')));
+      // Check settings exist and mode is live before generating the PDF
+      const settingsSnap = await getDoc(doc(db, 'settings', getCompanySettingsDocId('communication', companyId)));
       if (!settingsSnap.exists()) {
-        toast.error('WhatsApp settings not configured');
+        toast.error('WhatsApp not configured — go to Setup → Communication Settings');
         return;
       }
       const settings = settingsSnap.data() as CommunicationSettings;
+      if (settings.mode !== 'live') {
+        toast.error('Switch to Live Mode in Setup → Communication Settings to send WhatsApp');
+        return;
+      }
+      const wa = settings.whatsapp;
+      if (!wa) {
+        toast.error('WhatsApp credentials not saved — check Setup → Communication Settings');
+        return;
+      }
+      if (wa.provider === 'unofficial' && !wa.instanceId) {
+        toast.error('Instance ID missing — add it in Setup → Communication Settings');
+        return;
+      }
+      if (wa.provider === 'official' && !wa.phoneId) {
+        toast.error('Phone Number ID missing — add it in Setup → Communication Settings');
+        return;
+      }
+
       const pdfDoc = await generateInvoicePDF(invoiceRecord, customer, cart, shopSettings, { variant: 'whatsapp' });
       const pdfBase64 = pdfDoc.output('datauristring').split(',')[1];
       const pdfFilename = `Invoice_${repair?.ticket_number || saleId || 'Sale'}.pdf`;
@@ -146,8 +169,6 @@ export default function PostSaleModal({ isOpen, onClose, repair, customer, cart,
       const response = await axios.post('/api/send-whatsapp', {
         phone: normalizePhone(customer.phone),
         message: attachmentMessage,
-        // For unofficial APIs send base64 so they can deliver the PDF directly;
-        // for official Meta API send the public URL (planifyx needs no auth to fetch it)
         pdfUrl: !isLocalUrl ? pdfUrl : null,
         pdfBase64,
         pdfFilename,
@@ -155,11 +176,12 @@ export default function PostSaleModal({ isOpen, onClose, repair, customer, cart,
       }, { headers: await getAuthHeaders() });
 
       if (response.data.success) {
-        toast.success('WhatsApp notification sent');
+        toast.success('WhatsApp invoice sent ✓');
       }
     } catch (error: any) {
       console.error('WhatsApp error:', error);
-      toast.error(error.response?.data?.error || 'Failed to send WhatsApp');
+      const msg = error.response?.data?.error || error.message || 'Failed to send WhatsApp';
+      toast.error(msg);
     } finally {
       setSendingWhatsApp(false);
     }
