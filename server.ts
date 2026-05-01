@@ -615,8 +615,52 @@ async function startServer() {
           return res.status(400).json({ error: "WhatsApp API URL must be a public HTTP(S) endpoint." });
         }
 
-        // Support for Instance-based APIs (like SocialPoster, UltraMsg, etc.)
-        // Most of these platforms (Stackposts, WPPConnect based) prefer POST
+        // Support for Instance-based APIs (SocialPoster/planifyx, UltraMsg, etc.)
+        // If we have a base64 PDF, send it as a document via multipart form upload.
+        // Fall back to URL-based document or plain text if no PDF available.
+        const hasDocument = !!(pdfBase64 || pdfUrl);
+
+        if (pdfBase64) {
+          // Send PDF as a file upload — planifyx and most WPPConnect-based APIs accept this
+          const baseUrl = settings.apiUrl.replace(/\/send$/, ''); // strip /send suffix if present
+          const docEndpoints = [
+            `${baseUrl}/send-document`,
+            `${baseUrl}/send`,
+            settings.apiUrl,
+          ];
+
+          const pdfBuffer = Buffer.from(pdfBase64, 'base64');
+          const FormDataNode = (await import('form-data')).default;
+          const form = new FormDataNode();
+          form.append('instance_id', settings.instanceId || '');
+          form.append('access_token', settings.accessToken || '');
+          form.append('token', settings.accessToken || '');
+          form.append('number', phone);
+          form.append('to', phone);
+          form.append('caption', message || 'Your invoice is attached.');
+          form.append('message', message || 'Your invoice is attached.');
+          form.append('type', 'document');
+          form.append('filename', pdfFilename || 'Invoice.pdf');
+          form.append('file', pdfBuffer, { filename: pdfFilename || 'Invoice.pdf', contentType: 'application/pdf' });
+
+          for (const endpoint of docEndpoints) {
+            try {
+              const response = await axios.post(endpoint, form, {
+                headers: form.getHeaders(),
+                params: { instance_id: settings.instanceId, access_token: settings.accessToken },
+                timeout: 15000,
+              });
+              if (response.status < 300) {
+                return res.json({ success: true, data: response.data });
+              }
+            } catch {
+              // try next endpoint
+            }
+          }
+          // If all document endpoints fail, fall through to text message
+        }
+
+        // Fallback: send as text with URL or plain message
         const isDocument = !!pdfUrl;
         const payload = {
           instance_id: settings.instanceId,
@@ -624,26 +668,25 @@ async function startServer() {
           token: settings.accessToken,
           to: phone,
           number: phone,
-          body: message || `Here is your invoice${pdfUrl ? `: ${pdfUrl}` : ''}`,
-          message: message || `Here is your invoice${pdfUrl ? `: ${pdfUrl}` : ''}`,
-          caption: message || `Here is your invoice${pdfUrl ? `: ${pdfUrl}` : ''}`,
-          media_url: pdfUrl, // Some use media_url
-          file: pdfUrl, // Some use file
+          body: message,
+          message: message,
+          caption: message,
+          media_url: pdfUrl,
+          file: pdfUrl,
           document: pdfUrl,
           url: pdfUrl,
-          filename: "Invoice.pdf",
+          filename: pdfFilename || 'Invoice.pdf',
           type: isDocument ? 'document' : 'text'
         };
 
         try {
           const response = await axios.post(settings.apiUrl, payload, {
-            // Some APIs also accept these as query params even for POST
             params: {
               instance_id: settings.instanceId,
               access_token: settings.accessToken,
               type: isDocument ? 'document' : 'text'
             },
-            timeout: 10000 // 10 second timeout
+            timeout: 10000,
           });
           return res.json({ success: true, data: response.data });
         } catch (axiosError: any) {

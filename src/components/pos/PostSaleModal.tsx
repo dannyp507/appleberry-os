@@ -140,18 +140,15 @@ export default function PostSaleModal({ isOpen, onClose, repair, customer, cart,
 
       const pdfUrl = saleId ? `${window.location.origin}/api/invoices/${saleId}.pdf?compact=1` : null;
       const isLocalUrl = pdfUrl ? /:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/i.test(pdfUrl) : false;
-      const shouldAttachPublicLink = settings.whatsapp.provider === 'official' && !isLocalUrl;
-      const attachmentMessage = `Hello ${customer.name}, your invoice for repair ${repair?.ticket_number || 'Sale'} is attached.`;
-      const linkMessage = `Hello ${customer.name}, your invoice for repair ${repair?.ticket_number || 'Sale'} is ready. You can view it here: ${window.location.origin}/view-invoice/${saleId || 'sale'}`;
+      const ticketRef = repair?.ticket_number || 'Sale';
+      const attachmentMessage = `Hello ${customer.name}, your invoice for ${ticketRef} is attached.`;
 
-      if (settings.whatsapp.provider === 'unofficial' && pdfUrl && isLocalUrl) {
-        toast.error('WhatsApp can send the message, but not the invoice file while the app is running locally. The PDF link must be on a public URL.');
-      }
-      
       const response = await axios.post('/api/send-whatsapp', {
         phone: normalizePhone(customer.phone),
-        message: settings.whatsapp.provider === 'official' ? attachmentMessage : linkMessage,
-        pdfUrl: shouldAttachPublicLink ? pdfUrl : null,
+        message: attachmentMessage,
+        // For unofficial APIs send base64 so they can deliver the PDF directly;
+        // for official Meta API send the public URL (planifyx needs no auth to fetch it)
+        pdfUrl: !isLocalUrl ? pdfUrl : null,
         pdfBase64,
         pdfFilename,
         companyId,
