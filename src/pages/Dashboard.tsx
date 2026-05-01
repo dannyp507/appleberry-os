@@ -2,10 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { db } from '../lib/firebase';
 import { doc, getDoc, getDocs, limit, orderBy, where } from 'firebase/firestore';
 import { Link } from 'react-router-dom';
-import { 
-  TrendingUp, 
-  DollarSign, 
-  Package, 
+import {
+  TrendingUp,
+  DollarSign,
+  Package,
   Wrench,
   Wallet,
   Truck,
@@ -19,14 +19,20 @@ import {
   CheckCircle2,
   ShoppingCart,
   ArrowRight,
+  FileText,
+  Smartphone,
+  CheckSquare,
+  SunMedium,
+  BarChart2,
+  Settings,
 } from 'lucide-react';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer
 } from 'recharts';
 import { formatCurrency, safeFormatDate } from '../lib/utils';
@@ -207,205 +213,109 @@ export default function Dashboard({ profile }: { profile: Profile | null }) {
   }, [profile]);
 
   if (loading) {
-    return <div className="animate-pulse space-y-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[1, 2, 3, 4].map(i => <div key={i} className="h-32 section-card rounded-xl"></div>)}
+    return (
+      <div className="animate-pulse space-y-6 p-6">
+        <div className="h-8 bg-gray-200 rounded w-48" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map(i => <div key={i} className="h-28 bg-white rounded-xl border border-gray-100" />)}
+        </div>
+        <div className="h-64 bg-white rounded-xl border border-gray-100" />
       </div>
-      <div className="h-96 section-card rounded-xl"></div>
-    </div>;
+    );
   }
 
-  const attentionItems = [
-    hasPermission(profile, 'inventory.view') && {
-      title: stats.lowStock > 0 ? `${stats.lowStock} low-stock item${stats.lowStock === 1 ? '' : 's'}` : 'Stock position is clear',
-      message: stats.lowStock > 0 ? 'Review products below threshold before the next rush.' : 'No immediate stock alerts from current thresholds.',
-      cta: stats.lowStock > 0 ? 'Restock now' : 'View inventory',
-      to: '/inventory',
-      icon: Package,
-      tone: stats.lowStock > 0 ? 'warning' : 'success',
-    },
-    hasPermission(profile, 'repairs.view') && {
-      title: stats.overdueRepairs > 0 ? `${stats.overdueRepairs} overdue repair${stats.overdueRepairs === 1 ? '' : 's'}` : `${stats.activeRepairs} active repair${stats.activeRepairs === 1 ? '' : 's'}`,
-      message: stats.overdueRepairs > 0 ? 'Stale or blocked jobs need technician attention.' : stats.activeRepairs > 0 ? 'The workshop has jobs moving through the queue.' : 'No active jobs yet. Create an intake when a device arrives.',
-      cta: stats.activeRepairs > 0 || stats.overdueRepairs > 0 ? 'View queue' : 'Create job',
-      to: stats.activeRepairs > 0 || stats.overdueRepairs > 0 ? '/repairs?status=open' : '/repairs/new',
-      icon: stats.overdueRepairs > 0 ? AlertTriangle : Wrench,
-      tone: stats.overdueRepairs > 0 ? 'danger' : stats.activeRepairs > 0 ? 'info' : 'neutral',
-    },
-    hasPermission(profile, 'pos.use') && {
-      title: stats.dailySales > 0 ? 'Sales are moving today' : 'No sales yet today',
-      message: stats.dailySales > 0 ? 'Cash register activity is live. Keep checkout moving.' : 'Start the first sale from the register when the counter opens.',
-      cta: stats.dailySales > 0 ? 'Open POS' : 'Start new sale',
-      to: '/pos',
-      icon: ShoppingCart,
-      tone: stats.dailySales > 0 ? 'success' : 'info',
-    },
-  ].filter(Boolean) as Array<{
-    title: string;
-    message: string;
-    cta: string;
-    to: string;
-    icon: any;
-    tone: string;
-  }>;
+  const today = new Date();
+  const greeting = today.getHours() < 12 ? 'Good morning' : today.getHours() < 17 ? 'Good afternoon' : 'Good evening';
+  const dateStr = today.toLocaleDateString('en-ZA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-  const allClear = stats.lowStock === 0 && stats.overdueRepairs === 0;
+  const quickActions = [
+    { icon: ShoppingCart, label: 'Cash Register', path: '/pos', color: 'bg-green-500', permission: 'pos.use' as PermissionKey },
+    { icon: Wrench, label: 'New Repair', path: '/repairs', color: 'bg-blue-500', permission: 'repairs.view' as PermissionKey },
+    { icon: Users, label: 'Customers', path: '/customers', color: 'bg-purple-500', permission: 'customers.view' as PermissionKey },
+    { icon: FileText, label: 'Invoices', path: '/invoices', color: 'bg-indigo-500', permission: 'invoices.view' as PermissionKey },
+    { icon: Package, label: 'Products', path: '/inventory', color: 'bg-orange-500', permission: 'inventory.view' as PermissionKey },
+    { icon: Smartphone, label: 'Devices', path: '/devices', color: 'bg-cyan-500', permission: 'devices.view' as PermissionKey },
+    { icon: CheckSquare, label: 'Stock Take', path: '/stock-take', color: 'bg-teal-500', permission: 'stock_take.view' as PermissionKey },
+    { icon: DollarSign, label: 'Expenses', path: '/expenses', color: 'bg-red-500', permission: 'expenses.view' as PermissionKey },
+    { icon: SunMedium, label: 'End of Day', path: '/end-of-day', color: 'bg-amber-500', permission: 'end_of_day.view' as PermissionKey },
+    { icon: BarChart2, label: 'Sales Reports', path: '/reports/sales', color: 'bg-slate-500', permission: 'reports.sales' as PermissionKey },
+    { icon: Users, label: 'Staff', path: '/staff', color: 'bg-pink-500', permission: 'staff.manage' as PermissionKey },
+    { icon: Database, label: 'Manage Data', path: '/manage-data', color: 'bg-gray-500', permission: 'manage_data.view' as PermissionKey },
+  ].filter(item => hasPermission(profile, item.permission));
 
   return (
-    <div className="space-y-8">
-      <div className="hero-card rounded-xl p-6 md:p-8 overflow-hidden relative">
-        <div className="absolute inset-0 soft-grid opacity-35 pointer-events-none" />
-        <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-[#ed1978] to-[#f8a722]" />
-        <div className="relative flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
-          <div className="max-w-3xl">
-            <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500 font-semibold mb-3">Operations Desk</p>
-            <h1 className="text-3xl md:text-5xl font-black text-white leading-tight">Operations command center.</h1>
-            <p className="text-zinc-400 mt-4 max-w-2xl">Revenue, repair load, stock warnings, and the next best actions for the counter.</p>
+    <div className="space-y-6 p-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-black text-gray-900">{greeting}</h1>
+        <p className="text-sm text-gray-500 mt-0.5">{dateStr}</p>
+      </div>
+
+      {/* Stats row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Link to="/pos" className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 hover:shadow-md hover:border-gray-200 transition-all group">
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center">
+              <DollarSign className="w-5 h-5 text-green-600" />
+            </div>
+            <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-gray-400 transition-colors" />
           </div>
-          <div className={cn(
-            "rounded-xl border px-4 py-3 lg:min-w-[260px]",
-            allClear ? "border-[#22C55E]/25 bg-[#22C55E]/10" : "border-[#F59E0B]/30 bg-[#F59E0B]/10"
-          )}>
-            <div className="flex items-center gap-3">
-              <div className={cn("flex h-10 w-10 items-center justify-center rounded-lg", allClear ? "bg-[#22C55E]/15 text-[#86EFAC]" : "bg-[#F59E0B]/15 text-[#FCD34D]")}>
-                {allClear ? <CheckCircle2 className="h-5 w-5" /> : <AlertTriangle className="h-5 w-5" />}
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-[0.14em] text-zinc-500">Attention</p>
-                <p className="font-black text-white">{allClear ? 'No urgent blockers' : 'Action needed'}</p>
-              </div>
+          <p className="text-2xl font-black text-gray-900">{formatCurrency(stats.dailySales)}</p>
+          <p className="text-xs font-medium text-gray-500 mt-1">Today's Sales</p>
+        </Link>
+
+        <Link to="/repairs?status=open" className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 hover:shadow-md hover:border-gray-200 transition-all group">
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
+              <Wrench className="w-5 h-5 text-blue-600" />
+            </div>
+            <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-gray-400 transition-colors" />
+          </div>
+          <p className="text-2xl font-black text-gray-900">{stats.activeRepairs}</p>
+          <p className="text-xs font-medium text-gray-500 mt-1">Repairs Open</p>
+        </Link>
+
+        <Link to="/inventory" className={cn(
+          "bg-white rounded-xl border shadow-sm p-5 hover:shadow-md transition-all group",
+          stats.lowStock > 0 ? "border-amber-200 hover:border-amber-300" : "border-gray-100 hover:border-gray-200"
+        )}>
+          <div className="flex items-center justify-between mb-3">
+            <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center", stats.lowStock > 0 ? "bg-amber-50" : "bg-orange-50")}>
+              <Package className={cn("w-5 h-5", stats.lowStock > 0 ? "text-amber-600" : "text-orange-600")} />
+            </div>
+            <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-gray-400 transition-colors" />
+          </div>
+          <p className="text-2xl font-black text-gray-900">{stats.lowStock}</p>
+          <p className="text-xs font-medium text-gray-500 mt-1">Products Low Stock</p>
+        </Link>
+
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center">
+              <Users className="w-5 h-5 text-purple-600" />
             </div>
           </div>
+          <p className="text-2xl font-black text-gray-900">{formatCurrency(stats.monthlyProfit)}</p>
+          <p className="text-xs font-medium text-gray-500 mt-1">Monthly Profit</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[1.35fr_1fr] gap-6">
-        <PrimaryKpiCard
-          to="/pos"
-          title="Today Revenue"
-          value={formatCurrency(stats.dailySales)}
-          empty={stats.dailySales <= 0}
-          emptyMessage="No sales yet today. Open the register to start the first sale."
-          cta={stats.dailySales > 0 ? 'Open cash register' : 'Start new sale'}
-          icon={DollarSign}
-        />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <DashboardKpiLink
-            to="/repairs?status=open"
-            title="Active Repairs"
-            value={stats.activeRepairs.toString()}
-            empty={stats.activeRepairs <= 0}
-            emptyMessage="No active repairs"
-            cta={stats.activeRepairs > 0 ? 'View queue' : 'Create job'}
-            icon={Wrench}
-            tone="info"
-          />
-          <DashboardKpiCard
-            title="Monthly Profit"
-            value={formatCurrency(stats.monthlyProfit)}
-            empty={stats.monthlyProfit <= 0}
-            emptyMessage="No profit recorded this month"
-            icon={TrendingUp}
-            tone="success"
-          />
-          <DashboardKpiLink
-            to="/inventory"
-            title="Low Stock"
-            value={stats.lowStock.toString()}
-            empty={stats.lowStock <= 0}
-            emptyMessage="All good"
-            cta={stats.lowStock > 0 ? 'Restock now' : 'View stock'}
-            icon={Package}
-            tone={stats.lowStock > 0 ? 'warning' : 'success'}
-          />
-          <DashboardKpiLink
-            to="/repairs?status=open"
-            title="Overdue Repairs"
-            value={stats.overdueRepairs.toString()}
-            empty={stats.overdueRepairs <= 0}
-            emptyMessage="No overdue jobs"
-            cta={stats.overdueRepairs > 0 ? 'Escalate queue' : 'View repairs'}
-            icon={AlertTriangle}
-            tone={stats.overdueRepairs > 0 ? 'danger' : 'success'}
-          />
-        </div>
-      </div>
-
-      <div className="section-card rounded-xl border border-[#2A2A2E] p-5 md:p-6">
-        <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500 font-semibold">What Needs Attention</p>
-            <h2 className="mt-2 text-2xl font-black text-white">Next best actions</h2>
-          </div>
-          <p className="text-sm text-zinc-500">Jump straight into the work that moves the day forward.</p>
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {attentionItems.map((item) => (
-            <ActionCard key={item.title} {...item} />
+      {/* Quick Actions */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+        <h2 className="text-sm font-black text-gray-900 uppercase tracking-wider mb-4">Quick Actions</h2>
+        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+          {quickActions.map(action => (
+            <Link
+              key={action.path}
+              to={action.path}
+              className="flex flex-col items-center gap-2 p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition-all group"
+            >
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${action.color}`}>
+                <action.icon className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-xs font-semibold text-gray-700 text-center leading-tight">{action.label}</span>
+            </Link>
           ))}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
-        {moduleItems.map((item, i) => (
-          <Link
-            key={i}
-            to={item.path}
-            className={cn(
-              "flex flex-col items-center justify-center p-4 rounded-xl transition-all hover:-translate-y-0.5 section-card aspect-square text-center gap-3"
-            )}
-          >
-            <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center bg-[#101012] border border-[#2A2A2E] shadow-sm", item.color)}>
-              <item.icon className="w-6 h-6" />
-            </div>
-            <span className="text-xs font-bold leading-tight text-white">{item.label}</span>
-          </Link>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 section-card p-6 rounded-xl">
-          <h3 className="text-2xl font-black mb-2 text-white">Sales Performance</h3>
-          <p className="text-sm text-zinc-400 mb-6">Last 7 days of completed sales.</p>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#2A2A2E" />
-                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fill: '#A1A1AA', fontSize: 12}} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#A1A1AA', fontSize: 12}} tickFormatter={(val) => `R${val}`} />
-                <Tooltip 
-                  contentStyle={{ borderRadius: '12px', border: '1px solid #2A2A2E', boxShadow: '0 16px 40px rgb(0 0 0 / 0.36)', background: '#141416', color: '#FFFFFF' }}
-                  formatter={(val: number) => [formatCurrency(val), 'Sales']}
-                />
-                <Bar dataKey="amount" fill="#22C55E" radius={[8, 8, 0, 0]} barSize={40} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="section-card p-6 rounded-xl">
-          <h3 className="text-2xl font-black mb-2 text-white">Top Products</h3>
-          <p className="text-sm text-zinc-400 mb-6">Best performers from your recent sales flow.</p>
-          <div className="space-y-6">
-            {topProducts.length > 0 ? topProducts.map((item, i) => (
-              <div key={i} className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-[#101012] border border-[#2A2A2E] flex items-center justify-center text-xs font-bold text-[#f8a722]">
-                    {i + 1}
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-white">{item.name}</p>
-                    <p className="text-xs text-zinc-500">{item.quantity} sold</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-bold text-[#86EFAC]">{formatCurrency(item.revenue)}</p>
-                </div>
-              </div>
-            )) : (
-              <p className="text-sm text-zinc-500 text-center py-8">No sales data yet.</p>
-            )}
-          </div>
         </div>
       </div>
     </div>

@@ -1,29 +1,9 @@
 import { NavLink } from 'react-router-dom';
 import {
-  LayoutDashboard,
-  Megaphone,
-  MessageSquareMore,
-  ShoppingCart,
-  Package,
-  Wrench,
-  Users,
-  Search,
-  LogOut,
-  User as UserIcon,
-  FileText,
-  Truck,
-  ClipboardList,
-  Smartphone,
-  CheckSquare,
-  Database,
-  Settings,
-  X,
-  Calendar,
-  ShoppingBag,
-  BarChart2,
-  DollarSign,
-  ArrowLeftRight,
-  SunMedium,
+  LayoutDashboard, Megaphone, MessageSquareMore, ShoppingCart, Package, Wrench,
+  Users, Search, LogOut, User as UserIcon, FileText, Truck, ClipboardList,
+  Smartphone, CheckSquare, Database, Settings, X, Calendar, ShoppingBag,
+  BarChart2, DollarSign, ArrowLeftRight, SunMedium,
 } from 'lucide-react';
 import { auth } from '../lib/firebase';
 import { signOut } from 'firebase/auth';
@@ -32,31 +12,25 @@ import { Company, Profile } from '../types';
 import { PermissionKey, hasPermission } from '../lib/permissions';
 
 const navItems = [
-  // Core
   { icon: LayoutDashboard, label: 'Dashboard', path: '/', permission: 'dashboard.view' as PermissionKey },
   { icon: ShoppingCart, label: 'Cash Register', path: '/pos', permission: 'pos.use' as PermissionKey },
   { icon: Wrench, label: 'Repairs', path: '/repairs', permission: 'repairs.view' as PermissionKey },
   { icon: Calendar, label: 'Appointments', path: '/appointments', permission: 'appointments.view' as PermissionKey },
   { icon: Users, label: 'Customers', path: '/customers', permission: 'customers.view' as PermissionKey },
-  // Sales & Finance
   { icon: FileText, label: 'Invoices', path: '/invoices', permission: 'invoices.view' as PermissionKey },
   { icon: ShoppingBag, label: 'Orders', path: '/orders', permission: 'orders.view' as PermissionKey },
   { icon: DollarSign, label: 'Expenses', path: '/expenses', permission: 'expenses.view' as PermissionKey },
   { icon: SunMedium, label: 'End of Day', path: '/end-of-day', permission: 'end_of_day.view' as PermissionKey },
-  // Inventory
   { icon: Package, label: 'Products', path: '/inventory', permission: 'inventory.view' as PermissionKey },
   { icon: Smartphone, label: 'Devices', path: '/devices', permission: 'devices.view' as PermissionKey },
   { icon: CheckSquare, label: 'Stock Take', path: '/stock-take', permission: 'stock_take.view' as PermissionKey },
   { icon: ArrowLeftRight, label: 'Transfers', path: '/transfer', permission: 'transfer.view' as PermissionKey },
   { icon: Truck, label: 'Purchase Orders', path: '/purchase-orders', permission: 'purchase_orders.view' as PermissionKey },
-  // Reports
   { icon: BarChart2, label: 'Sales Reports', path: '/reports/sales', permission: 'reports.sales' as PermissionKey },
   { icon: BarChart2, label: 'Repairs Reports', path: '/reports/repairs', permission: 'reports.repairs' as PermissionKey },
   { icon: BarChart2, label: 'Inventory Reports', path: '/reports/inventory', permission: 'reports.inventory' as PermissionKey },
-  // Marketing
   { icon: Megaphone, label: 'Campaigns', path: '/campaigns', permission: 'marketing.view' as PermissionKey },
   { icon: MessageSquareMore, label: 'WhatsApp Studio', path: '/whatsapp-studio', permission: 'marketing.view' as PermissionKey },
-  // Admin
   { icon: Search, label: 'IMEI Search', path: '/imei', permission: 'imei.view' as PermissionKey },
   { icon: ClipboardList, label: 'Activity Log', path: '/activity', permission: 'activity.view' as PermissionKey },
   { icon: Database, label: 'Manage Data', path: '/manage-data', permission: 'manage_data.view' as PermissionKey },
@@ -71,11 +45,7 @@ type SidebarProps = {
   onCloseMobile?: () => void;
 };
 
-function SidebarContent({
-  profile,
-  company,
-  onNavigate,
-}: {
+function SidebarContent({ profile, company, onNavigate }: {
   profile: Profile | null;
   company?: Company | null;
   onNavigate?: () => void;
@@ -89,52 +59,56 @@ function SidebarContent({
 
   return (
     <>
-      <div className="relative p-5 md:p-6 flex-1 min-h-0 flex flex-col">
-        <div className="flex items-center gap-3 mb-8">
-          <div className="w-11 h-11 md:w-12 md:h-12 rounded-xl brand-badge flex items-center justify-center text-white font-black text-xl shrink-0">
+      {/* Logo */}
+      <div className="px-5 py-5 border-b border-white/10">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl brand-badge flex items-center justify-center text-white font-black text-lg shrink-0">
             A
           </div>
           <div className="min-w-0">
-            <h1 className="font-black text-xl md:text-2xl leading-none text-white truncate">Appleberry OS</h1>
-            <p className="text-[10px] md:text-[11px] tracking-[0.18em] uppercase text-zinc-400 font-semibold mt-1 truncate">
-              {company?.name || 'Repair Operations Suite'}
+            <h1 className="font-black text-lg leading-tight text-white truncate">Appleberry OS</h1>
+            <p className="text-[10px] tracking-widest uppercase text-white/40 font-medium truncate">
+              {company?.name || 'Repair Suite'}
             </p>
           </div>
         </div>
-
-        <nav className="space-y-1 overflow-y-auto pr-1">
-          {visibleNavItems.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              onClick={onNavigate}
-              className={({ isActive }) =>
-                cn(
-                  "relative flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all",
-                  isActive
-                    ? "bg-[#1C1C1F] text-white border border-[#2A2A2E] shadow-[inset_3px_0_0_#ed1978]"
-                    : "text-zinc-400 hover:bg-white/[0.04] hover:text-white"
-                )
-              }
-            >
-              <item.icon className="w-5 h-5 shrink-0" />
-              <span className="truncate">{item.label}</span>
-            </NavLink>
-          ))}
-        </nav>
       </div>
 
-      <div className="mt-auto relative p-5 md:p-6 border-t border-[#2A2A2E] space-y-4">
+      {/* Nav */}
+      <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
+        {visibleNavItems.map((item) => (
+          <NavLink
+            key={item.path}
+            to={item.path}
+            end={item.path === '/'}
+            onClick={onNavigate}
+            className={({ isActive }) =>
+              cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
+                isActive
+                  ? "bg-white/15 text-white font-semibold"
+                  : "text-white/60 hover:bg-white/8 hover:text-white/90"
+              )
+            }
+          >
+            <item.icon className="w-[18px] h-[18px] shrink-0" />
+            <span className="truncate">{item.label}</span>
+          </NavLink>
+        ))}
+      </nav>
+
+      {/* User + Logout */}
+      <div className="px-3 py-4 border-t border-white/10 space-y-1">
         {auth.currentUser && (
-          <div className="flex items-center gap-3 px-4 py-3 bg-[#1C1C1F] rounded-xl border border-[#2A2A2E]">
-            <div className="w-9 h-9 rounded-lg bg-[#202024] flex items-center justify-center text-zinc-200 shrink-0">
+          <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-white/8 mb-2">
+            <div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center text-white shrink-0">
               <UserIcon className="w-4 h-4" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-white truncate">
+              <p className="text-sm font-semibold text-white truncate">
                 {profile?.full_name || 'Staff Member'}
               </p>
-              <p className="text-[10px] text-zinc-500 truncate uppercase tracking-[0.18em]">
+              <p className="text-[10px] text-white/40 truncate uppercase tracking-widest">
                 {profile?.role || 'Staff'}
               </p>
             </div>
@@ -142,10 +116,10 @@ function SidebarContent({
         )}
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-sm font-semibold text-zinc-400 hover:bg-white/[0.04] hover:text-white transition-colors"
+          className="flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-sm font-medium text-white/50 hover:bg-white/8 hover:text-white/80 transition-colors"
         >
-          <LogOut className="w-5 h-5" />
-          Logout
+          <LogOut className="w-[18px] h-[18px]" />
+          Sign out
         </button>
       </div>
     </>
@@ -155,28 +129,30 @@ function SidebarContent({
 export default function Sidebar({ profile, company, mobileOpen = false, onCloseMobile }: SidebarProps) {
   return (
     <>
-      <aside className="hidden lg:flex w-72 app-sidebar relative border-r border-[#2A2A2E] flex-col min-h-screen overflow-hidden">
+      {/* Desktop */}
+      <aside className="hidden lg:flex w-64 flex-col min-h-screen bg-[#1E293B] border-r border-white/10 overflow-hidden">
         <SidebarContent profile={profile} company={company} />
       </aside>
 
+      {/* Mobile overlay */}
       {mobileOpen && (
         <div className="lg:hidden fixed inset-0 z-50">
           <button
             type="button"
             aria-label="Close navigation"
             onClick={onCloseMobile}
-            className="absolute inset-0 bg-black/70 backdrop-blur-[2px]"
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
           />
-          <aside className="relative z-10 h-full w-[88vw] max-w-sm app-sidebar border-r border-[#2A2A2E] flex flex-col overflow-hidden shadow-2xl">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[#2A2A2E]">
-              <p className="text-xs uppercase tracking-[0.18em] text-zinc-400 font-semibold">Navigation</p>
+          <aside className="relative z-10 h-full w-[80vw] max-w-xs bg-[#1E293B] border-r border-white/10 flex flex-col overflow-hidden shadow-2xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+              <p className="text-xs uppercase tracking-widest text-white/40 font-medium">Menu</p>
               <button
                 type="button"
-                aria-label="Close navigation"
+                aria-label="Close"
                 onClick={onCloseMobile}
-                className="rounded-xl border border-[#2A2A2E] bg-[#1C1C1F] p-2 text-zinc-300 hover:bg-white/[0.06]"
+                className="rounded-lg bg-white/10 p-1.5 text-white/60 hover:text-white transition-colors"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
             <SidebarContent profile={profile} company={company} onNavigate={onCloseMobile} />
