@@ -1047,7 +1047,7 @@ export default function POS() {
                     ref={paymentAmountRef}
                     type="number"
                     placeholder="0.00"
-                    className="w-full pl-10 pr-3 py-5 text-3xl font-black text-white focus:border-[#22C55E] focus:ring-2 focus:ring-[#22C55E]/20"
+                    className="w-full pl-10 pr-3 py-5 text-3xl font-black text-white bg-transparent focus:border-[#22C55E] focus:ring-2 focus:ring-[#22C55E]/20"
                     value={paymentAmount}
                     onChange={(e) => setPaymentAmount(e.target.value)}
                   />
