@@ -35,7 +35,7 @@ import {
   Tooltip,
   ResponsiveContainer
 } from 'recharts';
-import { formatCurrency, safeFormatDate } from '../lib/utils';
+import { formatCurrency, safeFormatDate, cn } from '../lib/utils';
 import { startOfDay, startOfMonth, subDays } from 'date-fns';
 import { Product, Profile } from '../types';
 import { PermissionKey, hasPermission } from '../lib/permissions';
