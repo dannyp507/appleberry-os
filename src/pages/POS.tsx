@@ -613,20 +613,20 @@ export default function POS() {
   };
 
   return (
-    <div className="flex min-h-[calc(100vh-2rem)] flex-col gap-5 xl:flex-row xl:gap-6 bg-[#0B0B0C] text-white -m-6 p-6 rounded-xl">
+    <div className="flex min-h-[calc(100vh-2rem)] flex-col gap-5 xl:flex-row xl:gap-6 bg-gray-50 text-gray-900 -m-6 p-6 rounded-xl">
       {/* Main Area */}
       <div className="order-1 flex flex-1 min-w-0 flex-col space-y-4">
         <div className="hero-card rounded-xl px-4 py-4 md:px-6 md:py-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500 font-semibold mb-2">Point Of Sale</p>
-            <h1 className="text-3xl md:text-4xl font-black text-white">Cash Register</h1>
-            <p className="mt-2 text-sm text-zinc-400">Scan, add items, take payment, and complete the sale from one focused register view.</p>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-gray-400 font-semibold mb-2">Point Of Sale</p>
+            <h1 className="text-3xl md:text-4xl font-black text-gray-900">Cash Register</h1>
+            <p className="mt-2 text-sm text-gray-500">Scan, add items, take payment, and complete the sale from one focused register view.</p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <div className="flex items-center gap-2 bg-[#101012] border border-[#2A2A2E] rounded-xl px-3 py-2 shadow-sm min-w-0">
-              <UserIcon className="w-4 h-4 text-zinc-500" />
+            <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 shadow-sm min-w-0">
+              <UserIcon className="w-4 h-4 text-gray-400" />
               <select
-                className="min-w-0 text-sm font-medium bg-transparent focus:outline-none text-white"
+                className="min-w-0 text-sm font-medium bg-transparent focus:outline-none text-gray-900"
                 value={selectedStaffId}
                 onChange={(e) => setSelectedStaffId(e.target.value)}
               >
@@ -636,10 +636,10 @@ export default function POS() {
               </select>
             </div>
             {drawers.length > 0 && (
-              <div className="flex items-center gap-2 bg-[#101012] border border-[#2A2A2E] rounded-xl px-3 py-2 shadow-sm min-w-0">
-                <span className="text-zinc-500 text-xs font-bold">🗄</span>
+              <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 shadow-sm min-w-0">
+                <span className="text-gray-400 text-xs font-bold">🗄</span>
                 <select
-                  className="min-w-0 text-sm font-medium bg-transparent focus:outline-none text-white"
+                  className="min-w-0 text-sm font-medium bg-transparent focus:outline-none text-gray-900"
                   value={selectedDrawerId}
                   onChange={(e) => handleDrawerChange(e.target.value)}
                 >
@@ -653,7 +653,7 @@ export default function POS() {
             <button className="btn btn-secondary px-3 py-2 text-xs">
               Petty Cash
             </button>
-            <button onClick={() => setIsSaleToolsOpen(true)} className="btn btn-secondary px-3 py-2 text-xs text-zinc-400">
+            <button onClick={() => setIsSaleToolsOpen(true)} className="btn btn-secondary px-3 py-2 text-xs text-gray-500">
               <MoreHorizontal className="w-4 h-4" />
               Sale Tools
             </button>
@@ -661,13 +661,13 @@ export default function POS() {
         </div>
 
         {/* Item Search */}
-        <div className="section-card p-4 rounded-xl border border-[#2A2A2E] bg-[#141416]">
+        <div className="section-card p-4 rounded-xl border border-gray-200 bg-white">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-black text-white">Add Items</p>
-              <p className="text-xs text-zinc-500">Scan barcode, search SKU, IMEI, or product name.</p>
+              <p className="text-sm font-black text-gray-900">Add Items</p>
+              <p className="text-xs text-gray-400">Scan barcode, search SKU, IMEI, or product name.</p>
             </div>
-            <div className="hidden items-center gap-2 rounded-lg border border-[#2A2A2E] bg-[#101012] px-3 py-2 text-xs font-bold text-zinc-400 sm:flex">
+            <div className="hidden items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-bold text-gray-500 sm:flex">
               <ShoppingCart className="h-4 w-4 text-[#3B82F6]" />
               {totalQty} items
             </div>
@@ -678,7 +678,7 @@ export default function POS() {
               <input
                 type="text"
                 placeholder="Scan or search item..."
-                className="w-full pl-10 pr-4 py-4 text-base font-bold focus:border-[#3B82F6] focus:ring-2 focus:ring-[#3B82F6]/20"
+                className="w-full pl-10 pr-4 py-4 text-base font-bold focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value);
@@ -688,25 +688,25 @@ export default function POS() {
                 onFocus={() => setShowProductResults(true)}
               />
               {showProductResults && (search || isBrowsingProducts) && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-[#141416] border border-[#2A2A2E] rounded-xl shadow-2xl z-20 max-h-72 overflow-y-auto">
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-2xl z-20 max-h-72 overflow-y-auto">
                   {filteredProducts.length > 0 ? (
                     filteredProducts.map(p => (
                       <button
                         key={p.id}
-                        className="w-full px-4 py-3 text-left hover:bg-white/[0.05] flex items-center justify-between gap-4"
+                        className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center justify-between gap-4"
                         onClick={() => addToCart(p)}
                       >
                         <div className="min-w-0">
-                          <p className="font-semibold text-white">{p.name}</p>
-                          <p className="text-xs text-zinc-500">{p.category} · {formatCurrency(p.selling_price)} · Stock {p.stock || 0}</p>
+                          <p className="font-semibold text-gray-900">{p.name}</p>
+                          <p className="text-xs text-gray-400">{p.category} · {formatCurrency(p.selling_price)} · Stock {p.stock || 0}</p>
                         </div>
-                        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#22C55E]/15 text-[#86EFAC]">
+                        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-green-100 text-green-700">
                           <Plus className="w-4 h-4" />
                         </span>
                       </button>
                     ))
                   ) : (
-                    <div className="p-4 text-center text-zinc-500">No products found</div>
+                    <div className="p-4 text-center text-gray-400">No products found</div>
                   )}
                 </div>
               )}
@@ -729,30 +729,30 @@ export default function POS() {
         </div>
 
         {/* Cart Table */}
-        <div className="flex-1 section-card rounded-xl overflow-hidden flex flex-col border border-[#2A2A2E] bg-[#141416]">
-          <div className="flex flex-col gap-2 border-b border-[#2A2A2E] bg-[#101012] px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex-1 section-card rounded-xl overflow-hidden flex flex-col border border-gray-200 bg-white">
+          <div className="flex flex-col gap-2 border-b border-gray-200 bg-gray-50 px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <div className="flex items-center gap-3">
-                <p className="text-sm font-black text-white">Current Sale</p>
-                <span className="rounded-full border border-[#3B82F6]/30 bg-[#3B82F6]/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-[#93C5FD]">
+                <p className="text-sm font-black text-gray-900">Current Sale</p>
+                <span className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-blue-700">
                   {cart.length} lines
                 </span>
               </div>
-              <p className="mt-1 text-xs text-zinc-500">{cart.length ? `${totalQty} total quantity` : 'Cart is ready for scanned items'}</p>
+              <p className="mt-1 text-xs text-gray-400">{cart.length ? `${totalQty} total quantity` : 'Cart is ready for scanned items'}</p>
             </div>
-            <p className="text-xs font-bold text-zinc-400">Subtotal {formatCurrency(subtotal)}</p>
+            <p className="text-xs font-bold text-gray-500">Subtotal {formatCurrency(subtotal)}</p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[820px] border-separate border-spacing-0 text-sm">
-              <thead className="bg-[#101012]">
+              <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500">Item</th>
-                  <th className="px-4 py-2.5 text-center text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500">Stock</th>
-                  <th className="px-4 py-2.5 text-center text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500">Qty</th>
-                  <th className="px-4 py-2.5 text-right text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500">Unit</th>
-                  <th className="px-4 py-2.5 text-right text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500">Discount</th>
-                  <th className="px-4 py-2.5 text-right text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500">Line Total</th>
-                  <th className="px-4 py-2.5 text-center text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500 w-16"></th>
+                  <th className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-[0.16em] text-gray-400">Item</th>
+                  <th className="px-4 py-2.5 text-center text-[11px] font-bold uppercase tracking-[0.16em] text-gray-400">Stock</th>
+                  <th className="px-4 py-2.5 text-center text-[11px] font-bold uppercase tracking-[0.16em] text-gray-400">Qty</th>
+                  <th className="px-4 py-2.5 text-right text-[11px] font-bold uppercase tracking-[0.16em] text-gray-400">Unit</th>
+                  <th className="px-4 py-2.5 text-right text-[11px] font-bold uppercase tracking-[0.16em] text-gray-400">Discount</th>
+                  <th className="px-4 py-2.5 text-right text-[11px] font-bold uppercase tracking-[0.16em] text-gray-400">Line Total</th>
+                  <th className="px-4 py-2.5 text-center text-[11px] font-bold uppercase tracking-[0.16em] text-gray-400 w-16"></th>
                 </tr>
               </thead>
               <tbody>
@@ -760,11 +760,11 @@ export default function POS() {
                   <tr>
                     <td colSpan={7} className="px-4 py-14">
                       <div className="mx-auto max-w-sm text-center">
-                        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-[#2A2A2E] bg-[#101012] text-[#3B82F6]">
+                        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-gray-200 bg-gray-50 text-[#3B82F6]">
                           <ScanLine className="h-7 w-7" />
                         </div>
-                        <h3 className="text-lg font-bold text-white">Cart is empty</h3>
-                        <p className="mt-2 text-sm text-zinc-400">Scan a barcode or search above to add the first item to this sale.</p>
+                        <h3 className="text-lg font-bold text-gray-900">Cart is empty</h3>
+                        <p className="mt-2 text-sm text-gray-500">Scan a barcode or search above to add the first item to this sale.</p>
                       </div>
                     </td>
                   </tr>
@@ -775,62 +775,62 @@ export default function POS() {
                     const itemTotal = (price - discount) * item.quantity;
                     
                     return (
-                      <tr key={item.id} className="group transition-colors hover:bg-[#202024]">
-                        <td className="border-b border-[#2A2A2E] px-4 py-3">
+                      <tr key={item.id} className="group transition-colors hover:bg-gray-50">
+                        <td className="border-b border-gray-200 px-4 py-3">
                           <div className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#2A2A2E] bg-[#101012] text-xs font-black text-zinc-400">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-xs font-black text-gray-500">
                               {index + 1}
                             </div>
                             <div className="min-w-0">
-                              <p className="truncate font-bold text-white">{item.name}</p>
-                              <p className="mt-1 truncate text-xs text-zinc-500">{item.sku || item.barcode || item.category || 'POS line item'}</p>
+                              <p className="truncate font-bold text-gray-900">{item.name}</p>
+                              <p className="mt-1 truncate text-xs text-gray-400">{item.sku || item.barcode || item.category || 'POS line item'}</p>
                             </div>
                           </div>
                         </td>
-                        <td className="border-b border-[#2A2A2E] px-4 py-3 text-center">
-                          <span className={cn('inline-flex min-w-14 justify-center rounded-lg border px-2.5 py-1 text-xs font-bold', Number(item.stock || 0) <= Number(item.low_stock_threshold || 0) ? 'border-[#F59E0B]/30 bg-[#F59E0B]/10 text-[#FCD34D]' : 'border-[#2A2A2E] bg-[#101012] text-zinc-300')}>
+                        <td className="border-b border-gray-200 px-4 py-3 text-center">
+                          <span className={cn('inline-flex min-w-14 justify-center rounded-lg border px-2.5 py-1 text-xs font-bold', Number(item.stock || 0) <= Number(item.low_stock_threshold || 0) ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-gray-200 bg-gray-50 text-gray-600')}>
                             {item.stock || 0}
                           </span>
                         </td>
-                        <td className="border-b border-[#2A2A2E] px-4 py-3 text-center">
+                        <td className="border-b border-gray-200 px-4 py-3 text-center">
                           <div className="flex items-center justify-center gap-2">
-                            <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="rounded-lg border border-[#2A2A2E] bg-[#101012] p-2 text-zinc-300 transition-colors hover:border-[#EF4444]/40 hover:text-[#FCA5A5]">
+                            <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="rounded-lg border border-gray-200 bg-gray-50 p-2 text-gray-600 transition-colors hover:border-red-200 hover:text-red-600">
                               <Minus className="w-3 h-3" />
                             </button>
                             <input
                               type="number"
                               min="1"
-                              className="h-9 w-14 rounded-lg border border-[#2A2A2E] bg-[#101012] px-2 text-center font-black text-white focus:border-[#3B82F6] focus:outline-none"
+                              className="h-9 w-14 rounded-lg border border-gray-200 bg-gray-50 px-2 text-center font-black text-gray-900 focus:border-blue-400 focus:outline-none"
                               value={item.quantity}
                               onChange={(e) => updateQuantity(item.id, parseInt(e.target.value, 10) || 1)}
                             />
-                            <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="rounded-lg border border-[#2A2A2E] bg-[#101012] p-2 text-zinc-300 transition-colors hover:border-[#22C55E]/40 hover:text-[#86EFAC]">
+                            <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="rounded-lg border border-gray-200 bg-gray-50 p-2 text-gray-600 transition-colors hover:border-green-200 hover:text-green-700">
                               <Plus className="w-3 h-3" />
                             </button>
                           </div>
                         </td>
-                        <td className="border-b border-[#2A2A2E] px-4 py-3 text-right">
+                        <td className="border-b border-gray-200 px-4 py-3 text-right">
                           <input 
                             type="number"
                             step="0.01"
-                            className="w-24 rounded-lg border border-transparent bg-[#101012] px-2 py-2 text-right font-semibold hover:border-[#3A3A42] focus:border-[#3B82F6] focus:outline-none"
+                            className="w-24 rounded-lg border border-transparent bg-gray-50 px-2 py-2 text-right font-semibold hover:border-gray-300 focus:border-blue-400 focus:outline-none"
                             value={price}
                             onChange={(e) => updatePrice(item.id, parseFloat(e.target.value))}
                           />
                         </td>
-                        <td className="border-b border-[#2A2A2E] px-4 py-3 text-right">
+                        <td className="border-b border-gray-200 px-4 py-3 text-right">
                           <input 
                             type="number"
                             step="0.01"
                             placeholder="0.00"
-                            className="w-20 rounded-lg border border-transparent bg-[#101012] px-2 py-2 text-right font-semibold text-[#FCA5A5] hover:border-[#3A3A42] focus:border-[#3B82F6] focus:outline-none"
+                            className="w-20 rounded-lg border border-transparent bg-gray-50 px-2 py-2 text-right font-semibold text-red-600 hover:border-gray-300 focus:border-blue-400 focus:outline-none"
                             value={item.discount || ''}
                             onChange={(e) => updateDiscount(item.id, parseFloat(e.target.value) || 0)}
                           />
                         </td>
-                        <td className="border-b border-[#2A2A2E] px-4 py-3 text-right font-black text-[#86EFAC]">{formatCurrency(itemTotal)}</td>
-                        <td className="border-b border-[#2A2A2E] px-4 py-3 text-center">
-                          <button onClick={() => removeFromCart(item.id)} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#EF4444]/35 bg-[#EF4444]/10 text-[#FCA5A5] transition-colors hover:border-[#EF4444] hover:bg-[#EF4444]/20 hover:text-white" title="Remove item">
+                        <td className="border-b border-gray-200 px-4 py-3 text-right font-black text-green-700">{formatCurrency(itemTotal)}</td>
+                        <td className="border-b border-gray-200 px-4 py-3 text-center">
+                          <button onClick={() => removeFromCart(item.id)} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-600 transition-colors hover:border-red-500 hover:bg-red-100 hover:text-gray-900" title="Remove item">
                             <X className="w-4 h-4" />
                           </button>
                         </td>
@@ -845,16 +845,16 @@ export default function POS() {
       </div>
 
       {/* Right Sidebar */}
-      <div className="order-2 w-full xl:w-[26rem] xl:max-w-[26rem] flex flex-col space-y-4 border-t border-[#2A2A2E] pt-5 xl:sticky xl:top-5 xl:self-start xl:border-l xl:border-t-0 xl:pl-6 xl:pt-0">
+      <div className="order-2 w-full xl:w-[26rem] xl:max-w-[26rem] flex flex-col space-y-4 border-t border-gray-200 pt-5 xl:sticky xl:top-5 xl:self-start xl:border-l xl:border-t-0 xl:pl-6 xl:pt-0">
         {/* Customer Search */}
-        <div className="section-card p-4 rounded-xl space-y-3 border border-[#2A2A2E]">
+        <div className="section-card p-4 rounded-xl space-y-3 border border-gray-200">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-black text-white">Customer</p>
-              <p className="text-xs text-zinc-500">Optional, but recommended for invoices and repairs.</p>
+              <p className="text-sm font-black text-gray-900">Customer</p>
+              <p className="text-xs text-gray-400">Optional, but recommended for invoices and repairs.</p>
             </div>
             {currentRepair && (
-              <span className="rounded-full border border-[#3B82F6]/30 bg-[#3B82F6]/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-[#93C5FD]">
+              <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-blue-700">
                 Repair
               </span>
             )}
@@ -873,12 +873,12 @@ export default function POS() {
                 onFocus={() => setShowCustomerResults(true)}
               />
               {showCustomerResults && customerSearch && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-[#141416] border border-[#2A2A2E] rounded-xl shadow-2xl z-20 max-h-60 overflow-y-auto">
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-2xl z-20 max-h-60 overflow-y-auto">
                   {filteredCustomers.length > 0 ? (
                     filteredCustomers.map(c => (
                       <button
                         key={c.id}
-                        className="w-full px-4 py-3 text-left hover:bg-white/[0.05] flex items-center justify-between"
+                        className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center justify-between"
                         onClick={() => {
                           setSelectedCustomer(c);
                           setShowCustomerResults(false);
@@ -886,13 +886,13 @@ export default function POS() {
                         }}
                       >
                         <div>
-                          <p className="font-semibold text-sm text-white">{c.name}</p>
-                          <p className="text-[10px] text-zinc-500">{c.phone || c.email}</p>
+                          <p className="font-semibold text-sm text-gray-900">{c.name}</p>
+                          <p className="text-[10px] text-gray-400">{c.phone || c.email}</p>
                         </div>
                       </button>
                     ))
                   ) : (
-                    <div className="p-4 text-center text-zinc-500 text-xs">No customers found</div>
+                    <div className="p-4 text-center text-gray-400 text-xs">No customers found</div>
                   )}
                 </div>
               )}
@@ -905,20 +905,20 @@ export default function POS() {
             </button>
           </div>
           {selectedCustomer && (
-            <div className="flex items-center justify-between p-2 bg-[#22C55E]/10 border border-[#22C55E]/25 rounded-xl">
+            <div className="flex items-center justify-between p-2 bg-green-50 border border-green-200 rounded-xl">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-[#22C55E]/15 flex items-center justify-center text-[#86EFAC]">
+                <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center text-green-700">
                   <UserIcon className="w-4 h-4" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-bold text-white truncate">{selectedCustomer.name}</p>
-                  <p className="text-[10px] text-zinc-500 truncate">{selectedCustomer.phone}</p>
+                  <p className="text-sm font-bold text-gray-900 truncate">{selectedCustomer.name}</p>
+                  <p className="text-[10px] text-gray-400 truncate">{selectedCustomer.phone}</p>
                   {customerCreditBalance > 0 && (
-                    <p className="text-[10px] font-bold text-[#86EFAC]">💳 Credit: R{customerCreditBalance.toFixed(2)}</p>
+                    <p className="text-[10px] font-bold text-green-700">💳 Credit: R{customerCreditBalance.toFixed(2)}</p>
                   )}
                 </div>
               </div>
-              <button onClick={() => setSelectedCustomer(null)} className="text-zinc-500 hover:text-white">
+              <button onClick={() => setSelectedCustomer(null)} className="text-gray-400 hover:text-gray-900">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -926,67 +926,67 @@ export default function POS() {
         </div>
 
         {/* Summary Card */}
-        <div className="section-card overflow-hidden rounded-xl border border-[#22C55E]/25 bg-[#111512] shadow-[0_0_40px_rgba(34,197,94,0.08)]">
-          <div className="border-b border-[#22C55E]/20 bg-[#22C55E]/12 p-5">
+        <div className="section-card overflow-hidden rounded-xl border border-green-200 bg-white shadow-[0_0_40px_rgba(34,197,94,0.08)]">
+          <div className="border-b border-green-100 bg-green-50 p-5">
             <div className="flex items-center justify-between gap-4">
               <div className="min-w-0">
-                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#86EFAC]">Grand Total</p>
+                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-green-700">Grand Total</p>
                 <p className="mt-2 break-words text-5xl font-black leading-none text-[#22C55E] drop-shadow-[0_0_22px_rgba(34,197,94,0.22)] md:text-6xl xl:text-[4.75rem]">
                   {formatCurrency(grandTotal)}
                 </p>
               </div>
-              <div className="hidden h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-[#22C55E]/25 bg-black/20 text-[#86EFAC] sm:flex">
+              <div className="hidden h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-green-200 bg-gray-100 text-green-700 sm:flex">
                 <Receipt className="h-8 w-8" />
               </div>
             </div>
             <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
-              <div className="rounded-lg border border-[#2A2A2E] bg-black/20 p-3">
-                <p className="text-zinc-500">Items</p>
-                <p className="mt-1 font-black text-white">{totalQty}</p>
+              <div className="rounded-lg border border-gray-200 bg-gray-100 p-3">
+                <p className="text-gray-400">Items</p>
+                <p className="mt-1 font-black text-gray-900">{totalQty}</p>
               </div>
-              <div className="rounded-lg border border-[#2A2A2E] bg-black/20 p-3">
-                <p className="text-zinc-500">Paid</p>
-                <p className="mt-1 font-black text-white">{formatCurrency(totalPaid)}</p>
+              <div className="rounded-lg border border-gray-200 bg-gray-100 p-3">
+                <p className="text-gray-400">Paid</p>
+                <p className="mt-1 font-black text-gray-900">{formatCurrency(totalPaid)}</p>
               </div>
             </div>
           </div>
 
-          <div className="space-y-3 p-5 bg-[#141416]">
+          <div className="space-y-3 p-5 bg-white">
             <div className="flex justify-between text-sm">
-              <span className="font-bold text-zinc-400">Subtotal</span>
-              <span className="font-bold text-white">{formatCurrency(subtotal)}</span>
+              <span className="font-bold text-gray-500">Subtotal</span>
+              <span className="font-bold text-gray-900">{formatCurrency(subtotal)}</span>
             </div>
             <div className="flex justify-between items-center text-sm">
-              <span className="font-bold text-zinc-400">Sale Discount</span>
+              <span className="font-bold text-gray-500">Sale Discount</span>
               <div className="flex items-center gap-1">
-                <span className="text-zinc-500 text-xs">R</span>
+                <span className="text-gray-400 text-xs">R</span>
                 <input 
                   type="number"
                   step="0.01"
-                  className="w-24 rounded-lg border border-[#2A2A2E] bg-[#101012] px-2 py-2 text-right font-bold text-[#FCA5A5] focus:border-[#3B82F6] focus:outline-none"
+                  className="w-24 rounded-lg border border-gray-200 bg-gray-50 px-2 py-2 text-right font-bold text-red-600 focus:border-blue-400 focus:outline-none"
                   value={globalDiscount || ''}
                   onChange={(e) => setGlobalDiscount(parseFloat(e.target.value) || 0)}
                 />
               </div>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="font-bold text-zinc-400">Taxable Total</span>
-              <span className="font-bold text-white">{formatCurrency(taxableTotal)}</span>
+              <span className="font-bold text-gray-500">Taxable Total</span>
+              <span className="font-bold text-gray-900">{formatCurrency(taxableTotal)}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="font-bold text-zinc-400">Vat (15%)</span>
-              <span className="font-bold text-white">{formatCurrency(vat)}</span>
+              <span className="font-bold text-gray-500">Vat (15%)</span>
+              <span className="font-bold text-gray-900">{formatCurrency(vat)}</span>
             </div>
-            <div className={cn("flex justify-between rounded-xl border p-3 text-sm", amountDue > 0.01 ? "border-[#F59E0B]/30 bg-[#F59E0B]/10" : "border-[#22C55E]/30 bg-[#22C55E]/10")}>
-              <span className="font-black text-white">Amount Due</span>
-              <span className={cn("font-black", amountDue > 0.01 ? "text-[#FCD34D]" : "text-[#86EFAC]")}>{formatCurrency(Math.max(0, amountDue))}</span>
+            <div className={cn("flex justify-between rounded-xl border p-3 text-sm", amountDue > 0.01 ? "border-amber-200 bg-amber-50" : "border-green-200 bg-green-50")}>
+              <span className="font-black text-gray-900">Amount Due</span>
+              <span className={cn("font-black", amountDue > 0.01 ? "text-amber-700" : "text-green-700")}>{formatCurrency(Math.max(0, amountDue))}</span>
             </div>
           </div>
         </div>
 
         {/* Payment Section */}
-        <div className="section-card rounded-xl overflow-hidden border border-[#2A2A2E] bg-[#141416]">
-          <div className="bg-[#3B82F6]/15 text-[#93C5FD] border-b border-[#2A2A2E] px-5 py-4 font-black text-sm uppercase tracking-[0.12em] flex items-center justify-between">
+        <div className="section-card rounded-xl overflow-hidden border border-gray-200 bg-white">
+          <div className="bg-blue-50 text-blue-700 border-b border-blue-100 px-5 py-4 font-black text-sm uppercase tracking-[0.12em] flex items-center justify-between">
             <span>Take payment</span>
             <CreditCard className="h-4 w-4" />
           </div>
@@ -994,11 +994,11 @@ export default function POS() {
             {payments.length > 0 && (
               <div className="space-y-2">
                 {payments.map((p, i) => (
-                  <div key={i} className="flex items-center justify-between text-sm bg-[#101012] p-3 rounded-lg border border-[#2A2A2E]">
-                    <span className="font-bold text-zinc-300">{p.method}</span>
+                  <div key={i} className="flex items-center justify-between text-sm bg-gray-50 p-3 rounded-lg border border-gray-200">
+                    <span className="font-bold text-gray-600">{p.method}</span>
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-white">{formatCurrency(p.amount)}</span>
-                      <button onClick={() => removePayment(i)} className="text-zinc-500 hover:text-[#EF4444]">
+                      <span className="font-bold text-gray-900">{formatCurrency(p.amount)}</span>
+                      <button onClick={() => removePayment(i)} className="text-gray-400 hover:text-[#EF4444]">
                         <X className="w-3 h-3" />
                       </button>
                     </div>
@@ -1008,9 +1008,9 @@ export default function POS() {
             )}
             
             <div className="space-y-2">
-              <label className="block text-xs font-black uppercase tracking-[0.14em] text-zinc-500">Payment method</label>
+              <label className="block text-xs font-black uppercase tracking-[0.14em] text-gray-400">Payment method</label>
               <select
-                className="w-full px-3 py-4 text-base font-bold focus:border-[#3B82F6] focus:ring-2 focus:ring-[#3B82F6]/20"
+                className="w-full px-3 py-4 text-base font-bold focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
                 value={paymentMethod}
                 onChange={(e) => {
                   setPaymentMethod(e.target.value);
@@ -1038,16 +1038,16 @@ export default function POS() {
                 </p>
               )}
             </div>
-            <div className="space-y-3 rounded-xl border border-[#2A2A2E] bg-[#101012] p-4">
-              <label className="block text-xs font-black uppercase tracking-[0.14em] text-zinc-400">Amount received</label>
+            <div className="space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
+              <label className="block text-xs font-black uppercase tracking-[0.14em] text-gray-500">Amount received</label>
               <div className="flex flex-col gap-3">
                 <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 text-lg font-black">R</span>
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg font-black">R</span>
                   <input
                     ref={paymentAmountRef}
                     type="number"
                     placeholder="0.00"
-                    className="w-full pl-10 pr-3 py-5 text-3xl font-black text-white bg-transparent focus:border-[#22C55E] focus:ring-2 focus:ring-[#22C55E]/20"
+                    className="w-full pl-10 pr-3 py-5 text-3xl font-black text-gray-900 bg-transparent focus:border-green-400 focus:ring-2 focus:ring-[#22C55E]/20"
                     value={paymentAmount}
                     onChange={(e) => setPaymentAmount(e.target.value)}
                   />
@@ -1060,22 +1060,22 @@ export default function POS() {
                 </button>
               </div>
               <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="rounded-lg border border-[#2A2A2E] bg-[#141416] p-3">
-                  <p className="text-zinc-500">After entry</p>
-                  <p className={cn("mt-1 font-black", projectedDue > 0.01 ? "text-[#FCD34D]" : "text-[#86EFAC]")}>
+                <div className="rounded-lg border border-gray-200 bg-white p-3">
+                  <p className="text-gray-400">After entry</p>
+                  <p className={cn("mt-1 font-black", projectedDue > 0.01 ? "text-amber-700" : "text-green-700")}>
                     {projectedDue > 0.01 ? formatCurrency(projectedDue) : 'Paid'}
                   </p>
                 </div>
-                <div className={cn("rounded-lg border p-3", projectedChange > 0 ? "border-[#22C55E]/35 bg-[#22C55E]/10" : "border-[#2A2A2E] bg-[#141416]")}>
-                  <p className="text-zinc-500">Change</p>
-                  <p className={cn("mt-1 text-lg font-black", projectedChange > 0 ? "text-[#86EFAC]" : "text-white")}>{formatCurrency(projectedChange)}</p>
+                <div className={cn("rounded-lg border p-3", projectedChange > 0 ? "border-green-200 bg-green-50" : "border-gray-200 bg-white")}>
+                  <p className="text-gray-400">Change</p>
+                  <p className={cn("mt-1 text-lg font-black", projectedChange > 0 ? "text-green-700" : "text-gray-900")}>{formatCurrency(projectedChange)}</p>
                 </div>
               </div>
             </div>
           </div>
-          <div className={cn("p-5 flex justify-between items-center border-t border-[#2A2A2E]", amountDue > 0.01 ? "bg-[#F59E0B]/12" : "bg-[#22C55E]/12")}>
-            <span className="font-black text-white">Amount Due</span>
-            <span className={cn("font-black text-xl", amountDue > 0.01 ? "text-[#FCD34D]" : "text-[#86EFAC]")}>{formatCurrency(Math.max(0, amountDue))}</span>
+          <div className={cn("p-5 flex justify-between items-center border-t border-gray-200", amountDue > 0.01 ? "bg-amber-50" : "bg-green-50")}>
+            <span className="font-black text-gray-900">Amount Due</span>
+            <span className={cn("font-black text-xl", amountDue > 0.01 ? "text-amber-700" : "text-green-700")}>{formatCurrency(Math.max(0, amountDue))}</span>
           </div>
         </div>
 
@@ -1084,7 +1084,7 @@ export default function POS() {
           <button
             disabled={cart.length === 0 || loading || amountDue > 0.01}
             onClick={handleCheckout}
-            className="w-full justify-center rounded-xl bg-[#22C55E] px-5 py-6 text-lg font-black text-white shadow-[0_0_38px_rgba(34,197,94,0.25)] transition-all hover:-translate-y-0.5 hover:bg-[#16A34A] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0"
+            className="w-full justify-center rounded-xl bg-[#22C55E] px-5 py-6 text-lg font-black text-gray-900 shadow-[0_0_38px_rgba(34,197,94,0.25)] transition-all hover:-translate-y-0.5 hover:bg-[#16A34A] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0"
           >
             {loading ? 'Processing...' : (
               <>
@@ -1096,7 +1096,7 @@ export default function POS() {
           </button>
           <button
             onClick={clearSale}
-            className="mt-2 w-full justify-center rounded-xl border border-[#EF4444]/35 bg-[#EF4444]/10 px-4 py-3 text-sm font-bold text-[#FCA5A5] transition-colors hover:border-[#EF4444] hover:bg-[#EF4444]/16 hover:text-white"
+            className="mt-2 w-full justify-center rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-600 transition-colors hover:border-red-500 hover:bg-red-100 hover:text-gray-900"
           >
             Clear Sale & Start Over
           </button>
@@ -1105,19 +1105,19 @@ export default function POS() {
 
       {isCustomItemOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <div className="app-panel w-full max-w-md overflow-hidden rounded-2xl border border-[#2A2A2E] shadow-2xl">
-            <div className="flex items-center justify-between border-b border-[#2A2A2E] bg-[#141416] px-6 py-5">
+          <div className="app-panel w-full max-w-md overflow-hidden rounded-2xl border border-gray-200 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-5">
               <div>
-                <h2 className="text-xl font-black text-white">Add Custom Item</h2>
-                <p className="mt-1 text-sm text-zinc-500">Use for labour, non-stock services, or one-off charges.</p>
+                <h2 className="text-xl font-black text-gray-900">Add Custom Item</h2>
+                <p className="mt-1 text-sm text-gray-400">Use for labour, non-stock services, or one-off charges.</p>
               </div>
-              <button onClick={() => setIsCustomItemOpen(false)} className="text-zinc-500 transition-colors hover:text-white">
+              <button onClick={() => setIsCustomItemOpen(false)} className="text-gray-400 transition-colors hover:text-gray-900">
                 <X className="h-5 w-5" />
               </button>
             </div>
             <div className="space-y-4 p-6">
               <label className="block">
-                <span className="text-xs font-black uppercase tracking-[0.14em] text-zinc-500">Item name</span>
+                <span className="text-xs font-black uppercase tracking-[0.14em] text-gray-400">Item name</span>
                 <input
                   className="mt-2 w-full px-3 py-3 text-sm font-semibold"
                   value={customItem.name}
@@ -1127,9 +1127,9 @@ export default function POS() {
               </label>
               <div className="grid grid-cols-2 gap-3">
                 <label className="block">
-                  <span className="text-xs font-black uppercase tracking-[0.14em] text-zinc-500">Price</span>
+                  <span className="text-xs font-black uppercase tracking-[0.14em] text-gray-400">Price</span>
                   <div className="relative mt-2">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-black text-zinc-500">R</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-black text-gray-400">R</span>
                     <input
                       type="number"
                       step="0.01"
@@ -1141,7 +1141,7 @@ export default function POS() {
                   </div>
                 </label>
                 <label className="block">
-                  <span className="text-xs font-black uppercase tracking-[0.14em] text-zinc-500">Qty</span>
+                  <span className="text-xs font-black uppercase tracking-[0.14em] text-gray-400">Qty</span>
                   <input
                     type="number"
                     min="1"
@@ -1167,44 +1167,44 @@ export default function POS() {
 
       {isSaleToolsOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <div className="app-panel w-full max-w-xl overflow-hidden rounded-2xl border border-[#2A2A2E] shadow-2xl">
-            <div className="flex items-center justify-between border-b border-[#2A2A2E] bg-[#141416] px-6 py-5">
+          <div className="app-panel w-full max-w-xl overflow-hidden rounded-2xl border border-gray-200 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-5">
               <div>
-                <h2 className="text-xl font-black text-white">Sale Tools</h2>
-                <p className="mt-1 text-sm text-zinc-500">Secondary actions are kept out of the checkout lane.</p>
+                <h2 className="text-xl font-black text-gray-900">Sale Tools</h2>
+                <p className="mt-1 text-sm text-gray-400">Secondary actions are kept out of the checkout lane.</p>
               </div>
-              <button onClick={() => setIsSaleToolsOpen(false)} className="text-zinc-500 transition-colors hover:text-white">
+              <button onClick={() => setIsSaleToolsOpen(false)} className="text-gray-400 transition-colors hover:text-gray-900">
                 <X className="h-5 w-5" />
               </button>
             </div>
             <div className="space-y-3 p-6">
-              <button className="flex w-full items-center justify-between rounded-xl border border-[#2A2A2E] bg-[#141416] p-4 text-left transition-colors hover:border-[#3B82F6]/40 hover:bg-[#1C1C1F]">
+              <button className="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-white p-4 text-left transition-colors hover:border-blue-300 hover:bg-gray-100">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#3B82F6]/15 text-[#93C5FD]">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
                     <PenTool className="h-5 w-5" />
                   </div>
                   <div>
-                    <p className="font-bold text-white">Add Digital Signature</p>
-                    <p className="text-xs text-zinc-500">Capture approval or collection proof.</p>
+                    <p className="font-bold text-gray-900">Add Digital Signature</p>
+                    <p className="text-xs text-gray-400">Capture approval or collection proof.</p>
                   </div>
                 </div>
-                <ArrowRight className="h-4 w-4 text-zinc-500" />
+                <ArrowRight className="h-4 w-4 text-gray-400" />
               </button>
-              <button className="flex w-full items-center justify-between rounded-xl border border-[#2A2A2E] bg-[#141416] p-4 text-left transition-colors hover:border-[#3B82F6]/40 hover:bg-[#1C1C1F]">
+              <button className="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-white p-4 text-left transition-colors hover:border-blue-300 hover:bg-gray-100">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#3B82F6]/15 text-[#93C5FD]">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
                     <FileText className="h-5 w-5" />
                   </div>
                   <div>
-                    <p className="font-bold text-white">Add New Note</p>
-                    <p className="text-xs text-zinc-500">Record checkout context without cluttering the sale.</p>
+                    <p className="font-bold text-gray-900">Add New Note</p>
+                    <p className="text-xs text-gray-400">Record checkout context without cluttering the sale.</p>
                   </div>
                 </div>
-                <ArrowRight className="h-4 w-4 text-zinc-500" />
+                <ArrowRight className="h-4 w-4 text-gray-400" />
               </button>
-              <div className="rounded-xl border border-[#2A2A2E] bg-[#101012] p-4">
-                <p className="font-bold text-white">Activity Log</p>
-                <p className="mt-2 text-sm text-zinc-500">No activities logged for this sale.</p>
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                <p className="font-bold text-gray-900">Activity Log</p>
+                <p className="mt-2 text-sm text-gray-400">No activities logged for this sale.</p>
               </div>
             </div>
           </div>
