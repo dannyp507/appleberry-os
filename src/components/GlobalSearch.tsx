@@ -91,14 +91,18 @@ function scoreMatch(value: string, term: string) {
   return 0;
 }
 
-export default function GlobalSearch({
+export { GlobalSearch as default, GlobalSearch };
+
+function GlobalSearch({
   profile,
   className = '',
   compact = false,
+  topBar = false,
 }: {
   profile: Profile | null;
   className?: string;
   compact?: boolean;
+  topBar?: boolean;
 }) {
   const navigate = useNavigate();
   const { companyId } = useTenant();
@@ -175,6 +179,94 @@ export default function GlobalSearch({
     setOpen(false);
     navigate(href);
   };
+
+  if (topBar) {
+    return (
+      <>
+        <div className="relative w-full">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search IMEI, customer, ticket, invoice..."
+            className="w-full pl-9 pr-4 py-2 text-sm bg-gray-100 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3B7DC8]/30 focus:border-[#3B7DC8] text-gray-900 placeholder:text-gray-400"
+            value={term}
+            onChange={e => setTerm(e.target.value)}
+            onFocus={() => setOpen(true)}
+          />
+        </div>
+        {open && (
+          <div className="fixed inset-0 z-[80] flex items-start justify-center bg-black/72 p-3 pt-20 backdrop-blur-sm md:p-6 md:pt-24">
+            <button
+              type="button"
+              aria-label="Close search"
+              onClick={() => setOpen(false)}
+              className="absolute inset-0"
+            />
+            <div className="relative w-full max-w-3xl overflow-hidden rounded-2xl border border-[#2A2A2E] bg-[#141416] shadow-[0_24px_90px_rgba(0,0,0,0.58)]">
+              <div className="flex items-center gap-3 border-b border-[#2A2A2E] px-4 py-4 md:px-5">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#1C1C1F] text-[#3B82F6]">
+                  <Search className="h-5 w-5" />
+                </div>
+                <input
+                  autoFocus
+                  value={term}
+                  onChange={(event) => { setTerm(event.target.value); setError(null); }}
+                  placeholder="Search IMEI, customer, t#, s#, p#, or o#"
+                  className="w-full border-0 bg-transparent text-base font-semibold text-white outline-none placeholder:text-zinc-500 focus:border-0 focus:shadow-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  className="rounded-xl border border-[#2A2A2E] bg-[#1C1C1F] p-2 text-zinc-400 hover:bg-white/[0.06] hover:text-white"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="max-h-[70vh] overflow-y-auto p-4 md:p-5">
+                {!term.trim() && (
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {['Customer name or phone', 'IMEI or SKU', 'Ticket number like t#1024', 'Invoice like s#', 'Purchase order like p#', 'Order like o#'].map((hint) => (
+                      <div key={hint} className="rounded-xl border border-[#2A2A2E] bg-[#1C1C1F] px-4 py-4 text-sm text-zinc-400">{hint}</div>
+                    ))}
+                  </div>
+                )}
+                {term.trim().length === 1 && (
+                  <div className="py-12 text-center">
+                    <Search className="mx-auto mb-3 h-10 w-10 text-[#3B82F6]" />
+                    <p className="text-sm font-semibold text-white">Keep typing to search</p>
+                  </div>
+                )}
+                {loading && term.trim() && <div className="py-12 text-center text-sm text-zinc-400">Searching across the workspace...</div>}
+                {!loading && error && (
+                  <div className="py-12 text-center">
+                    <Search className="mx-auto mb-3 h-10 w-10 text-[#EF4444]" />
+                    <p className="text-sm font-semibold text-white">Search could not complete</p>
+                    <p className="mt-1 text-sm text-zinc-400">{error}</p>
+                  </div>
+                )}
+                {!loading && !error && term.trim().length >= 2 && results.length === 0 && (
+                  <div className="py-12 text-center">
+                    <Search className="mx-auto mb-3 h-10 w-10 text-zinc-600" />
+                    <p className="text-sm font-semibold text-white">No matching records found</p>
+                  </div>
+                )}
+                {!loading && !error && results.length > 0 && (
+                  <div className="space-y-6">
+                    <ResultGroup title="Customers" items={grouped.customers} onSelect={closeAndGo} term={term} />
+                    <ResultGroup title="Repairs" items={grouped.repairs} onSelect={closeAndGo} term={term} />
+                    <ResultGroup title="Invoices" items={grouped.sales} onSelect={closeAndGo} term={term} />
+                    <ResultGroup title="Purchase Orders" items={grouped.purchase_orders} onSelect={closeAndGo} term={term} />
+                    <ResultGroup title="Orders" items={grouped.orders} onSelect={closeAndGo} term={term} />
+                    <ResultGroup title="Products & IMEI" items={grouped.products} onSelect={closeAndGo} term={term} />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
 
   return (
     <>

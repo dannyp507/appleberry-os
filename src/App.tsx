@@ -9,7 +9,6 @@ import { auth, db } from './lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { collection, doc, getDoc, getDocs, limit, query, updateDoc, where } from 'firebase/firestore';
 import { Toaster } from 'sonner';
-import { Menu } from 'lucide-react';
 import { Company, Profile } from './types';
 import { hasPermission } from './lib/permissions';
 import { TenantContext } from './lib/tenant';
@@ -52,6 +51,7 @@ const InventoryReports = lazy(() => import('./pages/InventoryReports'));
 // Components
 import Sidebar from './components/Sidebar';
 import GlobalSearch from './components/GlobalSearch';
+import TopBar from './components/TopBar';
 
 function RouteLoader() {
   return (
@@ -221,40 +221,20 @@ export default function App() {
   return (
     <Router>
       <TenantContext.Provider value={{ profile, company, companyId: profile?.company_id || null }}>
-        <div className="flex min-h-screen app-shell overflow-hidden">
+        <div className="flex min-h-screen bg-gray-50">
           <Sidebar
             profile={profile}
             company={company}
             mobileOpen={mobileSidebarOpen}
             onCloseMobile={() => setMobileSidebarOpen(false)}
           />
-          <main className="min-w-0 flex-1 overflow-y-auto p-3 pb-6 md:p-6 lg:p-8">
-            <div className="sticky top-0 z-30 mb-4 space-y-3">
-              <div className="hidden lg:block">
-                <GlobalSearch profile={profile} />
-              </div>
-              <div className="lg:hidden">
-              <div className="rounded-xl border border-[#2A2A2E] bg-[#141416]/95 px-4 py-3 shadow-[0_14px_40px_rgba(0,0,0,0.4)] backdrop-blur-xl">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500 font-semibold">Appleberry OS</p>
-                    <p className="truncate text-sm font-semibold text-white">{company?.name || profile?.full_name || 'Workspace'}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <GlobalSearch profile={profile} compact />
-                    <button
-                      type="button"
-                      aria-label="Open navigation"
-                      onClick={() => setMobileSidebarOpen(true)}
-                      className="shrink-0 rounded-xl border border-[#2A2A2E] bg-[#1C1C1F] p-2.5 text-white shadow-sm"
-                    >
-                      <Menu className="h-5 w-5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-              </div>
-            </div>
+          <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+            <TopBar
+              profile={profile}
+              company={company}
+              onOpenMobile={() => setMobileSidebarOpen(true)}
+            />
+            <main className="flex-1 overflow-y-auto p-4 md:p-6">
             <Suspense fallback={<RouteLoader />}>
               <Routes>
                 <Route path="/onboarding" element={<Onboarding />} />
@@ -293,7 +273,8 @@ export default function App() {
                 <Route path="*" element={<Navigate to={requiresOnboarding ? "/onboarding" : "/"} replace />} />
               </Routes>
             </Suspense>
-          </main>
+            </main>
+          </div>
         </div>
       </TenantContext.Provider>
       <Toaster position="top-right" />

@@ -3,20 +3,13 @@ import { db } from '../lib/firebase';
 import { doc, getDoc, getDocs, limit, orderBy, where } from 'firebase/firestore';
 import { Link } from 'react-router-dom';
 import {
-  TrendingUp,
   DollarSign,
   Package,
   Wrench,
-  Wallet,
   Truck,
-  LayoutDashboard,
-  Moon,
   Users,
-  PieChart,
   History,
   Database,
-  AlertTriangle,
-  CheckCircle2,
   ShoppingCart,
   ArrowRight,
   FileText,
@@ -25,17 +18,12 @@ import {
   SunMedium,
   BarChart2,
   Settings,
+  Megaphone,
+  MessageSquare,
+  Search,
+  Calendar,
 } from 'lucide-react';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer
-} from 'recharts';
-import { formatCurrency, safeFormatDate, cn } from '../lib/utils';
+import { safeFormatDate } from '../lib/utils';
 import { startOfDay, startOfMonth, subDays } from 'date-fns';
 import { Product, Profile } from '../types';
 import { PermissionKey, hasPermission } from '../lib/permissions';
@@ -214,110 +202,49 @@ export default function Dashboard({ profile }: { profile: Profile | null }) {
 
   if (loading) {
     return (
-      <div className="animate-pulse space-y-6 p-6">
-        <div className="h-8 bg-gray-200 rounded w-48" />
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map(i => <div key={i} className="h-28 bg-white rounded-xl border border-gray-100" />)}
-        </div>
-        <div className="h-64 bg-white rounded-xl border border-gray-100" />
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#3B7DC8]" />
       </div>
     );
   }
 
-  const today = new Date();
-  const greeting = today.getHours() < 12 ? 'Good morning' : today.getHours() < 17 ? 'Good afternoon' : 'Good evening';
-  const dateStr = today.toLocaleDateString('en-ZA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-
-  const quickActions = [
-    { icon: ShoppingCart, label: 'Cash Register', path: '/pos', color: 'bg-green-500', permission: 'pos.use' as PermissionKey },
-    { icon: Wrench, label: 'New Repair', path: '/repairs', color: 'bg-blue-500', permission: 'repairs.view' as PermissionKey },
-    { icon: Users, label: 'Customers', path: '/customers', color: 'bg-purple-500', permission: 'customers.view' as PermissionKey },
-    { icon: FileText, label: 'Invoices', path: '/invoices', color: 'bg-indigo-500', permission: 'invoices.view' as PermissionKey },
-    { icon: Package, label: 'Products', path: '/inventory', color: 'bg-orange-500', permission: 'inventory.view' as PermissionKey },
-    { icon: Smartphone, label: 'Devices', path: '/devices', color: 'bg-cyan-500', permission: 'devices.view' as PermissionKey },
-    { icon: CheckSquare, label: 'Stock Take', path: '/stock-take', color: 'bg-teal-500', permission: 'stock_take.view' as PermissionKey },
-    { icon: DollarSign, label: 'Expenses', path: '/expenses', color: 'bg-red-500', permission: 'expenses.view' as PermissionKey },
-    { icon: SunMedium, label: 'End of Day', path: '/end-of-day', color: 'bg-amber-500', permission: 'end_of_day.view' as PermissionKey },
-    { icon: BarChart2, label: 'Sales Reports', path: '/reports/sales', color: 'bg-slate-500', permission: 'reports.sales' as PermissionKey },
-    { icon: Users, label: 'Staff', path: '/staff', color: 'bg-pink-500', permission: 'staff.manage' as PermissionKey },
-    { icon: Database, label: 'Manage Data', path: '/manage-data', color: 'bg-gray-500', permission: 'manage_data.view' as PermissionKey },
+  const allTiles = [
+    { icon: ShoppingCart, label: 'Cash Register', path: '/pos', permission: 'pos.use' as PermissionKey },
+    { icon: Wrench, label: 'Repairs', path: '/repairs', permission: 'repairs.view' as PermissionKey },
+    { icon: FileText, label: 'Invoices', path: '/invoices', permission: 'invoices.view' as PermissionKey },
+    { icon: Users, label: 'Customers', path: '/customers', permission: 'customers.view' as PermissionKey },
+    { icon: Package, label: 'Products', path: '/inventory', permission: 'inventory.view' as PermissionKey },
+    { icon: Smartphone, label: 'Devices', path: '/devices', permission: 'devices.view' as PermissionKey },
+    { icon: DollarSign, label: 'Expenses', path: '/expenses', permission: 'expenses.view' as PermissionKey },
+    { icon: SunMedium, label: 'End of Day', path: '/end-of-day', permission: 'end_of_day.view' as PermissionKey },
+    { icon: CheckSquare, label: 'Stock Take', path: '/stock-take', permission: 'stock_take.view' as PermissionKey },
+    { icon: ArrowRight, label: 'Transfers', path: '/transfer', permission: 'transfer.view' as PermissionKey },
+    { icon: Truck, label: 'Purchase Orders', path: '/purchase-orders', permission: 'purchase_orders.view' as PermissionKey },
+    { icon: Calendar, label: 'Appointments', path: '/appointments', permission: 'appointments.view' as PermissionKey },
+    { icon: BarChart2, label: 'Sales Reports', path: '/reports/sales', permission: 'reports.sales' as PermissionKey },
+    { icon: BarChart2, label: 'Repairs Reports', path: '/reports/repairs', permission: 'reports.repairs' as PermissionKey },
+    { icon: BarChart2, label: 'Inventory Reports', path: '/reports/inventory', permission: 'reports.inventory' as PermissionKey },
+    { icon: Megaphone, label: 'Campaigns', path: '/campaigns', permission: 'marketing.view' as PermissionKey },
+    { icon: MessageSquare, label: 'WhatsApp Studio', path: '/whatsapp-studio', permission: 'marketing.view' as PermissionKey },
+    { icon: Search, label: 'IMEI Search', path: '/imei', permission: 'imei.view' as PermissionKey },
+    { icon: History, label: 'Activity Log', path: '/activity', permission: 'activity.view' as PermissionKey },
+    { icon: Users, label: 'Staff', path: '/staff', permission: 'staff.manage' as PermissionKey },
+    { icon: Database, label: 'Manage Data', path: '/manage-data', permission: 'manage_data.view' as PermissionKey },
+    { icon: Settings, label: 'Setup', path: '/setup', permission: 'staff.manage' as PermissionKey },
   ].filter(item => hasPermission(profile, item.permission));
 
   return (
-    <div className="space-y-6 p-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-black text-gray-900">{greeting}</h1>
-        <p className="text-sm text-gray-500 mt-0.5">{dateStr}</p>
-      </div>
-
-      {/* Stats row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Link to="/pos" className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 hover:shadow-md hover:border-gray-200 transition-all group">
-          <div className="flex items-center justify-between mb-3">
-            <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center">
-              <DollarSign className="w-5 h-5 text-green-600" />
-            </div>
-            <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-gray-400 transition-colors" />
-          </div>
-          <p className="text-2xl font-black text-gray-900">{formatCurrency(stats.dailySales)}</p>
-          <p className="text-xs font-medium text-gray-500 mt-1">Today's Sales</p>
+    <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-3">
+      {allTiles.map(action => (
+        <Link
+          key={action.path}
+          to={action.path}
+          className="flex flex-col items-center justify-center gap-2 bg-[#3B7DC8] hover:bg-[#2d6db8] rounded-lg p-4 text-white transition-colors aspect-square min-h-[90px]"
+        >
+          <action.icon className="w-7 h-7" />
+          <span className="text-xs font-semibold text-center leading-tight">{action.label}</span>
         </Link>
-
-        <Link to="/repairs?status=open" className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 hover:shadow-md hover:border-gray-200 transition-all group">
-          <div className="flex items-center justify-between mb-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
-              <Wrench className="w-5 h-5 text-blue-600" />
-            </div>
-            <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-gray-400 transition-colors" />
-          </div>
-          <p className="text-2xl font-black text-gray-900">{stats.activeRepairs}</p>
-          <p className="text-xs font-medium text-gray-500 mt-1">Repairs Open</p>
-        </Link>
-
-        <Link to="/inventory" className={cn(
-          "bg-white rounded-xl border shadow-sm p-5 hover:shadow-md transition-all group",
-          stats.lowStock > 0 ? "border-amber-200 hover:border-amber-300" : "border-gray-100 hover:border-gray-200"
-        )}>
-          <div className="flex items-center justify-between mb-3">
-            <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center", stats.lowStock > 0 ? "bg-amber-50" : "bg-orange-50")}>
-              <Package className={cn("w-5 h-5", stats.lowStock > 0 ? "text-amber-600" : "text-orange-600")} />
-            </div>
-            <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-gray-400 transition-colors" />
-          </div>
-          <p className="text-2xl font-black text-gray-900">{stats.lowStock}</p>
-          <p className="text-xs font-medium text-gray-500 mt-1">Products Low Stock</p>
-        </Link>
-
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-          <div className="flex items-center justify-between mb-3">
-            <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center">
-              <Users className="w-5 h-5 text-purple-600" />
-            </div>
-          </div>
-          <p className="text-2xl font-black text-gray-900">{formatCurrency(stats.monthlyProfit)}</p>
-          <p className="text-xs font-medium text-gray-500 mt-1">Monthly Profit</p>
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-        <h2 className="text-sm font-black text-gray-900 uppercase tracking-wider mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3">
-          {quickActions.map(action => (
-            <Link
-              key={action.path}
-              to={action.path}
-              className="flex flex-col items-center gap-2 p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition-all group"
-            >
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${action.color}`}>
-                <action.icon className="w-6 h-6 text-white" />
-              </div>
-              <span className="text-xs font-semibold text-gray-700 text-center leading-tight">{action.label}</span>
-            </Link>
-          ))}
-        </div>
-      </div>
+      ))}
     </div>
   );
 }
