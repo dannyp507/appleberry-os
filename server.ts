@@ -602,48 +602,31 @@ async function startServer() {
         if (!whatsapp.apiUrl || !whatsapp.instanceId) {
           return res.status(400).json({ error: "Instance ID and API URL are required" });
         }
-        // Ping the base URL status endpoint
-        const baseUrl = whatsapp.apiUrl.replace(/\/send.*$/, '');
-        const statusEndpoints = [`${baseUrl}/instance-info`, `${baseUrl}/status`, baseUrl];
-        for (const endpoint of statusEndpoints) {
-          try {
-            const r = await axios.get(endpoint, {
-              params: { instance_id: whatsapp.instanceId, access_token: whatsapp.accessToken || '' },
-              timeout: 8000,
-            });
-            if (r.status < 400) {
-              return res.json({ success: true, message: `Instance reachable — status: ${JSON.stringify(r.data).slice(0, 80)}` });
-            }
-          } catch {
-            // try next
-          }
-        }
-        // Try sending a real test message to a dummy number — check the response body carefully
+        // Send directly to the /send endpoint — this is the only guaranteed route on planifyx
         try {
           const r = await axios.post(whatsapp.apiUrl, {
             instance_id: whatsapp.instanceId,
             access_token: whatsapp.accessToken || '',
-            to: '27000000000',
             number: '27000000000',
-            message: 'test',
+            to: '27000000000',
+            message: 'Appleberry OS connection test',
             type: 'text',
-          }, { timeout: 10000 });
+          }, { timeout: 12000 });
 
           const body = r.data;
-          console.log('[WhatsApp test]', JSON.stringify(body).slice(0, 300));
-
-          // Check for explicit error in body
           const bodyStr = JSON.stringify(body).toLowerCase();
-          if (body?.status === 'error' || body?.error || bodyStr.includes('not connected') || bodyStr.includes('disconnected') || bodyStr.includes('unauthorized') || bodyStr.includes('invalid instance')) {
-            return res.status(400).json({ error: `Instance error: ${body?.message || body?.error || bodyStr.slice(0, 100)}` });
+          console.log('[WhatsApp test] send endpoint response:', JSON.stringify(body).slice(0, 300));
+
+          // Detect error conditions in response body
+          if (body?.status === 'error' || bodyStr.includes('not connected') || bodyStr.includes('disconnected') || bodyStr.includes('unauthorized') || bodyStr.includes('invalid instance') || bodyStr.includes('invalid token') || bodyStr.includes('not found')) {
+            return res.status(400).json({ error: `⚠ Instance issue: ${body?.message || body?.error || JSON.stringify(body).slice(0, 150)}` });
           }
-          return res.json({ success: true, message: `API reachable. Response: ${JSON.stringify(body).slice(0, 120)}` });
+          return res.json({ success: true, message: `✓ Connected! API response: ${JSON.stringify(body).slice(0, 150)}` });
         } catch (e: any) {
           const body = e.response?.data;
           const errMsg = body?.message || body?.error || e.message || 'Unknown error';
           if (e.response?.status && e.response.status < 500) {
-            // 4xx from API — might just be bad number (not our credentials). Show the body.
-            return res.json({ success: true, message: `API reachable. HTTP ${e.response.status}: ${errMsg}` });
+            return res.json({ success: true, message: `API reachable. HTTP ${e.response.status}: ${JSON.stringify(body).slice(0, 150)}` });
           }
           return res.status(400).json({ error: `Cannot reach API: ${errMsg}` });
         }
