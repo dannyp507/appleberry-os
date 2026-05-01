@@ -618,21 +618,32 @@ async function startServer() {
             // try next
           }
         }
-        // If none responded, try a POST to the send endpoint with a clearly invalid number
-        // just to confirm auth works
+        // Try sending a real test message to a dummy number — check the response body carefully
         try {
-          await axios.post(whatsapp.apiUrl, {
+          const r = await axios.post(whatsapp.apiUrl, {
             instance_id: whatsapp.instanceId,
             access_token: whatsapp.accessToken || '',
             to: '27000000000',
+            number: '27000000000',
             message: 'test',
-          }, { timeout: 8000 });
-          return res.json({ success: true, message: 'API endpoint reachable and credentials accepted ✓' });
+            type: 'text',
+          }, { timeout: 10000 });
+
+          const body = r.data;
+          console.log('[WhatsApp test]', JSON.stringify(body).slice(0, 300));
+
+          // Check for explicit error in body
+          const bodyStr = JSON.stringify(body).toLowerCase();
+          if (body?.status === 'error' || body?.error || bodyStr.includes('not connected') || bodyStr.includes('disconnected') || bodyStr.includes('unauthorized') || bodyStr.includes('invalid instance')) {
+            return res.status(400).json({ error: `Instance error: ${body?.message || body?.error || bodyStr.slice(0, 100)}` });
+          }
+          return res.json({ success: true, message: `API reachable. Response: ${JSON.stringify(body).slice(0, 120)}` });
         } catch (e: any) {
-          const errMsg = e.response?.data?.message || e.response?.data?.error || e.message || 'Unknown error';
-          // A 4xx about the number is OK — means the API is reachable and auth passed
+          const body = e.response?.data;
+          const errMsg = body?.message || body?.error || e.message || 'Unknown error';
           if (e.response?.status && e.response.status < 500) {
-            return res.json({ success: true, message: `API reachable (auth OK). Response: ${errMsg}` });
+            // 4xx from API — might just be bad number (not our credentials). Show the body.
+            return res.json({ success: true, message: `API reachable. HTTP ${e.response.status}: ${errMsg}` });
           }
           return res.status(400).json({ error: `Cannot reach API: ${errMsg}` });
         }
@@ -680,83 +691,110 @@ async function startServer() {
           return res.status(400).json({ error: "WhatsApp API URL must be a public HTTP(S) endpoint." });
         }
 
-        // Support for Instance-based APIs (SocialPoster/planifyx, UltraMsg, etc.)
-        // If we have a base64 PDF, send it as a document via multipart form upload.
-        // Fall back to URL-based document or plain text if no PDF available.
-        const hasDocument = !!(pdfBase64 || pdfUrl);
+        const instanceId = settings.instanceId || '';
+        const accessToken = settings.accessToken || '';
 
+        // Helper: check if a planifyx/socialposter response body indicates success
+        function isPlanifyxSuccess(data: any): boolean {
+          if (!data) return false;
+          // planifyx returns { status: 'success', ... } or { success: true, ... }
+          if (data.status === 'success' || data.status === 'sent' || data.status === 'queued') return true;
+          if (data.success === true) return true;
+          if (data.id || data.messageId || data.message_id) return true; // message ID means it was accepted
+          // Error indicators
+          if (data.status === 'error' || data.error || data.message?.toLowerCase().includes('error')) return false;
+          // Default: if HTTP 200 and no explicit error, assume ok
+          return true;
+        }
+
+        function planifyxErrorMsg(data: any): string {
+          if (!data) return 'No response from API';
+          return data.message || data.error || data.detail || JSON.stringify(data).slice(0, 200);
+        }
+
+        const baseUrl = settings.apiUrl.replace(/\/send.*$/, '');
+
+        // ── STEP 1: Try sending the PDF as a document via multipart upload ──
         if (pdfBase64) {
-          // Send PDF as a file upload — planifyx and most WPPConnect-based APIs accept this
-          const baseUrl = settings.apiUrl.replace(/\/send$/, ''); // strip /send suffix if present
+          const pdfBuffer = Buffer.from(pdfBase64, 'base64');
+          const FormDataNode = (await import('form-data')).default;
+
           const docEndpoints = [
             `${baseUrl}/send-document`,
             `${baseUrl}/send`,
             settings.apiUrl,
           ];
 
-          const pdfBuffer = Buffer.from(pdfBase64, 'base64');
-          const FormDataNode = (await import('form-data')).default;
-          const form = new FormDataNode();
-          form.append('instance_id', settings.instanceId || '');
-          form.append('access_token', settings.accessToken || '');
-          form.append('token', settings.accessToken || '');
-          form.append('number', phone);
-          form.append('to', phone);
-          form.append('caption', message || 'Your invoice is attached.');
-          form.append('message', message || 'Your invoice is attached.');
-          form.append('type', 'document');
-          form.append('filename', pdfFilename || 'Invoice.pdf');
-          form.append('file', pdfBuffer, { filename: pdfFilename || 'Invoice.pdf', contentType: 'application/pdf' });
-
           for (const endpoint of docEndpoints) {
             try {
+              const form = new FormDataNode();
+              form.append('instance_id', instanceId);
+              form.append('access_token', accessToken);
+              form.append('token', accessToken);
+              form.append('number', phone);
+              form.append('to', phone);
+              form.append('caption', message || 'Your invoice is attached.');
+              form.append('message', message || 'Your invoice is attached.');
+              form.append('type', 'document');
+              form.append('filename', pdfFilename || 'Invoice.pdf');
+              form.append('file', pdfBuffer, { filename: pdfFilename || 'Invoice.pdf', contentType: 'application/pdf' });
+
               const response = await axios.post(endpoint, form, {
                 headers: form.getHeaders(),
-                params: { instance_id: settings.instanceId, access_token: settings.accessToken },
-                timeout: 15000,
+                params: { instance_id: instanceId, access_token: accessToken },
+                timeout: 20000,
               });
-              if (response.status < 300) {
+
+              console.log(`[WhatsApp] PDF upload to ${endpoint}: HTTP ${response.status}`, JSON.stringify(response.data).slice(0, 300));
+
+              if (response.status < 300 && isPlanifyxSuccess(response.data)) {
                 return res.json({ success: true, data: response.data });
               }
-            } catch {
-              // try next endpoint
+              if (response.status < 300 && !isPlanifyxSuccess(response.data)) {
+                // Got 200 but error body — log and try next
+                console.warn(`[WhatsApp] ${endpoint} returned 200 but error body:`, response.data);
+              }
+            } catch (e: any) {
+              console.warn(`[WhatsApp] PDF upload to ${endpoint} failed:`, e.response?.data || e.message);
+              // try next
             }
           }
-          // If all document endpoints fail, fall through to text message
+          console.warn('[WhatsApp] All PDF document endpoints failed, falling back to text message');
         }
 
-        // Fallback: send as text with URL or plain message
-        const isDocument = !!pdfUrl;
-        const payload = {
-          instance_id: settings.instanceId,
-          access_token: settings.accessToken,
-          token: settings.accessToken,
+        // ── STEP 2: Send plain text message as fallback ──
+        const textPayload = {
+          instance_id: instanceId,
+          access_token: accessToken,
+          token: accessToken,
           to: phone,
           number: phone,
           body: message,
           message: message,
-          caption: message,
-          media_url: pdfUrl,
-          file: pdfUrl,
-          document: pdfUrl,
-          url: pdfUrl,
-          filename: pdfFilename || 'Invoice.pdf',
-          type: isDocument ? 'document' : 'text'
+          type: 'text',
         };
 
         try {
-          const response = await axios.post(settings.apiUrl, payload, {
-            params: {
-              instance_id: settings.instanceId,
-              access_token: settings.accessToken,
-              type: isDocument ? 'document' : 'text'
-            },
-            timeout: 10000,
+          const response = await axios.post(settings.apiUrl, textPayload, {
+            params: { instance_id: instanceId, access_token: accessToken },
+            timeout: 15000,
           });
-          return res.json({ success: true, data: response.data });
+
+          console.log(`[WhatsApp] Text send: HTTP ${response.status}`, JSON.stringify(response.data).slice(0, 300));
+
+          if (response.status < 300 && isPlanifyxSuccess(response.data)) {
+            return res.json({ success: true, data: response.data });
+          }
+
+          // Got 200 but response body says error
+          const errMsg = planifyxErrorMsg(response.data);
+          console.error('[WhatsApp] API returned success HTTP but error body:', response.data);
+          return res.status(400).json({ error: `WhatsApp API error: ${errMsg}` });
+
         } catch (axiosError: any) {
-          console.error("WhatsApp API Axios Error:", axiosError.response?.status || axiosError.message);
-          throw new Error(axiosError.response?.data?.message || axiosError.response?.data?.error || axiosError.message || "WhatsApp API call failed");
+          const errMsg = axiosError.response?.data?.message || axiosError.response?.data?.error || axiosError.message || 'WhatsApp API call failed';
+          console.error('[WhatsApp] Text send failed:', axiosError.response?.status, axiosError.response?.data || axiosError.message);
+          throw new Error(errMsg);
         }
       }
 
