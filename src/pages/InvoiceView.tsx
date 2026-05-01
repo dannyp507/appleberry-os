@@ -176,11 +176,11 @@ export default function InvoiceView() {
   if (notFound || !sale) {
     return (
       <div className="min-h-screen bg-[#0A0A0C] flex flex-col items-center justify-center gap-4">
-        <div className="w-16 h-16 rounded-2xl bg-[#141416] border border-[#2A2A2E] flex items-center justify-center">
+        <div className="w-16 h-16 rounded-2xl bg-white border border-gray-200 flex items-center justify-center">
           <FileText className="h-8 w-8 text-zinc-600" />
         </div>
         <p className="text-white font-bold text-lg">Invoice not found</p>
-        <p className="text-zinc-500 text-sm">This invoice may have been deleted or you don't have access.</p>
+        <p className="text-gray-400 text-sm">This invoice may have been deleted or you don't have access.</p>
       </div>
     );
   }
@@ -201,19 +201,19 @@ export default function InvoiceView() {
           </div>
           <div>
             <p className="text-sm font-bold text-white">Invoice #{(sale.ticket_number || id?.slice(0, 8) || '').toUpperCase()}</p>
-            <p className="text-xs text-zinc-500">{safeFormatDate(sale.created_at, 'dd MMM yyyy')}</p>
+            <p className="text-xs text-gray-400">{safeFormatDate(sale.created_at, 'dd MMM yyyy')}</p>
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => window.print()}
-            className="flex items-center gap-2 rounded-xl border border-[#2A2A2E] bg-[#141416] px-3 py-2 text-sm font-semibold text-zinc-300 hover:text-white transition-colors"
+            className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-600 hover:text-white transition-colors"
           >
             <Printer className="h-4 w-4" /> Print
           </button>
           <button
             onClick={handleDownload}
-            className="flex items-center gap-2 rounded-xl border border-[#2A2A2E] bg-[#141416] px-3 py-2 text-sm font-semibold text-zinc-300 hover:text-white transition-colors"
+            className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-600 hover:text-white transition-colors"
           >
             <Download className="h-4 w-4" /> PDF
           </button>

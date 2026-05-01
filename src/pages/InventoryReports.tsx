@@ -103,8 +103,8 @@ export default function InventoryReports() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-white">Inventory Reports</h1>
-        <p className="text-sm text-zinc-400 mt-0.5">{stats.totalSkus} SKUs · {stats.totalUnits.toLocaleString()} units on hand</p>
+        <h1 className="text-2xl font-bold text-gray-900">Inventory Reports</h1>
+        <p className="text-sm text-gray-500 mt-0.5">{stats.totalSkus} SKUs · {stats.totalUnits.toLocaleString()} units on hand</p>
       </div>
 
       {/* Stats row */}
@@ -115,14 +115,14 @@ export default function InventoryReports() {
           { icon: TrendingDown, label: 'Potential Profit', value: formatCurrency(stats.potentialProfit), sub: 'if all sold', color: 'text-purple-400' },
           { icon: AlertTriangle, label: 'Stock Alerts', value: `${stats.lowStock + stats.outOfStock}`, sub: `${stats.outOfStock} out · ${stats.lowStock} low`, color: 'text-amber-400' },
         ].map((card) => (
-          <div key={card.label} className="rounded-2xl border border-[#2A2A2E] bg-[#141416] p-5">
+          <div key={card.label} className="rounded-2xl border border-gray-200 bg-white p-5">
             <div className="flex items-center gap-3">
-              <div className="rounded-xl bg-[#1C1C1F] p-2.5">
+              <div className="rounded-xl bg-gray-50 p-2.5">
                 <card.icon className={`h-5 w-5 ${card.color}`} />
               </div>
               <div>
-                <p className="text-xs text-zinc-500 font-medium">{card.label}</p>
-                <p className="text-xl font-bold text-white">{card.value}</p>
+                <p className="text-xs text-gray-400 font-medium">{card.label}</p>
+                <p className="text-xl font-bold text-gray-900">{card.value}</p>
                 <p className="text-[10px] text-zinc-600 mt-0.5">{card.sub}</p>
               </div>
             </div>
@@ -131,13 +131,13 @@ export default function InventoryReports() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 rounded-xl border border-[#2A2A2E] bg-[#141416] p-1 w-fit">
+      <div className="flex gap-1 rounded-xl border border-gray-200 bg-white p-1 w-fit">
         {TABS.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
             className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
-              tab === t.id ? 'bg-[#22C55E] text-white' : 'text-zinc-400 hover:text-white'
+              tab === t.id ? 'bg-[#22C55E] text-white' : 'text-gray-500 hover:text-white'
             }`}
           >
             {t.label}
@@ -147,8 +147,8 @@ export default function InventoryReports() {
 
       {/* Overview */}
       {tab === 'overview' && (
-        <div className="rounded-2xl border border-[#2A2A2E] bg-[#141416] p-6">
-          <h2 className="text-base font-semibold text-white mb-4">Stock by Category</h2>
+        <div className="rounded-2xl border border-gray-200 bg-white p-6">
+          <h2 className="text-base font-semibold text-gray-900 mb-4">Stock by Category</h2>
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={categoryData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#2A2A2E" />
@@ -170,15 +170,15 @@ export default function InventoryReports() {
 
       {/* By Category table */}
       {tab === 'by_category' && (
-        <div className="rounded-2xl border border-[#2A2A2E] bg-[#141416] overflow-hidden">
+        <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-[#2A2A2E]">
-                <th className="px-5 py-3.5 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wider">Category</th>
-                <th className="px-5 py-3.5 text-right text-xs font-semibold text-zinc-500 uppercase tracking-wider">SKUs</th>
-                <th className="px-5 py-3.5 text-right text-xs font-semibold text-zinc-500 uppercase tracking-wider">Units</th>
-                <th className="px-5 py-3.5 text-right text-xs font-semibold text-zinc-500 uppercase tracking-wider">Cost Value</th>
-                <th className="px-5 py-3.5 text-right text-xs font-semibold text-zinc-500 uppercase tracking-wider">Retail Value</th>
+              <tr className="border-b border-gray-200">
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Category</th>
+                <th className="px-5 py-3.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">SKUs</th>
+                <th className="px-5 py-3.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">Units</th>
+                <th className="px-5 py-3.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">Cost Value</th>
+                <th className="px-5 py-3.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">Retail Value</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#2A2A2E]">
@@ -187,19 +187,19 @@ export default function InventoryReports() {
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-2">
                       <span className="h-2.5 w-2.5 rounded-full" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
-                      <span className="text-sm font-medium text-white">{row.category}</span>
+                      <span className="text-sm font-medium text-gray-900">{row.category}</span>
                     </div>
                   </td>
-                  <td className="px-5 py-3.5 text-right text-sm text-zinc-300">{row.skus}</td>
-                  <td className="px-5 py-3.5 text-right text-sm text-zinc-300">{row.units.toLocaleString()}</td>
-                  <td className="px-5 py-3.5 text-right text-sm text-zinc-300">{formatCurrency(row.costValue)}</td>
+                  <td className="px-5 py-3.5 text-right text-sm text-gray-600">{row.skus}</td>
+                  <td className="px-5 py-3.5 text-right text-sm text-gray-600">{row.units.toLocaleString()}</td>
+                  <td className="px-5 py-3.5 text-right text-sm text-gray-600">{formatCurrency(row.costValue)}</td>
                   <td className="px-5 py-3.5 text-right text-sm font-semibold text-[#22C55E]">{formatCurrency(row.retailValue)}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
-              <tr className="border-t border-[#2A2A2E] bg-[#1C1C1F]">
-                <td className="px-5 py-3.5 text-sm font-bold text-white">Total</td>
+              <tr className="border-t border-gray-200 bg-gray-50">
+                <td className="px-5 py-3.5 text-sm font-bold text-gray-900">Total</td>
                 <td className="px-5 py-3.5 text-right text-sm font-bold text-white">{stats.totalSkus}</td>
                 <td className="px-5 py-3.5 text-right text-sm font-bold text-white">{stats.totalUnits.toLocaleString()}</td>
                 <td className="px-5 py-3.5 text-right text-sm font-bold text-white">{formatCurrency(stats.costValue)}</td>
@@ -212,21 +212,21 @@ export default function InventoryReports() {
 
       {/* Low Stock */}
       {tab === 'low_stock' && (
-        <div className="rounded-2xl border border-[#2A2A2E] bg-[#141416] overflow-hidden">
+        <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
           {physicalProducts.filter((p) => p.stock <= p.low_stock_threshold).length === 0 ? (
             <div className="p-12 text-center">
               <Package className="mx-auto h-10 w-10 text-zinc-600" />
-              <p className="mt-3 text-sm text-zinc-400">All products are sufficiently stocked</p>
+              <p className="mt-3 text-sm text-gray-500">All products are sufficiently stocked</p>
             </div>
           ) : (
             <table className="w-full">
               <thead>
-                <tr className="border-b border-[#2A2A2E]">
-                  <th className="px-5 py-3.5 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wider">Product</th>
-                  <th className="px-5 py-3.5 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wider">Category</th>
-                  <th className="px-5 py-3.5 text-right text-xs font-semibold text-zinc-500 uppercase tracking-wider">Stock</th>
-                  <th className="px-5 py-3.5 text-right text-xs font-semibold text-zinc-500 uppercase tracking-wider">Threshold</th>
-                  <th className="px-5 py-3.5 text-right text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status</th>
+                <tr className="border-b border-gray-200">
+                  <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Product</th>
+                  <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Category</th>
+                  <th className="px-5 py-3.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">Stock</th>
+                  <th className="px-5 py-3.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">Threshold</th>
+                  <th className="px-5 py-3.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#2A2A2E]">
@@ -237,15 +237,15 @@ export default function InventoryReports() {
                     <tr key={p.id} className="hover:bg-white/[0.02]">
                       <td className="px-5 py-3.5">
                         <p className="text-sm font-medium text-white">{p.name}</p>
-                        {p.sku && <p className="text-xs text-zinc-500 mt-0.5">SKU: {p.sku}</p>}
+                        {p.sku && <p className="text-xs text-gray-400 mt-0.5">SKU: {p.sku}</p>}
                       </td>
-                      <td className="px-5 py-3.5 text-sm text-zinc-400">{p.category}</td>
+                      <td className="px-5 py-3.5 text-sm text-gray-500">{p.category}</td>
                       <td className="px-5 py-3.5 text-right">
                         <span className={`text-sm font-bold ${p.stock === 0 ? 'text-red-400' : 'text-amber-400'}`}>
                           {p.stock}
                         </span>
                       </td>
-                      <td className="px-5 py-3.5 text-right text-sm text-zinc-500">{p.low_stock_threshold}</td>
+                      <td className="px-5 py-3.5 text-right text-sm text-gray-400">{p.low_stock_threshold}</td>
                       <td className="px-5 py-3.5 text-right">
                         <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
                           p.stock === 0 ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'
@@ -263,10 +263,10 @@ export default function InventoryReports() {
 
       {/* Valuation */}
       {tab === 'valuation' && (
-        <div className="rounded-2xl border border-[#2A2A2E] bg-[#141416] overflow-hidden">
+        <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-[#2A2A2E]">
+              <tr className="border-b border-gray-200">
                 {[
                   { label: 'Product', field: 'name' as SortField },
                   { label: 'Stock', field: 'stock' as SortField },
@@ -277,7 +277,7 @@ export default function InventoryReports() {
                   <th
                     key={col.field}
                     onClick={() => toggleSort(col.field)}
-                    className="px-5 py-3.5 text-right text-xs font-semibold text-zinc-500 uppercase tracking-wider cursor-pointer hover:text-white first:text-left"
+                    className="px-5 py-3.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white first:text-left"
                   >
                     <span className="flex items-center gap-1 justify-end first:justify-start">
                       {col.label}
@@ -292,11 +292,11 @@ export default function InventoryReports() {
                 <tr key={p.id} className="hover:bg-white/[0.02]">
                   <td className="px-5 py-3.5">
                     <p className="text-sm font-medium text-white">{p.name}</p>
-                    <p className="text-xs text-zinc-500">{p.category}</p>
+                    <p className="text-xs text-gray-400">{p.category}</p>
                   </td>
-                  <td className="px-5 py-3.5 text-right text-sm text-zinc-300">{p.stock}</td>
-                  <td className="px-5 py-3.5 text-right text-sm text-zinc-300">{formatCurrency(p.cost_price)}</td>
-                  <td className="px-5 py-3.5 text-right text-sm text-zinc-300">{formatCurrency(p.selling_price)}</td>
+                  <td className="px-5 py-3.5 text-right text-sm text-gray-600">{p.stock}</td>
+                  <td className="px-5 py-3.5 text-right text-sm text-gray-600">{formatCurrency(p.cost_price)}</td>
+                  <td className="px-5 py-3.5 text-right text-sm text-gray-600">{formatCurrency(p.selling_price)}</td>
                   <td className="px-5 py-3.5 text-right text-sm font-semibold text-white">{formatCurrency(p.stock * p.cost_price)}</td>
                 </tr>
               ))}

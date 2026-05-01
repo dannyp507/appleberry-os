@@ -140,13 +140,13 @@ export default function ActivityLog() {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Activity Log</h1>
-          <p className="text-sm text-zinc-400 mt-0.5">Recent operational changes across sales, repairs, customers, and stock.</p>
+          <h1 className="text-2xl font-bold text-gray-900">Activity Log</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Recent operational changes across sales, repairs, customers, and stock.</p>
         </div>
         <select
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)}
-          className="rounded-xl border border-[#2A2A2E] bg-[#141416] px-3 py-2.5 text-sm text-white focus:border-[#22C55E] focus:outline-none"
+          className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 focus:border-[#22C55E] focus:outline-none"
         >
           <option value="all">All activity</option>
           <option value="sale">Sales</option>
@@ -159,11 +159,11 @@ export default function ActivityLog() {
         </select>
       </div>
 
-      <div className="rounded-2xl border border-[#2A2A2E] bg-[#141416] p-6">
+      <div className="rounded-2xl border border-gray-200 bg-white p-6">
         <div className="space-y-3">
           {loading ? (
             Array.from({ length: 6 }).map((_, index) => (
-              <div key={index} className="animate-pulse flex gap-4 items-start p-4 bg-[#1C1C1F] rounded-xl">
+              <div key={index} className="animate-pulse flex gap-4 items-start p-4 bg-gray-50 rounded-xl">
                 <div className="w-10 h-10 rounded-xl bg-[#2A2A2E]" />
                 <div className="flex-1 space-y-2">
                   <div className="h-4 bg-[#2A2A2E] rounded w-48" />
@@ -178,16 +178,16 @@ export default function ActivityLog() {
             </div>
           ) : (
             filteredActivities.map((activity) => (
-              <div key={activity.id} className="flex gap-4 items-start p-4 rounded-xl border border-[#2A2A2E] hover:bg-white/[0.02]">
+              <div key={activity.id} className="flex gap-4 items-start p-4 rounded-xl border border-gray-200 hover:bg-gray-50">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${iconBg(activity.type)}`}>
                   {iconForType(activity.type)}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-1">
-                    <p className="font-semibold text-white">{activity.title}</p>
-                    <p className="text-[10px] uppercase tracking-wider text-zinc-500">{safeFormatDate(activity.createdAt, 'dd MMM yyyy HH:mm')}</p>
+                    <p className="font-semibold text-gray-900">{activity.title}</p>
+                    <p className="text-[10px] uppercase tracking-wider text-gray-400">{safeFormatDate(activity.createdAt, 'dd MMM yyyy HH:mm')}</p>
                   </div>
-                  <p className="text-sm text-zinc-400 mt-1">{activity.description}</p>
+                  <p className="text-sm text-gray-500 mt-1">{activity.description}</p>
                   {activity.actor && <p className="text-xs text-zinc-600 mt-1.5">Actor: {activity.actor}</p>}
                 </div>
               </div>

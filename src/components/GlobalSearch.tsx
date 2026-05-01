@@ -195,73 +195,9 @@ function GlobalSearch({
           />
         </div>
         {open && (
-          <div className="fixed inset-0 z-[80] flex items-start justify-center bg-black/72 p-3 pt-20 backdrop-blur-sm md:p-6 md:pt-24">
-            <button
-              type="button"
-              aria-label="Close search"
-              onClick={() => setOpen(false)}
-              className="absolute inset-0"
-            />
-            <div className="relative w-full max-w-3xl overflow-hidden rounded-2xl border border-[#2A2A2E] bg-[#141416] shadow-[0_24px_90px_rgba(0,0,0,0.58)]">
-              <div className="flex items-center gap-3 border-b border-[#2A2A2E] px-4 py-4 md:px-5">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#1C1C1F] text-[#3B82F6]">
-                  <Search className="h-5 w-5" />
-                </div>
-                <input
-                  autoFocus
-                  value={term}
-                  onChange={(event) => { setTerm(event.target.value); setError(null); }}
-                  placeholder="Search IMEI, customer, t#, s#, p#, or o#"
-                  className="w-full border-0 bg-transparent text-base font-semibold text-white outline-none placeholder:text-zinc-500 focus:border-0 focus:shadow-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => setOpen(false)}
-                  className="rounded-xl border border-[#2A2A2E] bg-[#1C1C1F] p-2 text-zinc-400 hover:bg-white/[0.06] hover:text-white"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-              <div className="max-h-[70vh] overflow-y-auto p-4 md:p-5">
-                {!term.trim() && (
-                  <div className="grid gap-3 md:grid-cols-2">
-                    {['Customer name or phone', 'IMEI or SKU', 'Ticket number like t#1024', 'Invoice like s#', 'Purchase order like p#', 'Order like o#'].map((hint) => (
-                      <div key={hint} className="rounded-xl border border-[#2A2A2E] bg-[#1C1C1F] px-4 py-4 text-sm text-zinc-400">{hint}</div>
-                    ))}
-                  </div>
-                )}
-                {term.trim().length === 1 && (
-                  <div className="py-12 text-center">
-                    <Search className="mx-auto mb-3 h-10 w-10 text-[#3B82F6]" />
-                    <p className="text-sm font-semibold text-white">Keep typing to search</p>
-                  </div>
-                )}
-                {loading && term.trim() && <div className="py-12 text-center text-sm text-zinc-400">Searching across the workspace...</div>}
-                {!loading && error && (
-                  <div className="py-12 text-center">
-                    <Search className="mx-auto mb-3 h-10 w-10 text-[#EF4444]" />
-                    <p className="text-sm font-semibold text-white">Search could not complete</p>
-                    <p className="mt-1 text-sm text-zinc-400">{error}</p>
-                  </div>
-                )}
-                {!loading && !error && term.trim().length >= 2 && results.length === 0 && (
-                  <div className="py-12 text-center">
-                    <Search className="mx-auto mb-3 h-10 w-10 text-zinc-600" />
-                    <p className="text-sm font-semibold text-white">No matching records found</p>
-                  </div>
-                )}
-                {!loading && !error && results.length > 0 && (
-                  <div className="space-y-6">
-                    <ResultGroup title="Customers" items={grouped.customers} onSelect={closeAndGo} term={term} />
-                    <ResultGroup title="Repairs" items={grouped.repairs} onSelect={closeAndGo} term={term} />
-                    <ResultGroup title="Invoices" items={grouped.sales} onSelect={closeAndGo} term={term} />
-                    <ResultGroup title="Purchase Orders" items={grouped.purchase_orders} onSelect={closeAndGo} term={term} />
-                    <ResultGroup title="Orders" items={grouped.orders} onSelect={closeAndGo} term={term} />
-                    <ResultGroup title="Products & IMEI" items={grouped.products} onSelect={closeAndGo} term={term} />
-                  </div>
-                )}
-              </div>
-            </div>
+          <div className="fixed inset-0 z-[80] flex items-start justify-center bg-black/40 p-3 pt-16 backdrop-blur-sm md:p-6 md:pt-20">
+            <button type="button" aria-label="Close search" onClick={() => setOpen(false)} className="absolute inset-0" />
+            <SearchModal term={term} setTerm={setTerm} setError={setError} setOpen={setOpen} loading={loading} error={error} results={results} grouped={grouped} closeAndGo={closeAndGo} />
           </div>
         )}
       </>
@@ -273,18 +209,18 @@ function GlobalSearch({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className={`group flex items-center gap-3 rounded-xl border border-[#2A2A2E] bg-[#141416]/92 text-left shadow-[0_12px_32px_rgba(0,0,0,0.32)] transition hover:border-[#3A3A42] hover:bg-[#1C1C1F] ${compact ? 'px-2.5 py-2.5' : 'px-3 py-2.5'} ${className}`}
+        className={`group flex items-center gap-3 rounded-xl border border-gray-200 bg-white text-left shadow-sm transition hover:bg-gray-50 hover:border-gray-300 ${compact ? 'px-2.5 py-2.5' : 'px-3 py-2.5'} ${className}`}
       >
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#202024] text-[#3B82F6]">
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
           <Search className="h-4 w-4" />
         </div>
         {!compact && (
           <>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-white">Global search</p>
-              <p className="truncate text-xs text-zinc-400">IMEI, customer, ticket, invoice, PO, or order</p>
+              <p className="text-sm font-semibold text-gray-700">Global search</p>
+              <p className="truncate text-xs text-gray-400">IMEI, customer, ticket, invoice, PO, or order</p>
             </div>
-            <div className="hidden rounded-lg border border-[#2A2A2E] bg-[#1C1C1F] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500 sm:block">
+            <div className="hidden rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400 sm:block">
               Ctrl K
             </div>
           </>
@@ -292,98 +228,83 @@ function GlobalSearch({
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-[80] flex items-start justify-center bg-black/72 p-3 pt-20 backdrop-blur-sm md:p-6 md:pt-24">
-          <button
-            type="button"
-            aria-label="Close search"
-            onClick={() => setOpen(false)}
-            className="absolute inset-0"
-          />
-          <div className="relative w-full max-w-3xl overflow-hidden rounded-2xl border border-[#2A2A2E] bg-[#141416] shadow-[0_24px_90px_rgba(0,0,0,0.58)]">
-            <div className="flex items-center gap-3 border-b border-[#2A2A2E] px-4 py-4 md:px-5">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#1C1C1F] text-[#3B82F6]">
-                <Search className="h-5 w-5" />
-              </div>
-              <input
-                autoFocus
-                value={term}
-                onChange={(event) => {
-                  setTerm(event.target.value);
-                  setError(null);
-                }}
-                placeholder="Search IMEI, customer, t#, s#, p#, or o#"
-                className="w-full border-0 bg-transparent text-base font-semibold text-white outline-none placeholder:text-zinc-500 focus:border-0 focus:shadow-none"
-              />
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                className="rounded-xl border border-[#2A2A2E] bg-[#1C1C1F] p-2 text-zinc-400 hover:bg-white/[0.06] hover:text-white"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="max-h-[70vh] overflow-y-auto p-4 md:p-5">
-              {!term.trim() && (
-                <div className="grid gap-3 md:grid-cols-2">
-                  {[
-                    'Customer name or phone',
-                    'IMEI or SKU',
-                    'Ticket number like t#1024',
-                    'Invoice like s#',
-                    'Purchase order like p#',
-                    'Order like o#',
-                  ].map((hint) => (
-                    <div key={hint} className="rounded-xl border border-[#2A2A2E] bg-[#1C1C1F] px-4 py-4 text-sm text-zinc-400">
-                      {hint}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {term.trim().length === 1 && (
-                <div className="py-12 text-center">
-                  <Search className="mx-auto mb-3 h-10 w-10 text-[#3B82F6]" />
-                  <p className="text-sm font-semibold text-white">Keep typing to search</p>
-                  <p className="mt-1 text-sm text-zinc-400">Enter at least 2 characters, or use prefixes like t#, s#, p#, or o#.</p>
-                </div>
-              )}
-
-              {loading && term.trim() && (
-                <div className="py-12 text-center text-sm text-zinc-400">Searching across the workspace...</div>
-              )}
-
-              {!loading && error && (
-                <div className="py-12 text-center">
-                  <Search className="mx-auto mb-3 h-10 w-10 text-[#EF4444]" />
-                  <p className="text-sm font-semibold text-white">Search could not complete</p>
-                  <p className="mt-1 text-sm text-zinc-400">{error}</p>
-                </div>
-              )}
-
-              {!loading && !error && term.trim().length >= 2 && results.length === 0 && (
-                <div className="py-12 text-center">
-                  <Search className="mx-auto mb-3 h-10 w-10 text-zinc-600" />
-                  <p className="text-sm font-semibold text-white">No matching records found</p>
-                  <p className="mt-1 text-sm text-zinc-400">Try a name, IMEI, ticket number, or invoice id.</p>
-                </div>
-              )}
-
-              {!loading && !error && results.length > 0 && (
-                <div className="space-y-6">
-                  <ResultGroup title="Customers" items={grouped.customers} onSelect={closeAndGo} term={term} />
-                  <ResultGroup title="Repairs" items={grouped.repairs} onSelect={closeAndGo} term={term} />
-                  <ResultGroup title="Invoices" items={grouped.sales} onSelect={closeAndGo} term={term} />
-                  <ResultGroup title="Purchase Orders" items={grouped.purchase_orders} onSelect={closeAndGo} term={term} />
-                  <ResultGroup title="Orders" items={grouped.orders} onSelect={closeAndGo} term={term} />
-                  <ResultGroup title="Products & IMEI" items={grouped.products} onSelect={closeAndGo} term={term} />
-                </div>
-              )}
-            </div>
-          </div>
+        <div className="fixed inset-0 z-[80] flex items-start justify-center bg-black/40 p-3 pt-16 backdrop-blur-sm md:p-6 md:pt-20">
+          <button type="button" aria-label="Close search" onClick={() => setOpen(false)} className="absolute inset-0" />
+          <SearchModal term={term} setTerm={setTerm} setError={setError} setOpen={setOpen} loading={loading} error={error} results={results} grouped={grouped} closeAndGo={closeAndGo} />
         </div>
       )}
     </>
+  );
+}
+
+function SearchModal({ term, setTerm, setError, setOpen, loading, error, results, grouped, closeAndGo }: {
+  term: string; setTerm: (v: string) => void; setError: (v: string | null) => void;
+  setOpen: (v: boolean) => void; loading: boolean; error: string | null;
+  results: SearchResult[]; grouped: Record<string, SearchResult[]>; closeAndGo: (href: string) => void;
+}) {
+  return (
+    <div className="relative w-full max-w-3xl overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl">
+      <div className="flex items-center gap-3 border-b border-gray-100 px-4 py-3.5 md:px-5">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+          <Search className="h-5 w-5" />
+        </div>
+        <input
+          autoFocus
+          value={term}
+          onChange={(event) => { setTerm(event.target.value); setError(null); }}
+          placeholder="Search IMEI, customer, t#, s#, p#, or o#"
+          className="w-full border-0 bg-transparent text-base font-semibold text-gray-900 outline-none placeholder:text-gray-400 focus:border-0 focus:shadow-none"
+        />
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="rounded-xl border border-gray-200 bg-gray-50 p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+      <div className="max-h-[70vh] overflow-y-auto p-4 md:p-5">
+        {!term.trim() && (
+          <div className="grid gap-2 md:grid-cols-2">
+            {['Customer name or phone', 'IMEI or SKU', 'Ticket number like t#1024', 'Invoice like s#', 'Purchase order like p#', 'Order like o#'].map((hint) => (
+              <div key={hint} className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm text-gray-500">{hint}</div>
+            ))}
+          </div>
+        )}
+        {term.trim().length === 1 && (
+          <div className="py-12 text-center">
+            <Search className="mx-auto mb-3 h-10 w-10 text-blue-400" />
+            <p className="text-sm font-semibold text-gray-900">Keep typing to search</p>
+            <p className="mt-1 text-sm text-gray-400">Enter at least 2 characters, or use prefixes like t#, s#, p#, or o#.</p>
+          </div>
+        )}
+        {loading && term.trim() && <div className="py-12 text-center text-sm text-gray-400">Searching across the workspace...</div>}
+        {!loading && error && (
+          <div className="py-12 text-center">
+            <Search className="mx-auto mb-3 h-10 w-10 text-red-400" />
+            <p className="text-sm font-semibold text-gray-900">Search could not complete</p>
+            <p className="mt-1 text-sm text-gray-500">{error}</p>
+          </div>
+        )}
+        {!loading && !error && term.trim().length >= 2 && results.length === 0 && (
+          <div className="py-12 text-center">
+            <Search className="mx-auto mb-3 h-10 w-10 text-gray-300" />
+            <p className="text-sm font-semibold text-gray-900">No matching records found</p>
+            <p className="mt-1 text-sm text-gray-400">Try a name, IMEI, ticket number, or invoice id.</p>
+          </div>
+        )}
+        {!loading && !error && results.length > 0 && (
+          <div className="space-y-6">
+            <ResultGroup title="Customers" items={grouped.customers} onSelect={closeAndGo} term={term} />
+            <ResultGroup title="Repairs" items={grouped.repairs} onSelect={closeAndGo} term={term} />
+            <ResultGroup title="Invoices" items={grouped.sales} onSelect={closeAndGo} term={term} />
+            <ResultGroup title="Purchase Orders" items={grouped.purchase_orders} onSelect={closeAndGo} term={term} />
+            <ResultGroup title="Orders" items={grouped.orders} onSelect={closeAndGo} term={term} />
+            <ResultGroup title="Products & IMEI" items={grouped.products} onSelect={closeAndGo} term={term} />
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -403,8 +324,8 @@ function ResultGroup({
   return (
     <section>
       <div className="mb-3 flex items-center justify-between gap-3">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">{title}</p>
-        <span className="rounded-full border border-[#2A2A2E] bg-[#1C1C1F] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-400">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">{title}</p>
+        <span className="rounded-full border border-gray-200 bg-gray-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-500">
           {items.length}
         </span>
       </div>
@@ -414,17 +335,17 @@ function ResultGroup({
             key={`${item.category}-${item.id}`}
             type="button"
             onClick={() => onSelect(item.href)}
-            className="flex w-full items-start gap-3 rounded-xl border border-[#2A2A2E] bg-[#1C1C1F] px-4 py-4 text-left transition hover:border-[#3A3A42] hover:bg-white/[0.04]"
+            className="flex w-full items-start gap-3 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-left transition hover:border-gray-200 hover:bg-gray-100"
           >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#202024] text-[#3B82F6]">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
               <item.icon className="h-5 w-5" />
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <p className="font-semibold text-white">{highlightText(item.title, term)}</p>
-                {item.meta && <span className="text-xs uppercase tracking-[0.12em] text-zinc-500">{item.meta}</span>}
+                <p className="font-semibold text-gray-900">{highlightText(item.title, term)}</p>
+                {item.meta && <span className="text-xs uppercase tracking-[0.12em] text-gray-400">{item.meta}</span>}
               </div>
-              <p className="mt-1 text-sm text-zinc-400">{highlightText(item.subtitle, term)}</p>
+              <p className="mt-1 text-sm text-gray-500">{highlightText(item.subtitle, term)}</p>
             </div>
           </button>
         ))}

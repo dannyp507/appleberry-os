@@ -118,20 +118,20 @@ function ExportPanel({ companyId }: { companyId: string | null }) {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-base font-bold text-white">Export Data</h3>
-        <p className="text-sm text-zinc-400 mt-1">Download your data as CSV files. Each export includes all records for your workspace.</p>
+        <h3 className="text-base font-bold text-gray-900">Export Data</h3>
+        <p className="text-sm text-gray-500 mt-1">Download your data as CSV files. Each export includes all records for your workspace.</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         {exports.map(exp => (
-          <div key={exp.id} className="rounded-2xl border border-[#2A2A2E] bg-[#1C1C1F] p-5">
+          <div key={exp.id} className="rounded-2xl border border-gray-200 bg-gray-50 p-5">
             <div className="flex items-center gap-3 mb-4">
               <div className={`rounded-xl p-2.5 ${exp.bg}`}>
                 <exp.icon className={`h-5 w-5 ${exp.color}`} />
               </div>
               <div>
-                <p className="font-semibold text-white">{exp.label}</p>
-                <p className="text-xs text-zinc-500">{exp.fields.length} columns</p>
+                <p className="font-semibold text-gray-900">{exp.label}</p>
+                <p className="text-xs text-gray-400">{exp.fields.length} columns</p>
               </div>
             </div>
             <div className="text-xs text-zinc-600 mb-4 font-mono leading-relaxed">
@@ -140,7 +140,7 @@ function ExportPanel({ companyId }: { companyId: string | null }) {
             <button
               onClick={() => handleExport(exp)}
               disabled={exporting === exp.id}
-              className="w-full flex items-center justify-center gap-2 rounded-xl border border-[#2A2A2E] bg-[#141416] px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/[0.04] disabled:opacity-50 transition-colors"
+              className="w-full flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
             >
               <Download className="h-4 w-4" />
               {exporting === exp.id ? 'Exporting…' : `Export ${exp.label}`}
@@ -207,8 +207,8 @@ export default function ManageData() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-white">Manage Data</h1>
-        <p className="text-sm text-zinc-400 mt-0.5">Shop settings, data import/export, and communication configuration</p>
+        <h1 className="text-2xl font-bold text-gray-900">Manage Data</h1>
+        <p className="text-sm text-gray-500 mt-0.5">Shop settings, data import/export, and communication configuration</p>
       </div>
 
       <div className="flex gap-6 min-h-[70vh]">
@@ -221,7 +221,7 @@ export default function ManageData() {
               className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all text-left ${
                 activeSection === item.id
                   ? 'bg-[#22C55E]/10 text-[#22C55E] border border-[#22C55E]/20'
-                  : 'text-zinc-400 hover:text-white hover:bg-[#1C1C1F]'
+                  : 'text-gray-500 hover:text-white hover:bg-gray-50'
               }`}
             >
               <item.icon className="w-4 h-4 shrink-0" />
@@ -237,7 +237,7 @@ export default function ManageData() {
         </div>
 
         {/* Content panel */}
-        <div className="flex-1 min-w-0 rounded-2xl border border-[#2A2A2E] bg-[#141416] p-6">
+        <div className="flex-1 min-w-0 rounded-2xl border border-gray-200 bg-white p-6">
           {renderContent()}
         </div>
       </div>

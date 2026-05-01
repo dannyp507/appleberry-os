@@ -253,33 +253,33 @@ function getToneClasses(toneName: string) {
   const tones: Record<string, { icon: string; value: string; card: string; button: string }> = {
     success: {
       icon: 'text-[#22C55E] border-[#22C55E]/30 bg-[#22C55E]/10',
-      value: 'text-[#86EFAC]',
+      value: 'text-green-700',
       card: 'border-[#22C55E]/25 bg-[#22C55E]/8',
-      button: 'border-[#22C55E]/35 bg-[#22C55E]/12 text-[#86EFAC] hover:bg-[#22C55E]/18',
+      button: 'border-[#22C55E]/35 bg-[#22C55E]/12 text-green-700 hover:bg-[#22C55E]/18',
     },
     info: {
       icon: 'text-[#3B82F6] border-[#3B82F6]/30 bg-[#3B82F6]/10',
-      value: 'text-[#93C5FD]',
+      value: 'text-blue-700',
       card: 'border-[#3B82F6]/25 bg-[#3B82F6]/8',
-      button: 'border-[#3B82F6]/35 bg-[#3B82F6]/12 text-[#93C5FD] hover:bg-[#3B82F6]/18',
+      button: 'border-[#3B82F6]/35 bg-[#3B82F6]/12 text-blue-700 hover:bg-[#3B82F6]/18',
     },
     warning: {
       icon: 'text-[#F59E0B] border-[#F59E0B]/30 bg-[#F59E0B]/10',
-      value: 'text-[#FCD34D]',
+      value: 'text-amber-700',
       card: 'border-[#F59E0B]/30 bg-[#F59E0B]/10',
-      button: 'border-[#F59E0B]/40 bg-[#F59E0B]/14 text-[#FCD34D] hover:bg-[#F59E0B]/20',
+      button: 'border-[#F59E0B]/40 bg-[#F59E0B]/14 text-amber-700 hover:bg-[#F59E0B]/20',
     },
     danger: {
       icon: 'text-[#EF4444] border-[#EF4444]/30 bg-[#EF4444]/10',
-      value: 'text-[#FCA5A5]',
+      value: 'text-red-700',
       card: 'border-[#EF4444]/30 bg-[#EF4444]/10',
-      button: 'border-[#EF4444]/40 bg-[#EF4444]/14 text-[#FCA5A5] hover:bg-[#EF4444]/20',
+      button: 'border-[#EF4444]/40 bg-[#EF4444]/14 text-red-700 hover:bg-[#EF4444]/20',
     },
     neutral: {
-      icon: 'text-zinc-300 border-[#2A2A2E] bg-[#101012]',
+      icon: 'text-gray-600 border-gray-200 bg-[#101012]',
       value: 'text-white',
-      card: 'border-[#2A2A2E] bg-[#141416]',
-      button: 'border-[#2A2A2E] bg-[#101012] text-zinc-300 hover:bg-[#1C1C1F]',
+      card: 'border-gray-200 bg-white',
+      button: 'border-gray-200 bg-[#101012] text-gray-600 hover:bg-gray-50',
     },
   };
   return tones[toneName] || tones.info;
@@ -290,11 +290,11 @@ function PrimaryKpiCard({ to, title, value, empty, emptyMessage, cta, icon: Icon
     <Link to={to} className="group overflow-hidden rounded-xl border border-[#22C55E]/25 bg-[#111512] p-6 transition-all hover:-translate-y-0.5 hover:border-[#22C55E]/45 hover:shadow-[0_0_34px_rgba(34,197,94,0.12)]">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#86EFAC]">{title}</p>
+          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-green-700">{title}</p>
           <p className="mt-3 text-5xl font-black leading-none text-[#22C55E] md:text-6xl">{value}</p>
-          <p className="mt-4 max-w-md text-sm text-zinc-400">{empty ? emptyMessage : 'Completed sales recorded since opening today.'}</p>
+          <p className="mt-4 max-w-md text-sm text-gray-500">{empty ? emptyMessage : 'Completed sales recorded since opening today.'}</p>
         </div>
-        <div className="hidden h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#22C55E]/25 bg-[#22C55E]/10 text-[#86EFAC] sm:flex">
+        <div className="hidden h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#22C55E]/25 bg-[#22C55E]/10 text-green-700 sm:flex">
           <Icon className="h-7 w-7" />
         </div>
       </div>
@@ -314,11 +314,11 @@ function DashboardKpiCard({ title, value, empty, emptyMessage, icon: Icon, tone 
         <div className={cn("rounded-xl border p-3", toneClasses.icon)}>
           <Icon className="h-5 w-5" />
         </div>
-        {empty && <span className="rounded-full border border-[#2A2A2E] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-zinc-500">Empty</span>}
+        {empty && <span className="rounded-full border border-gray-200 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-gray-400">Empty</span>}
       </div>
-      <p className="text-sm font-bold text-zinc-400">{title}</p>
+      <p className="text-sm font-bold text-gray-500">{title}</p>
       <p className={cn("mt-1 text-3xl font-black", toneClasses.value)}>{value}</p>
-      <p className="mt-3 text-xs text-zinc-500">{empty ? emptyMessage : 'Month-to-date from completed sales.'}</p>
+      <p className="mt-3 text-xs text-gray-400">{empty ? emptyMessage : 'Month-to-date from completed sales.'}</p>
     </div>
   );
 }
@@ -331,13 +331,13 @@ function DashboardKpiLink({ to, title, value, empty, emptyMessage, cta, icon: Ic
         <div className={cn("rounded-xl border p-3", toneClasses.icon)}>
           <Icon className="h-5 w-5" />
         </div>
-        <span className="text-[10px] font-black uppercase tracking-[0.12em] text-zinc-500">{empty ? 'Clear' : 'Open'}</span>
+        <span className="text-[10px] font-black uppercase tracking-[0.12em] text-gray-400">{empty ? 'Clear' : 'Open'}</span>
       </div>
-      <p className="text-sm font-bold text-zinc-400">{title}</p>
+      <p className="text-sm font-bold text-gray-500">{title}</p>
       <p className={cn("mt-1 text-3xl font-black", toneClasses.value)}>{value}</p>
       <div className="mt-3 flex items-center justify-between gap-3">
-        <p className="min-w-0 text-xs text-zinc-500">{empty ? emptyMessage : cta}</p>
-        <ArrowRight className="h-4 w-4 shrink-0 text-zinc-500 transition-transform group-hover:translate-x-0.5" />
+        <p className="min-w-0 text-xs text-gray-400">{empty ? emptyMessage : cta}</p>
+        <ArrowRight className="h-4 w-4 shrink-0 text-gray-400 transition-transform group-hover:translate-x-0.5" />
       </div>
     </Link>
   );
@@ -353,7 +353,7 @@ function ActionCard({ title, message, cta, to, icon: Icon, tone }: any) {
         </div>
         <div className="min-w-0 flex-1">
           <p className="font-black text-white">{title}</p>
-          <p className="mt-1 text-sm leading-5 text-zinc-400">{message}</p>
+          <p className="mt-1 text-sm leading-5 text-gray-500">{message}</p>
           <Link to={to} className={cn("mt-4 inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-black transition-colors", toneClasses.button)}>
             {cta}
             <ArrowRight className="h-3.5 w-3.5" />

@@ -45,7 +45,7 @@ const ProductRow = memo(function ProductRow({
     <tr className="transition-colors group">
       <td className="px-6 py-4">
         <div>
-          <p className="font-semibold text-white">{product.name}</p>
+          <p className="font-semibold text-gray-900">{product.name}</p>
           <div className="flex flex-wrap gap-2 mt-1">
             {product.sku && <p className="badge badge-muted rounded-md px-1 py-0 text-[10px] font-mono">SKU: {product.sku}</p>}
             {product.barcode && <p className="badge badge-muted rounded-md px-1 py-0 text-[10px] font-mono">BC: {product.barcode}</p>}
@@ -60,8 +60,8 @@ const ProductRow = memo(function ProductRow({
       </td>
       <td className="px-6 py-4">
         <div className="text-sm">
-          <p className="font-bold text-white">{formatCurrency(product.selling_price)}</p>
-          <p className="text-[10px] text-zinc-500">Cost: {formatCurrency(product.cost_price)}</p>
+          <p className="font-bold text-gray-900">{formatCurrency(product.selling_price)}</p>
+          <p className="text-[10px] text-gray-400">Cost: {formatCurrency(product.cost_price)}</p>
         </div>
       </td>
       <td className="px-6 py-4">
@@ -71,7 +71,7 @@ const ProductRow = memo(function ProductRow({
           <div className="flex items-center gap-2">
             <span className={cn(
               "text-sm font-bold",
-              product.stock <= product.low_stock_threshold ? "text-[#FCD34D]" : "text-white"
+              product.stock <= product.low_stock_threshold ? "text-amber-700" : "text-white"
             )}>
               {product.stock}
             </span>
@@ -86,19 +86,19 @@ const ProductRow = memo(function ProductRow({
           <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
             <button
               onClick={() => onEdit(product)}
-              className="p-2 text-zinc-500 hover:text-[#3B82F6] hover:bg-[#3B82F6]/10 rounded-lg transition-all"
+              className="p-2 text-gray-400 hover:text-[#3B82F6] hover:bg-[#3B82F6]/10 rounded-lg transition-all"
             >
               <Edit2 className="w-4 h-4" />
             </button>
             <button
               onClick={() => onDelete(product.id)}
-              className="p-2 text-zinc-500 hover:text-[#EF4444] hover:bg-[#EF4444]/10 rounded-lg transition-all"
+              className="p-2 text-gray-400 hover:text-[#EF4444] hover:bg-[#EF4444]/10 rounded-lg transition-all"
             >
               <Trash2 className="w-4 h-4" />
             </button>
           </div>
         ) : (
-          <span className="text-xs text-zinc-500">View only</span>
+          <span className="text-xs text-gray-400">View only</span>
         )}
       </td>
     </tr>
@@ -393,9 +393,9 @@ export default function Inventory() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500 font-semibold mb-2">Stock Control</p>
-          <h1 className="text-4xl font-black text-white">Products</h1>
-          <p className="text-zinc-400 mt-2">Manage products, pricing, stock levels, SKU, barcode, and IMEI tracking.</p>
+          <p className="text-[11px] uppercase tracking-[0.18em] text-gray-400 font-semibold mb-2">Stock Control</p>
+          <h1 className="text-4xl font-black text-gray-900">Products</h1>
+          <p className="text-gray-500 mt-2">Manage products, pricing, stock levels, SKU, barcode, and IMEI tracking.</p>
         </div>
         <div className="flex gap-2">
           {canAdjustInventory && (
@@ -437,13 +437,13 @@ export default function Inventory() {
         </button>
       </div>
 
-      <div className="flex items-center justify-between text-sm text-zinc-400 px-1">
+      <div className="flex items-center justify-between text-sm text-gray-500 px-1">
         <p>
-          Showing <span className="font-semibold text-white">{visibleProducts.length}</span> of{' '}
-          <span className="font-semibold text-white">{filteredProducts.length}</span> products
+          Showing <span className="font-semibold text-gray-900">{visibleProducts.length}</span> of{' '}
+          <span className="font-semibold text-gray-900">{filteredProducts.length}</span> products
         </p>
         {!!search.trim() && (
-          <p className="text-zinc-500">
+          <p className="text-gray-400">
             Searching for <span className="font-semibold">“{search.trim()}”</span>
           </p>
         )}
@@ -470,7 +470,7 @@ export default function Inventory() {
               ))
             ) : filteredProducts.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-zinc-500">
+                <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
                   <Package className="w-12 h-12 mx-auto mb-2 opacity-20" />
                   <p>No products found</p>
                 </td>

@@ -167,9 +167,9 @@ export default function Invoices() {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500 font-semibold mb-2">Sales Ledger</p>
-          <h1 className="text-3xl font-black text-white">Invoices</h1>
-          <p className="text-zinc-400">Track completed sales, balances, refunds, and customer invoice history.</p>
+          <p className="text-[11px] uppercase tracking-[0.18em] text-gray-400 font-semibold mb-2">Sales Ledger</p>
+          <h1 className="text-3xl font-black text-gray-900">Invoices</h1>
+          <p className="text-gray-500">Track completed sales, balances, refunds, and customer invoice history.</p>
         </div>
       </div>
 
@@ -308,10 +308,10 @@ export default function Invoices() {
 
 function SummaryCard({ title, value, icon: Icon, tone }: { title: string; value: string; icon: any; tone: 'blue' | 'amber' | 'green' | 'red' }) {
   const toneClasses = {
-    blue: 'bg-[#3B82F6]/10 text-[#93C5FD] border-[#3B82F6]/30',
-    amber: 'bg-[#F59E0B]/10 text-[#FCD34D] border-[#F59E0B]/30',
-    green: 'bg-[#22C55E]/10 text-[#86EFAC] border-[#22C55E]/30',
-    red: 'bg-[#EF4444]/10 text-[#FCA5A5] border-[#EF4444]/30',
+    blue: 'bg-[#3B82F6]/10 text-blue-700 border-[#3B82F6]/30',
+    amber: 'bg-[#F59E0B]/10 text-amber-700 border-[#F59E0B]/30',
+    green: 'bg-[#22C55E]/10 text-green-700 border-[#22C55E]/30',
+    red: 'bg-[#EF4444]/10 text-red-700 border-[#EF4444]/30',
   };
 
   return (
@@ -319,8 +319,8 @@ function SummaryCard({ title, value, icon: Icon, tone }: { title: string; value:
       <div className={`w-12 h-12 rounded-xl border flex items-center justify-center mb-4 ${toneClasses[tone]}`}>
         <Icon className="w-6 h-6" />
       </div>
-      <p className="text-sm text-zinc-400">{title}</p>
-      <p className="text-2xl font-black text-white">{value}</p>
+      <p className="text-sm text-gray-500">{title}</p>
+      <p className="text-2xl font-black text-gray-900">{value}</p>
     </div>
   );
 }

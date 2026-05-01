@@ -10,10 +10,10 @@ import { requireCompanyId } from '../../lib/db';
 import axios from 'axios';
 import { getAuthHeaders } from '../../lib/authHeaders';
 
-const inputCls = 'w-full px-3 py-2.5 bg-[#0F0F11] border border-[#2A2A2E] rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:border-[#22C55E]/50 focus:ring-1 focus:ring-[#22C55E]/20 text-sm';
-const labelCls = 'block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1.5';
-const cardCls = 'rounded-2xl border border-[#2A2A2E] bg-[#1C1C1F] overflow-hidden';
-const cardHeaderCls = 'p-5 border-b border-[#2A2A2E]';
+const inputCls = 'w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-200 text-sm';
+const labelCls = 'block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5';
+const cardCls = 'rounded-2xl border border-gray-200 bg-white overflow-hidden';
+const cardHeaderCls = 'p-5 border-b border-gray-100 bg-gray-50';
 
 export default function CommunicationSettingsComponent() {
   const { companyId } = useTenant();
@@ -122,7 +122,7 @@ export default function CommunicationSettingsComponent() {
   }
 
   if (loading) {
-    return <div className="p-8 text-center text-zinc-500">Loading settings...</div>;
+    return <div className="p-8 text-center text-gray-400">Loading settings...</div>;
   }
 
   return (
@@ -131,23 +131,23 @@ export default function CommunicationSettingsComponent() {
       {/* Messaging Mode */}
       <div className={cardCls}>
         <div className={cardHeaderCls}>
-          <h2 className="text-base font-bold text-white flex items-center gap-2">
+          <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-amber-400" />
             Messaging Mode
           </h2>
-          <p className="text-xs text-zinc-500 mt-1">Must be set to Live Mode before any emails or WhatsApp messages will send.</p>
+          <p className="text-xs text-gray-400 mt-1">Must be set to Live Mode before any emails or WhatsApp messages will send.</p>
         </div>
         <div className="p-5 space-y-4">
-          <div className="flex gap-2 p-1 bg-[#0F0F11] rounded-xl w-fit border border-[#2A2A2E]">
+          <div className="flex gap-2 p-1 bg-white rounded-xl w-fit border border-gray-200">
             <button
               onClick={() => setSettings({ ...settings, mode: 'test' })}
-              className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${settings.mode !== 'live' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'text-zinc-500 hover:text-zinc-300'}`}
+              className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${settings.mode !== 'live' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'text-gray-400 hover:text-zinc-300'}`}
             >
               Test Mode
             </button>
             <button
               onClick={() => setSettings({ ...settings, mode: 'live' })}
-              className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${settings.mode === 'live' ? 'bg-[#22C55E]/20 text-[#22C55E] border border-[#22C55E]/30' : 'text-zinc-500 hover:text-zinc-300'}`}
+              className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${settings.mode === 'live' ? 'bg-[#22C55E]/20 text-[#22C55E] border border-[#22C55E]/30' : 'text-gray-400 hover:text-zinc-300'}`}
             >
               Live Mode
             </button>
@@ -170,11 +170,11 @@ export default function CommunicationSettingsComponent() {
       {/* Email Settings */}
       <div className={cardCls}>
         <div className={cardHeaderCls}>
-          <h2 className="text-base font-bold text-white flex items-center gap-2">
+          <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
             <Mail className="w-4 h-4 text-[#22C55E]" />
             Email Settings (SMTP)
           </h2>
-          <p className="text-xs text-zinc-500 mt-1">Configure your email server to send invoices to customers.</p>
+          <p className="text-xs text-gray-400 mt-1">Configure your email server to send invoices to customers.</p>
         </div>
         <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-5">
           <div className="space-y-4">
@@ -203,11 +203,11 @@ export default function CommunicationSettingsComponent() {
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
-                    className="w-4 h-4 rounded border-[#2A2A2E] accent-[#22C55E]"
+                    className="w-4 h-4 rounded border-gray-200 accent-[#22C55E]"
                     checked={settings.email.secure}
                     onChange={e => setSettings({ ...settings, email: { ...settings.email, secure: e.target.checked } })}
                   />
-                  <span className="text-sm text-zinc-400">Secure (SSL/TLS)</span>
+                  <span className="text-sm text-gray-500">Secure (SSL/TLS)</span>
                 </label>
               </div>
             </div>
@@ -266,7 +266,7 @@ export default function CommunicationSettingsComponent() {
           <button
             onClick={handleTestConnection}
             disabled={testingConnection}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-[#2A2A2E] bg-[#0F0F11] text-zinc-300 hover:border-[#22C55E]/40 hover:text-[#22C55E] transition-all text-sm font-semibold disabled:opacity-50"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-gray-200 bg-white text-zinc-300 hover:border-[#22C55E]/40 hover:text-[#22C55E] transition-all text-sm font-semibold disabled:opacity-50"
           >
             {testingConnection ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
             {testingConnection ? 'Testing…' : 'Test SMTP Connection'}
@@ -283,23 +283,23 @@ export default function CommunicationSettingsComponent() {
       {/* WhatsApp Settings */}
       <div className={cardCls}>
         <div className={cardHeaderCls}>
-          <h2 className="text-base font-bold text-white flex items-center gap-2">
+          <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
             <MessageSquare className="w-4 h-4 text-[#22C55E]" />
             WhatsApp Settings
           </h2>
-          <p className="text-xs text-zinc-500 mt-1">Connect to WhatsApp to send automated invoice notifications.</p>
+          <p className="text-xs text-gray-400 mt-1">Connect to WhatsApp to send automated invoice notifications.</p>
         </div>
         <div className="p-5 space-y-5">
-          <div className="flex gap-2 p-1 bg-[#0F0F11] rounded-xl w-fit border border-[#2A2A2E]">
+          <div className="flex gap-2 p-1 bg-white rounded-xl w-fit border border-gray-200">
             <button
               onClick={() => setSettings({ ...settings, whatsapp: { ...settings.whatsapp, provider: 'official' } })}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${settings.whatsapp.provider === 'official' ? 'bg-[#22C55E]/20 text-[#22C55E] border border-[#22C55E]/30' : 'text-zinc-500 hover:text-zinc-300'}`}
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${settings.whatsapp.provider === 'official' ? 'bg-[#22C55E]/20 text-[#22C55E] border border-[#22C55E]/30' : 'text-gray-400 hover:text-zinc-300'}`}
             >
               Official (Meta API)
             </button>
             <button
               onClick={() => setSettings({ ...settings, whatsapp: { ...settings.whatsapp, provider: 'unofficial' } })}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${settings.whatsapp.provider === 'unofficial' ? 'bg-[#22C55E]/20 text-[#22C55E] border border-[#22C55E]/30' : 'text-zinc-500 hover:text-zinc-300'}`}
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${settings.whatsapp.provider === 'unofficial' ? 'bg-[#22C55E]/20 text-[#22C55E] border border-[#22C55E]/30' : 'text-gray-400 hover:text-zinc-300'}`}
             >
               Unofficial (Instance)
             </button>
@@ -337,7 +337,7 @@ export default function CommunicationSettingsComponent() {
                     value={settings.whatsapp.templateName}
                     onChange={e => setSettings({ ...settings, whatsapp: { ...settings.whatsapp, templateName: e.target.value } })}
                   />
-                  <p className="text-[10px] text-zinc-600 mt-1">Must match an approved template in your Meta Business Manager.</p>
+                  <p className="text-[10px] text-gray-500 mt-1">Must match an approved template in your Meta Business Manager.</p>
                 </div>
               </>
             ) : (

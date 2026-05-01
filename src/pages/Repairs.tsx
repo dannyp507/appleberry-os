@@ -72,13 +72,13 @@ const getStatusTone = (statusName?: string | null, updatedAt?: string) => {
 const getStatusClasses = (tone: string) => {
   switch (tone) {
     case 'success':
-      return 'border-[#22C55E]/35 bg-[#22C55E]/12 text-[#86EFAC] shadow-[0_0_22px_rgba(34,197,94,0.10)]';
+      return 'border-[#22C55E]/35 bg-[#22C55E]/12 text-green-700 shadow-[0_0_22px_rgba(34,197,94,0.10)]';
     case 'warning':
-      return 'border-[#F59E0B]/35 bg-[#F59E0B]/12 text-[#FCD34D] shadow-[0_0_22px_rgba(245,158,11,0.10)]';
+      return 'border-[#F59E0B]/35 bg-[#F59E0B]/12 text-amber-700 shadow-[0_0_22px_rgba(245,158,11,0.10)]';
     case 'danger':
-      return 'border-[#EF4444]/35 bg-[#EF4444]/12 text-[#FCA5A5] shadow-[0_0_22px_rgba(239,68,68,0.10)]';
+      return 'border-[#EF4444]/35 bg-[#EF4444]/12 text-red-700 shadow-[0_0_22px_rgba(239,68,68,0.10)]';
     default:
-      return 'border-[#3B82F6]/35 bg-[#3B82F6]/12 text-[#93C5FD] shadow-[0_0_22px_rgba(59,130,246,0.10)]';
+      return 'border-[#3B82F6]/35 bg-[#3B82F6]/12 text-blue-700 shadow-[0_0_22px_rgba(59,130,246,0.10)]';
   }
 };
 
@@ -440,28 +440,28 @@ export default function Repairs() {
       label: 'Open',
       value: queueSummary.open,
       icon: Wrench,
-      classes: 'border-[#3B82F6]/30 bg-[#3B82F6]/10 text-[#93C5FD]',
+      classes: 'border-[#3B82F6]/30 bg-[#3B82F6]/10 text-blue-700',
       hint: 'Active bench jobs'
     },
     {
       label: 'Waiting Parts',
       value: queueSummary.waiting,
       icon: Clock,
-      classes: 'border-[#F59E0B]/30 bg-[#F59E0B]/10 text-[#FCD34D]',
+      classes: 'border-[#F59E0B]/30 bg-[#F59E0B]/10 text-amber-700',
       hint: 'Needs attention'
     },
     {
       label: 'Ready',
       value: queueSummary.ready,
       icon: CheckCircle2,
-      classes: 'border-[#22C55E]/30 bg-[#22C55E]/10 text-[#86EFAC]',
+      classes: 'border-[#22C55E]/30 bg-[#22C55E]/10 text-green-700',
       hint: 'Ready or done'
     },
     {
       label: 'Overdue',
       value: queueSummary.overdue,
       icon: AlertTriangle,
-      classes: 'border-[#EF4444]/30 bg-[#EF4444]/10 text-[#FCA5A5]',
+      classes: 'border-[#EF4444]/30 bg-[#EF4444]/10 text-red-700',
       hint: 'Blocked or stale'
     }
   ];
@@ -470,9 +470,9 @@ export default function Repairs() {
     <div className="space-y-6">
       <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
         <div className="max-w-3xl">
-          <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500 font-semibold mb-2">Workshop Flow</p>
-          <h1 className="text-4xl font-black text-white">Repairs</h1>
-          <p className="text-zinc-400 mt-2">Track active repair jobs, assignments, service issues, and workshop turnaround.</p>
+          <p className="text-[11px] uppercase tracking-[0.18em] text-gray-400 font-semibold mb-2">Workshop Flow</p>
+          <h1 className="text-4xl font-black text-gray-900">Repairs</h1>
+          <p className="text-gray-500 mt-2">Track active repair jobs, assignments, service issues, and workshop turnaround.</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3">
           <button 
@@ -500,8 +500,8 @@ export default function Repairs() {
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-[11px] uppercase tracking-[0.16em] font-bold opacity-80">{item.label}</p>
-                  <p className="mt-2 text-3xl font-black text-white">{item.value}</p>
-                  <p className="mt-1 text-xs text-zinc-400">{item.hint}</p>
+                  <p className="mt-2 text-3xl font-black text-current">{item.value}</p>
+                  <p className="mt-1 text-xs text-gray-500">{item.hint}</p>
                 </div>
                 <div className="h-11 w-11 rounded-lg bg-black/25 flex items-center justify-center">
                   <Icon className="w-5 h-5" />
@@ -513,14 +513,14 @@ export default function Repairs() {
       </div>
 
       {/* Filters */}
-      <div className="section-card rounded-xl p-4 space-y-4 border border-[#2A2A2E]">
-        <div className="flex items-center gap-2 text-xs uppercase tracking-[0.16em] text-zinc-500 font-bold">
+      <div className="section-card rounded-xl p-4 space-y-4 border border-gray-200">
+        <div className="flex items-center gap-2 text-xs uppercase tracking-[0.16em] text-gray-400 font-bold">
           <Filter className="w-4 h-4 text-[#3B82F6]" />
           Queue Controls
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr_1fr_auto] gap-3">
           <div className="relative">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
               placeholder="Search ticket, customer, device, IMEI..."
@@ -560,7 +560,7 @@ export default function Repairs() {
                 setStatusFilter('All Statuses');
                 setTechnicianFilter('All Technicians');
               }}
-              className="px-3 py-2 text-xs text-zinc-500 hover:text-[#3B82F6] font-semibold transition-colors disabled:opacity-30 disabled:hover:text-zinc-500"
+              className="px-3 py-2 text-xs text-gray-400 hover:text-[#3B82F6] font-semibold transition-colors disabled:opacity-30 disabled:hover:text-gray-400"
               disabled={!hasActiveFilters}
             >
               Clear Filters
@@ -570,29 +570,29 @@ export default function Repairs() {
       </div>
 
       {/* Repairs Table */}
-      <div className="section-card rounded-xl overflow-hidden border border-[#2A2A2E]">
-        <div className="flex flex-col gap-2 border-b border-[#2A2A2E] bg-[#141416] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="section-card rounded-xl overflow-hidden border border-gray-200">
+        <div className="flex flex-col gap-2 border-b border-gray-200 bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-sm font-bold text-white">Workshop Queue</p>
-            <p className="text-xs text-zinc-500">
+            <p className="text-sm font-bold text-gray-900">Workshop Queue</p>
+            <p className="text-xs text-gray-400">
               Showing {filteredRepairs.length} of {enrichedRepairs.length} repair jobs
             </p>
           </div>
-          <p className="text-xs text-zinc-500">Rows open full repair details</p>
+          <p className="text-xs text-gray-400">Rows open full repair details</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1080px] border-separate border-spacing-0 text-sm text-left">
-            <thead className="bg-[#101012]">
+            <thead className="bg-gray-50">
               <tr>
-                <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500">Ticket</th>
-                <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500">Customer</th>
-                <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500">Device</th>
-                <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500">Status</th>
-                <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500">Technician</th>
-                <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500">Problem</th>
-                <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500 text-right">Due</th>
-                <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500 text-right">Value</th>
-                <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500 text-right">Updated</th>
+                <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-gray-400">Ticket</th>
+                <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-gray-400">Customer</th>
+                <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-gray-400">Device</th>
+                <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-gray-400">Status</th>
+                <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-gray-400">Technician</th>
+                <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-gray-400">Problem</th>
+                <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-gray-400 text-right">Due</th>
+                <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-gray-400 text-right">Value</th>
+                <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-gray-400 text-right">Updated</th>
               </tr>
             </thead>
             <tbody>
@@ -600,7 +600,7 @@ export default function Repairs() {
                 [1,2,3,4,5].map(i => (
                   <tr key={i} className="animate-pulse">
                     <td colSpan={9} className="px-5 py-3">
-                      <div className="h-16 rounded-lg bg-[#202024]/70" />
+                      <div className="h-16 rounded-lg bg-gray-200" />
                     </td>
                   </tr>
                 ))
@@ -608,13 +608,13 @@ export default function Repairs() {
                 <tr>
                   <td colSpan={9} className="px-6 py-16">
                     <div className="mx-auto max-w-md text-center">
-                      <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-[#2A2A2E] bg-[#141416] text-[#3B82F6]">
+                      <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-gray-200 bg-white text-[#3B82F6]">
                         <Wrench className="h-7 w-7" />
                       </div>
-                      <h3 className="text-lg font-bold text-white">
+                      <h3 className="text-lg font-bold text-gray-900">
                         {hasActiveFilters ? 'No repair jobs match these filters' : 'No repair jobs in the queue'}
                       </h3>
-                      <p className="mt-2 text-sm text-zinc-400">
+                      <p className="mt-2 text-sm text-gray-500">
                         {hasActiveFilters
                           ? 'Try clearing filters or searching by ticket, customer, device, or IMEI.'
                           : 'Create the first repair job to start tracking intake, technician assignment, status, and customer updates.'}
@@ -652,68 +652,68 @@ export default function Repairs() {
                   return (
                   <tr 
                     key={repair.id} 
-                    className="group cursor-pointer border-b border-[#2A2A2E] transition-colors hover:bg-[#1C1C1F]"
+                    className="group cursor-pointer border-b border-gray-200 transition-colors hover:bg-gray-50"
                     onClick={() => navigate(`/repairs/${repair.id}`)}
                   >
-                    <td className="border-b border-[#2A2A2E] px-5 py-4 align-top">
+                    <td className="border-b border-gray-200 px-5 py-4 align-top">
                       <div className="flex items-center gap-3">
                         <div className={cn('h-10 w-10 shrink-0 rounded-lg border flex items-center justify-center', getStatusClasses(statusTone))}>
                           <Wrench className="h-4 w-4" />
                         </div>
                         <div>
-                          <p className="font-mono text-sm font-black text-white">{displayTicket}</p>
-                          <p className="mt-1 text-[11px] uppercase tracking-[0.12em] text-zinc-500">
+                          <p className="font-mono text-sm font-black text-gray-900">{displayTicket}</p>
+                          <p className="mt-1 text-[11px] uppercase tracking-[0.12em] text-gray-400">
                             {safeFormatDate(repair.created_at, 'dd MMM')}
                           </p>
                         </div>
                       </div>
                     </td>
-                    <td className="border-b border-[#2A2A2E] px-5 py-4 align-top">
-                      <p className="font-semibold text-white">{customerName}</p>
-                      <p className="mt-1 text-xs text-zinc-500">Customer record</p>
+                    <td className="border-b border-gray-200 px-5 py-4 align-top">
+                      <p className="font-semibold text-gray-900">{customerName}</p>
+                      <p className="mt-1 text-xs text-gray-400">Customer record</p>
                     </td>
-                    <td className="border-b border-[#2A2A2E] px-5 py-4 align-top">
+                    <td className="border-b border-gray-200 px-5 py-4 align-top">
                       <div className="flex items-start gap-2">
-                        <Smartphone className="mt-0.5 h-4 w-4 shrink-0 text-zinc-500" />
+                        <Smartphone className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
                         <div>
-                          <p className="font-semibold text-zinc-100">{repair.device_name || 'Unknown device'}</p>
-                          {repair.imei && <p className="mt-1 font-mono text-xs text-zinc-500">IMEI {repair.imei}</p>}
+                          <p className="font-semibold text-gray-900">{repair.device_name || 'Unknown device'}</p>
+                          {repair.imei && <p className="mt-1 font-mono text-xs text-gray-400">IMEI {repair.imei}</p>}
                         </div>
                       </div>
                     </td>
-                    <td className="border-b border-[#2A2A2E] px-5 py-4 align-top">
+                    <td className="border-b border-gray-200 px-5 py-4 align-top">
                       <span className={cn('inline-flex items-center rounded-full border px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em]', getStatusClasses(statusTone))}>
                         {statusName}
                       </span>
                     </td>
-                    <td className="border-b border-[#2A2A2E] px-5 py-4 align-top">
-                      <div className="inline-flex max-w-[180px] items-center gap-2 rounded-lg border border-[#2A2A2E] bg-[#141416] px-3 py-2">
+                    <td className="border-b border-gray-200 px-5 py-4 align-top">
+                      <div className="inline-flex max-w-[180px] items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2">
                         <User className="h-4 w-4 shrink-0 text-[#3B82F6]" />
-                        <span className={cn('truncate text-sm font-semibold', repair.technician ? 'text-zinc-100' : 'text-[#F59E0B]')}>
+                        <span className={cn('truncate text-sm font-semibold', repair.technician ? 'text-gray-900' : 'text-[#F59E0B]')}>
                           {technicianName}
                         </span>
                       </div>
                     </td>
-                    <td className="border-b border-[#2A2A2E] px-5 py-4 align-top">
-                      <p className="line-clamp-2 max-w-[260px] text-sm leading-5 text-zinc-300">{problemText}</p>
+                    <td className="border-b border-gray-200 px-5 py-4 align-top">
+                      <p className="line-clamp-2 max-w-[260px] text-sm leading-5 text-gray-600">{problemText}</p>
                     </td>
-                    <td className="border-b border-[#2A2A2E] px-5 py-4 text-right align-top">
+                    <td className="border-b border-gray-200 px-5 py-4 text-right align-top">
                       {repair.due_date ? (() => {
                         const due = new Date(repair.due_date);
                         const isOverdue = due < new Date() && statusTone !== 'success';
                         return (
-                          <span className={cn('text-xs font-semibold whitespace-nowrap', isOverdue ? 'text-[#EF4444]' : 'text-zinc-300')}>
+                          <span className={cn('text-xs font-semibold whitespace-nowrap', isOverdue ? 'text-[#EF4444]' : 'text-gray-600')}>
                             {isOverdue ? '⚠ ' : ''}{safeFormatDate(repair.due_date, 'dd MMM')}
                           </span>
                         );
                       })() : <span className="text-zinc-600 text-xs">—</span>}
                     </td>
-                    <td className="border-b border-[#2A2A2E] px-5 py-4 text-right align-top font-semibold text-zinc-100">
+                    <td className="border-b border-gray-200 px-5 py-4 text-right align-top font-semibold text-gray-900">
                       {formatCurrency(repair.total_amount || repair.cost || 0)}
                     </td>
-                    <td className="border-b border-[#2A2A2E] px-5 py-4 text-right align-top">
-                      <p className="text-xs font-semibold text-zinc-300 whitespace-nowrap">{formatRelativeTime(repair.updated_at)}</p>
-                      <p className="mt-1 text-[11px] text-zinc-500 whitespace-nowrap">{safeFormatDate(repair.updated_at, 'dd MMM HH:mm')}</p>
+                    <td className="border-b border-gray-200 px-5 py-4 text-right align-top">
+                      <p className="text-xs font-semibold text-gray-600 whitespace-nowrap">{formatRelativeTime(repair.updated_at)}</p>
+                      <p className="mt-1 text-[11px] text-gray-400 whitespace-nowrap">{safeFormatDate(repair.updated_at, 'dd MMM HH:mm')}</p>
                     </td>
                   </tr>
                   );
@@ -727,15 +727,15 @@ export default function Repairs() {
       {/* Import Modal */}
       {isImportModalOpen && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-          <div className="app-panel rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden border border-[#2A2A2E]">
-            <div className="p-6 border-b border-[#2A2A2E] flex items-center justify-between bg-[#141416]">
-              <h2 className="text-xl font-bold text-white">Import Repairs</h2>
+          <div className="app-panel rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden border border-gray-200">
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between bg-white">
+              <h2 className="text-xl font-bold text-gray-900">Import Repairs</h2>
               <button 
                 onClick={() => {
                   setIsImportModalOpen(false);
                   setSelectedFile(null);
                 }} 
-                className="text-zinc-500 hover:text-white"
+                className="text-gray-400 hover:text-gray-900"
               >
                 <X className="w-6 h-6" />
               </button>
@@ -744,8 +744,8 @@ export default function Repairs() {
               <div 
                 {...getRootProps()} 
                 className={cn(
-                  "border-2 border-dashed rounded-2xl p-12 text-center transition-all cursor-pointer bg-[#141416]",
-                  isDragActive ? "border-[#3B82F6] bg-[#3B82F6]/10" : "border-[#2A2A2E] hover:border-[#3B82F6]/60",
+                  "border-2 border-dashed rounded-2xl p-12 text-center transition-all cursor-pointer bg-white",
+                  isDragActive ? "border-[#3B82F6] bg-[#3B82F6]/10" : "border-gray-200 hover:border-[#3B82F6]/60",
                   selectedFile ? "border-[#22C55E] bg-[#22C55E]/10" : ""
                 )}
               >
@@ -753,7 +753,7 @@ export default function Repairs() {
                 <div className="flex flex-col items-center gap-4">
                   <div className={cn(
                     "w-16 h-16 rounded-full flex items-center justify-center",
-                    selectedFile ? "bg-[#22C55E]/15 text-[#86EFAC]" : "bg-[#3B82F6]/15 text-[#93C5FD]"
+                    selectedFile ? "bg-[#22C55E]/15 text-green-700" : "bg-[#3B82F6]/15 text-blue-700"
                   )}>
                     {selectedFile ? <FileText className="w-8 h-8" /> : <Upload className="w-8 h-8" />}
                   </div>
@@ -761,14 +761,14 @@ export default function Repairs() {
                     {selectedFile ? (
                       <>
                         <p className="font-bold text-gray-900">{selectedFile.name}</p>
-                        <p className="text-sm text-zinc-500">{(selectedFile.size / 1024).toFixed(2)} KB</p>
+                        <p className="text-sm text-gray-400">{(selectedFile.size / 1024).toFixed(2)} KB</p>
                       </>
                     ) : (
                       <>
-                        <p className="font-bold text-white">
+                        <p className="font-bold text-gray-900">
                           {isDragActive ? "Drop the file here" : "Click or drag CSV file to upload"}
                         </p>
-                        <p className="text-sm text-zinc-500">Only .csv files are supported</p>
+                        <p className="text-sm text-gray-400">Only .csv files are supported</p>
                       </>
                     )}
                   </div>
@@ -777,10 +777,10 @@ export default function Repairs() {
 
               {selectedFile && (
                 <div className="bg-[#3B82F6]/10 border border-[#3B82F6]/25 rounded-xl p-4 flex gap-3">
-                  <div className="text-[#93C5FD]">
+                  <div className="text-blue-700">
                     <History className="w-5 h-5" />
                   </div>
-                  <div className="text-sm text-zinc-300">
+                  <div className="text-sm text-gray-600">
                     <p className="font-bold mb-1 text-white">Ready to import</p>
                     <p>The system will map your CSV columns to customers and repair jobs. This will create new customers if they don't exist.</p>
                   </div>

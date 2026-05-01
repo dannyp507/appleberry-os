@@ -279,8 +279,8 @@ export default function EndOfDay() {
 
   if (loading) return (
     <div className="animate-pulse space-y-6">
-      <div className="h-32 bg-[#1C1C1F] rounded-2xl" />
-      <div className="grid grid-cols-3 gap-4">{[1, 2, 3].map(i => <div key={i} className="h-28 bg-[#1C1C1F] rounded-2xl" />)}</div>
+      <div className="h-32 bg-gray-50 rounded-2xl" />
+      <div className="grid grid-cols-3 gap-4">{[1, 2, 3].map(i => <div key={i} className="h-28 bg-gray-50 rounded-2xl" />)}</div>
     </div>
   );
 
@@ -291,19 +291,19 @@ export default function EndOfDay() {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <Moon className="w-6 h-6 text-[#22C55E]" /> End of Day Report
           </h1>
-          <p className="text-zinc-400 text-sm mt-0.5">{safeFormatDate(new Date(), 'EEEE, dd MMMM yyyy')}</p>
+          <p className="text-gray-500 text-sm mt-0.5">{safeFormatDate(new Date(), 'EEEE, dd MMMM yyyy')}</p>
         </div>
         <div className="flex flex-wrap gap-2 items-center">
           {drawers.length > 0 && (
-            <div className="flex items-center gap-2 bg-[#141416] border border-[#2A2A2E] rounded-xl px-3 py-2">
+            <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2">
               <Landmark className="w-4 h-4 text-[#22C55E]" />
               <select
                 value={selectedDrawerId}
                 onChange={(e) => handleDrawerChange(e.target.value)}
-                className="text-sm font-semibold bg-transparent text-white focus:outline-none"
+                className="text-sm font-semibold bg-transparent text-gray-900 focus:outline-none"
               >
                 <option value="">All Drawers</option>
                 {drawers.map(d => (
@@ -312,12 +312,12 @@ export default function EndOfDay() {
               </select>
             </div>
           )}
-          <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 border border-[#2A2A2E] rounded-xl text-zinc-300 text-sm hover:bg-[#1C1C1F]">
+          <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-xl text-gray-600 text-sm hover:bg-gray-50">
             <Printer className="w-4 h-4" /> Print
           </button>
           <button
             onClick={() => setShowHistory(!showHistory)}
-            className="flex items-center gap-2 px-4 py-2 border border-[#2A2A2E] rounded-xl text-zinc-300 text-sm hover:bg-[#1C1C1F]"
+            className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-xl text-gray-600 text-sm hover:bg-gray-50"
           >
             <History className="w-4 h-4" /> History
           </button>
@@ -326,19 +326,19 @@ export default function EndOfDay() {
 
       {/* History panel */}
       {showHistory && (
-        <div className="rounded-2xl border border-[#2A2A2E] bg-[#141416] p-5">
-          <h3 className="font-bold text-white mb-3 text-sm">Recent End of Day Records</h3>
+        <div className="rounded-2xl border border-gray-200 bg-white p-5">
+          <h3 className="font-bold text-gray-900 mb-3 text-sm">Recent End of Day Records</h3>
           {history.length === 0 ? (
-            <p className="text-zinc-500 text-sm italic">No records yet.</p>
+            <p className="text-gray-400 text-sm italic">No records yet.</p>
           ) : (
             <div className="space-y-2">
               {history.map(h => (
-                <div key={h.id} className="flex items-center justify-between py-2 border-b border-[#2A2A2E] text-sm gap-3">
+                <div key={h.id} className="flex items-center justify-between py-2 border-b border-gray-200 text-sm gap-3">
                   <div>
-                    <span className="text-zinc-300">{h.date}</span>
-                    {h.drawer_name && <span className="ml-2 text-xs text-zinc-500">· {h.drawer_name}</span>}
+                    <span className="text-gray-600">{h.date}</span>
+                    {h.drawer_name && <span className="ml-2 text-xs text-gray-400">· {h.drawer_name}</span>}
                   </div>
-                  <span className="text-white font-bold">{formatCurrency(h.total_sales)}</span>
+                  <span className="text-gray-900 font-bold">{formatCurrency(h.total_sales)}</span>
                   <span className={h.cash_variance < 0 ? 'text-red-400' : 'text-green-400'}>
                     {h.cash_variance >= 0 ? '+' : ''}{formatCurrency(h.cash_variance || 0)} variance
                   </span>
@@ -360,48 +360,48 @@ export default function EndOfDay() {
         {/* Left column */}
         <div className="space-y-5">
           {/* Payment Breakdown */}
-          <div className="rounded-2xl border border-[#2A2A2E] bg-[#141416] p-5">
-            <h3 className="font-bold text-white mb-4 flex items-center gap-2">
+          <div className="rounded-2xl border border-gray-200 bg-white p-5">
+            <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-[#22C55E]" /> Payment Breakdown
             </h3>
             {activeMethods.length === 0 ? (
-              <p className="text-zinc-500 text-sm italic">No sales recorded today.</p>
+              <p className="text-gray-400 text-sm italic">No sales recorded today.</p>
             ) : (
               <div className="space-y-3">
                 {activeMethods.map(([method, amount]) => (
-                  <div key={method} className="flex justify-between items-center py-1 border-b border-[#2A2A2E]">
-                    <span className="text-sm text-zinc-300">{method}</span>
-                    <span className="font-bold text-white">{formatCurrency(amount)}</span>
+                  <div key={method} className="flex justify-between items-center py-1 border-b border-gray-200">
+                    <span className="text-sm text-gray-600">{method}</span>
+                    <span className="font-bold text-gray-900">{formatCurrency(amount)}</span>
                   </div>
                 ))}
                 <div className="flex justify-between items-center pt-1">
-                  <span className="text-sm font-bold text-zinc-400">Total</span>
-                  <span className="font-black text-white">{formatCurrency(data.sales)}</span>
+                  <span className="text-sm font-bold text-gray-500">Total</span>
+                  <span className="font-black text-gray-900">{formatCurrency(data.sales)}</span>
                 </div>
               </div>
             )}
           </div>
 
           {/* Petty Cash */}
-          <div className="rounded-2xl border border-[#2A2A2E] bg-[#141416]">
+          <div className="rounded-2xl border border-gray-200 bg-white">
             <button
               onClick={() => setShowPetty(!showPetty)}
               className="w-full flex items-center justify-between p-5 text-left"
             >
-              <h3 className="font-bold text-white flex items-center gap-2">
+              <h3 className="font-bold text-gray-900 flex items-center gap-2">
                 <Wallet className="w-4 h-4 text-yellow-400" /> Petty Cash
-                <span className="text-xs text-zinc-400 font-normal ml-1">In: {formatCurrency(totalPettyIn)} | Out: {formatCurrency(totalPettyOut)}</span>
+                <span className="text-xs text-gray-500 font-normal ml-1">In: {formatCurrency(totalPettyIn)} | Out: {formatCurrency(totalPettyOut)}</span>
               </h3>
-              {showPetty ? <ChevronUp className="w-4 h-4 text-zinc-500" /> : <ChevronDown className="w-4 h-4 text-zinc-500" />}
+              {showPetty ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
             </button>
             {showPetty && (
-              <div className="px-5 pb-5 space-y-3 border-t border-[#2A2A2E] pt-4">
+              <div className="px-5 pb-5 space-y-3 border-t border-gray-200 pt-4">
                 {/* Add petty cash */}
                 <div className="flex gap-2">
                   <select
                     value={newPettyType}
                     onChange={e => setNewPettyType(e.target.value as 'in' | 'out')}
-                    className="px-2 py-2 rounded-lg border border-[#2A2A2E] bg-[#101012] text-white text-sm focus:border-[#22C55E] focus:outline-none"
+                    className="px-2 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:border-[#22C55E] focus:outline-none"
                   >
                     <option value="out">Out ▼</option>
                     <option value="in">In ▲</option>
@@ -409,14 +409,14 @@ export default function EndOfDay() {
                   <input
                     type="text"
                     placeholder="Reason…"
-                    className="flex-1 px-3 py-2 rounded-lg border border-[#2A2A2E] bg-[#101012] text-white text-sm focus:border-[#22C55E] focus:outline-none"
+                    className="flex-1 px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:border-[#22C55E] focus:outline-none"
                     value={newPettyDesc}
                     onChange={e => setNewPettyDesc(e.target.value)}
                   />
                   <input
                     type="number"
                     placeholder="Amount"
-                    className="w-24 px-3 py-2 rounded-lg border border-[#2A2A2E] bg-[#101012] text-white text-sm focus:border-[#22C55E] focus:outline-none"
+                    className="w-24 px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:border-[#22C55E] focus:outline-none"
                     value={newPettyAmount}
                     onChange={e => setNewPettyAmount(e.target.value)}
                   />
@@ -430,8 +430,8 @@ export default function EndOfDay() {
                 {pettyItems.length > 0 && (
                   <div className="space-y-1 max-h-40 overflow-y-auto">
                     {pettyItems.map(p => (
-                      <div key={p.id} className="flex justify-between items-center py-1.5 text-sm border-b border-[#2A2A2E]">
-                        <span className="text-zinc-400">{p.reason}</span>
+                      <div key={p.id} className="flex justify-between items-center py-1.5 text-sm border-b border-gray-200">
+                        <span className="text-gray-500">{p.reason}</span>
                         <span className={p.type === 'in' ? 'text-green-400 font-bold' : 'text-red-400 font-bold'}>
                           {p.type === 'in' ? '+' : '-'}{formatCurrency(p.amount)}
                         </span>
@@ -447,46 +447,46 @@ export default function EndOfDay() {
         {/* Right column */}
         <div className="space-y-5">
           {/* Cash Reconciliation */}
-          <div className="rounded-2xl border border-[#2A2A2E] bg-[#141416] p-5">
-            <h3 className="font-bold text-white mb-4 flex items-center gap-2">
+          <div className="rounded-2xl border border-gray-200 bg-white p-5">
+            <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
               <DollarSign className="w-4 h-4 text-[#22C55E]" /> Cash Drawer Count
             </h3>
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Starting Balance</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Starting Balance</label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 font-bold text-sm">R</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">R</span>
                   <input
                     type="number"
                     value={startingBalance}
                     onChange={e => setStartingBalance(e.target.value)}
                     placeholder="0.00"
-                    className="w-full pl-8 pr-4 py-2.5 rounded-lg border border-[#2A2A2E] bg-[#101012] text-white text-sm focus:border-[#22C55E] focus:outline-none"
+                    className="w-full pl-8 pr-4 py-2.5 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:border-[#22C55E] focus:outline-none"
                   />
                 </div>
               </div>
               <div className="flex justify-between py-2 text-sm">
-                <span className="text-zinc-400">Cash Sales Today</span>
-                <span className="font-bold text-white">{formatCurrency(data.paymentMethods['Cash'] || 0)}</span>
+                <span className="text-gray-500">Cash Sales Today</span>
+                <span className="font-bold text-gray-900">{formatCurrency(data.paymentMethods['Cash'] || 0)}</span>
               </div>
-              <div className="flex justify-between py-2 text-sm border-t border-[#2A2A2E]">
-                <span className="text-zinc-400">Petty Cash Out</span>
+              <div className="flex justify-between py-2 text-sm border-t border-gray-200">
+                <span className="text-gray-500">Petty Cash Out</span>
                 <span className="font-bold text-red-400">-{formatCurrency(totalPettyOut)}</span>
               </div>
-              <div className="flex justify-between py-2 text-sm font-bold border-t border-[#2A2A2E]">
-                <span className="text-zinc-300">Calculated Cash</span>
-                <span className="text-white">{formatCurrency(calcCash)}</span>
+              <div className="flex justify-between py-2 text-sm font-bold border-t border-gray-200">
+                <span className="text-gray-600">Calculated Cash</span>
+                <span className="text-gray-900">{formatCurrency(calcCash)}</span>
               </div>
               <div>
-                <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Counted Cash</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Counted Cash</label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 font-bold text-sm">R</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">R</span>
                   <input
                     type="number"
                     value={countedCash}
                     onChange={e => setCountedCash(e.target.value)}
                     placeholder="0.00"
-                    className="w-full pl-8 pr-4 py-2.5 rounded-lg border border-[#2A2A2E] bg-[#101012] text-white text-sm focus:border-[#22C55E] focus:outline-none"
+                    className="w-full pl-8 pr-4 py-2.5 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:border-[#22C55E] focus:outline-none"
                   />
                 </div>
               </div>
@@ -505,15 +505,15 @@ export default function EndOfDay() {
           </div>
 
           {/* Comments + Close */}
-          <div className="rounded-2xl border border-[#2A2A2E] bg-[#141416] p-5 space-y-4">
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 space-y-4">
             <div>
-              <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Comments</label>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Comments</label>
               <textarea
                 value={comments}
                 onChange={e => setComments(e.target.value)}
                 rows={3}
                 placeholder="Any notes for today…"
-                className="w-full px-3 py-2 rounded-lg border border-[#2A2A2E] bg-[#101012] text-white text-sm focus:border-[#22C55E] focus:outline-none resize-none"
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:border-[#22C55E] focus:outline-none resize-none"
               />
             </div>
             <button
@@ -533,13 +533,13 @@ export default function EndOfDay() {
 
 function StatCard({ title, value, sub, icon: Icon, color }: any) {
   return (
-    <div className="rounded-2xl border border-[#2A2A2E] bg-[#141416] p-5">
+    <div className="rounded-2xl border border-gray-200 bg-white p-5">
       <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center mb-3', color, 'bg-current/10')}>
         <Icon className={cn('w-5 h-5', color)} style={{ opacity: 1 }} />
       </div>
-      <p className="text-xs text-zinc-500 font-medium uppercase tracking-wider">{title}</p>
-      <p className="text-2xl font-black text-white mt-1">{value}</p>
-      <p className="text-xs text-zinc-500 mt-0.5">{sub}</p>
+      <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">{title}</p>
+      <p className="text-2xl font-black text-gray-900 mt-1">{value}</p>
+      <p className="text-xs text-gray-400 mt-0.5">{sub}</p>
     </div>
   );
 }

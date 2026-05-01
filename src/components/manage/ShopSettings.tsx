@@ -9,8 +9,8 @@ import { useTenant } from '../../lib/tenant';
 import { getCompanySettingsDocId } from '../../lib/company';
 import { requireCompanyId } from '../../lib/db';
 
-const inputCls = 'w-full px-3 py-2.5 bg-[#0F0F11] border border-[#2A2A2E] rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:border-[#22C55E]/50 focus:ring-1 focus:ring-[#22C55E]/20 text-sm';
-const labelCls = 'block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1.5';
+const inputCls = 'w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-200 text-sm';
+const labelCls = 'block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5';
 
 export default function ShopSettings() {
   const { companyId } = useTenant();
@@ -137,7 +137,7 @@ export default function ShopSettings() {
 
         {/* Left — Company Info */}
         <div className="space-y-5">
-          <h3 className="text-sm font-bold text-white flex items-center gap-2">
+          <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
             <Store className="w-4 h-4 text-[#22C55E]" /> Company Information
           </h3>
 
@@ -197,8 +197,8 @@ export default function ShopSettings() {
             />
           </div>
 
-          <div className="pt-4 border-t border-[#2A2A2E] space-y-4">
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
+          <div className="pt-4 border-t border-gray-200 space-y-4">
+            <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
               <FileText className="w-4 h-4 text-[#22C55E]" /> Tax & Registration
             </h3>
             <div className="grid grid-cols-2 gap-3">
@@ -228,13 +228,13 @@ export default function ShopSettings() {
 
         {/* Right — Logo */}
         <div className="space-y-5">
-          <h3 className="text-sm font-bold text-white flex items-center gap-2">
+          <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
             <ImageIcon className="w-4 h-4 text-[#22C55E]" /> Company Logo
           </h3>
 
           {/* Logo preview */}
           <div className="flex items-start gap-4">
-            <div className="relative w-28 h-28 rounded-xl border-2 border-dashed border-[#2A2A2E] bg-[#0F0F11] flex items-center justify-center overflow-hidden group flex-shrink-0">
+            <div className="relative w-28 h-28 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden group flex-shrink-0">
               {uploading ? (
                 <div className="flex flex-col items-center gap-2">
                   <Loader2 className="w-6 h-6 text-[#22C55E] animate-spin" />
@@ -270,7 +270,7 @@ export default function ShopSettings() {
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
-                className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-[#2A2A2E] hover:border-[#22C55E]/40 hover:bg-[#22C55E]/5 rounded-xl py-3 text-sm font-semibold text-zinc-400 hover:text-[#22C55E] transition-all disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-gray-200 hover:border-green-400 hover:bg-[#22C55E]/5 rounded-xl py-3 text-sm font-semibold text-gray-400 hover:text-green-600 transition-all disabled:opacity-50"
               >
                 <Upload className="w-4 h-4" />
                 {uploading ? `Uploading ${uploadProgress}%…` : 'Click to upload logo'}
@@ -295,7 +295,7 @@ export default function ShopSettings() {
           </div>
 
           {/* Invoice preview */}
-          <div className="rounded-xl border border-[#2A2A2E] bg-white p-5 mt-4">
+          <div className="rounded-xl border border-gray-200 bg-white p-5 mt-4">
             <p className="text-[9px] text-zinc-400 uppercase tracking-widest font-bold mb-3">Invoice header preview</p>
             <div className="flex justify-between items-start">
               <div>

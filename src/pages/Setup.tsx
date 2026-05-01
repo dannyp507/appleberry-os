@@ -169,11 +169,11 @@ function SimpleListManager({
     }
   }
 
-  if (loading) return <div className="py-8 text-center text-sm text-zinc-500">Loading…</div>;
+  if (loading) return <div className="py-8 text-center text-sm text-gray-400">Loading…</div>;
 
   return (
     <div className="space-y-4">
-      <h3 className="text-base font-bold text-white">{title}</h3>
+      <h3 className="text-base font-bold text-gray-900">{title}</h3>
 
       {/* Add new */}
       <div className="flex gap-2">
@@ -181,7 +181,7 @@ function SimpleListManager({
           <input
             type="text"
             placeholder="Brand (e.g. Apple)"
-            className="flex-1 px-3 py-2 rounded-lg border border-[#2A2A2E] bg-[#101012] text-white text-sm placeholder-zinc-600 focus:border-[#22C55E] focus:outline-none"
+            className="flex-1 px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm placeholder-gray-400 focus:border-[#22C55E] focus:outline-none"
             value={newBrand}
             onChange={e => setNewBrand(e.target.value)}
           />
@@ -189,7 +189,7 @@ function SimpleListManager({
         <input
           type="text"
           placeholder={extraFields === 'brand_model' ? 'Model (e.g. iPhone 15 Pro)' : 'Name…'}
-          className="flex-1 px-3 py-2 rounded-lg border border-[#2A2A2E] bg-[#101012] text-white text-sm placeholder-zinc-600 focus:border-[#22C55E] focus:outline-none"
+          className="flex-1 px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm placeholder-gray-400 focus:border-[#22C55E] focus:outline-none"
           value={newName}
           onChange={e => setNewName(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') handleAdd(); }}
@@ -198,7 +198,7 @@ function SimpleListManager({
           <input
             type="number"
             placeholder="Default price"
-            className="w-32 px-3 py-2 rounded-lg border border-[#2A2A2E] bg-[#101012] text-white text-sm focus:border-[#22C55E] focus:outline-none"
+            className="w-32 px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:border-[#22C55E] focus:outline-none"
             value={newExtra}
             onChange={e => setNewExtra(e.target.value)}
           />
@@ -206,7 +206,7 @@ function SimpleListManager({
         {extraFields === 'color' && (
           <input
             type="color"
-            className="w-10 h-10 rounded-lg border border-[#2A2A2E] bg-[#101012] cursor-pointer"
+            className="w-10 h-10 rounded-lg border border-gray-200 bg-[#101012] cursor-pointer"
             value={newExtra || '#6b7280'}
             onChange={e => setNewExtra(e.target.value)}
           />
@@ -222,11 +222,11 @@ function SimpleListManager({
 
       {/* List */}
       {items.length === 0 ? (
-        <p className="text-sm text-zinc-500 italic py-4">No items yet. Add your first one above.</p>
+        <p className="text-sm text-gray-400 italic py-4">No items yet. Add your first one above.</p>
       ) : (
-        <div className="rounded-xl border border-[#2A2A2E] divide-y divide-[#2A2A2E] overflow-hidden">
+        <div className="rounded-xl border border-gray-200 divide-y divide-[#2A2A2E] overflow-hidden">
           {items.map(item => (
-            <div key={item.id} className="flex items-center gap-3 px-4 py-3 bg-[#141416] hover:bg-[#1C1C1F] transition-colors group">
+            <div key={item.id} className="flex items-center gap-3 px-4 py-3 bg-white hover:bg-gray-50 transition-colors group">
               {extraFields === 'color' && (
                 <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: item.color || '#6b7280' }} />
               )}
@@ -234,7 +234,7 @@ function SimpleListManager({
                 <>
                   <input
                     type="text"
-                    className="flex-1 px-2 py-1 rounded border border-[#22C55E] bg-[#101012] text-white text-sm focus:outline-none"
+                    className="flex-1 px-2 py-1 rounded border border-[#22C55E] bg-white text-gray-900 text-sm focus:outline-none"
                     value={editName}
                     onChange={e => setEditName(e.target.value)}
                     autoFocus
@@ -242,7 +242,7 @@ function SimpleListManager({
                   {extraFields === 'price' && (
                     <input
                       type="number"
-                      className="w-24 px-2 py-1 rounded border border-[#22C55E] bg-[#101012] text-white text-sm focus:outline-none"
+                      className="w-24 px-2 py-1 rounded border border-[#22C55E] bg-white text-gray-900 text-sm focus:outline-none"
                       value={editExtra}
                       onChange={e => setEditExtra(e.target.value)}
                     />
@@ -256,13 +256,13 @@ function SimpleListManager({
                     />
                   )}
                   <button onClick={() => handleSaveEdit(item.id)} className="text-green-400 hover:text-green-300 p-1"><Check className="w-4 h-4" /></button>
-                  <button onClick={() => setEditId(null)} className="text-zinc-500 hover:text-zinc-300 p-1"><X className="w-4 h-4" /></button>
+                  <button onClick={() => setEditId(null)} className="text-gray-400 hover:text-gray-600 p-1"><X className="w-4 h-4" /></button>
                 </>
               ) : (
                 <>
                   <span className="flex-1 text-sm text-white">{item.name}</span>
                   {extraFields === 'price' && item.default_price != null && item.default_price > 0 && (
-                    <span className="text-xs text-zinc-400 font-medium">R{item.default_price.toFixed(2)}</span>
+                    <span className="text-xs text-gray-500 font-medium">R{item.default_price.toFixed(2)}</span>
                   )}
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
@@ -274,11 +274,11 @@ function SimpleListManager({
                           extraFields === 'color' ? (item.color || '') : ''
                         );
                       }}
-                      className="p-1 text-zinc-400 hover:text-white"
+                      className="p-1 text-gray-500 hover:text-white"
                     >
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
-                    <button onClick={() => handleDelete(item.id)} className="p-1 text-zinc-400 hover:text-red-400">
+                    <button onClick={() => handleDelete(item.id)} className="p-1 text-gray-500 hover:text-red-400">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -359,7 +359,7 @@ export default function Setup() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Setup</h1>
-          <p className="text-sm text-zinc-400 mt-0.5">Configure your workspace, lists and defaults</p>
+          <p className="text-sm text-gray-500 mt-0.5">Configure your workspace, lists and defaults</p>
         </div>
       </div>
 
@@ -373,7 +373,7 @@ export default function Setup() {
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
                 activeTab === tab.id
                   ? 'bg-[#22C55E]/10 text-[#22C55E] border border-[#22C55E]/20'
-                  : 'text-zinc-400 hover:text-white hover:bg-[#1C1C1F]'
+                  : 'text-gray-500 hover:text-white hover:bg-gray-50'
               }`}
             >
               {tab.icon}
@@ -384,7 +384,7 @@ export default function Setup() {
         </div>
 
         {/* Content panel */}
-        <div className="flex-1 rounded-2xl border border-[#2A2A2E] bg-[#141416] p-6">
+        <div className="flex-1 rounded-2xl border border-gray-200 bg-white p-6">
 
           {/* General Settings */}
           {activeTab === 'general' && (
@@ -392,11 +392,11 @@ export default function Setup() {
               <h3 className="text-base font-bold text-white">General Settings</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Currency</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Currency</label>
                   <select
                     value={settings.currency}
                     onChange={e => setSettings({ ...settings, currency: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg border border-[#2A2A2E] bg-[#101012] text-white text-sm focus:border-[#22C55E] focus:outline-none"
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:border-[#22C55E] focus:outline-none"
                   >
                     <option value="ZAR">South African Rand (ZAR)</option>
                     <option value="USD">US Dollar (USD)</option>
@@ -405,11 +405,11 @@ export default function Setup() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Timezone</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Timezone</label>
                   <select
                     value={settings.timezone}
                     onChange={e => setSettings({ ...settings, timezone: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg border border-[#2A2A2E] bg-[#101012] text-white text-sm focus:border-[#22C55E] focus:outline-none"
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:border-[#22C55E] focus:outline-none"
                   >
                     <option value="Africa/Johannesburg">South Africa (GMT+2)</option>
                     <option value="UTC">UTC</option>
@@ -418,11 +418,11 @@ export default function Setup() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Date Format</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Date Format</label>
                   <select
                     value={settings.date_format}
                     onChange={e => setSettings({ ...settings, date_format: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg border border-[#2A2A2E] bg-[#101012] text-white text-sm focus:border-[#22C55E] focus:outline-none"
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:border-[#22C55E] focus:outline-none"
                   >
                     <option value="DD/MM/YYYY">DD/MM/YYYY</option>
                     <option value="MM/DD/YYYY">MM/DD/YYYY</option>
@@ -430,17 +430,17 @@ export default function Setup() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Tax Rate (%)</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Tax Rate (%)</label>
                   <input
                     type="number"
                     value={settings.tax_rate}
                     onChange={e => setSettings({ ...settings, tax_rate: parseFloat(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 rounded-lg border border-[#2A2A2E] bg-[#101012] text-white text-sm focus:border-[#22C55E] focus:outline-none"
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 text-sm focus:border-[#22C55E] focus:outline-none"
                   />
                 </div>
               </div>
               <div className="space-y-3 pt-2">
-                <h4 className="text-sm font-bold text-zinc-300">Alerts & Notifications</h4>
+                <h4 className="text-sm font-bold text-gray-600">Alerts & Notifications</h4>
                 {[
                   { key: 'low_stock_alert', label: 'Low stock alerts' },
                   { key: 'email_notifications', label: 'Email notifications' },
@@ -450,7 +450,7 @@ export default function Setup() {
                     <div className={`w-9 h-5 rounded-full transition-colors ${(settings as any)[key] ? 'bg-[#22C55E]' : 'bg-zinc-700'} relative`}>
                       <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${(settings as any)[key] ? 'translate-x-4' : 'translate-x-0.5'}`} />
                     </div>
-                    <span className="text-sm text-zinc-300 group-hover:text-white transition-colors">{label}</span>
+                    <span className="text-sm text-gray-600 group-hover:text-white transition-colors">{label}</span>
                     <input
                       type="checkbox"
                       className="sr-only"
@@ -473,7 +473,7 @@ export default function Setup() {
 
           {activeTab === 'cash_drawers' && (
             <div className="max-w-lg">
-              <p className="text-sm text-zinc-400 mb-4">
+              <p className="text-sm text-gray-500 mb-4">
                 Define your cash drawers (e.g. "Front Counter", "Back Office"). Staff select a drawer when opening the POS or running End of Day — sales and cash counts are tracked per drawer.
               </p>
               <SimpleListManager
@@ -486,7 +486,7 @@ export default function Setup() {
 
           {activeTab === 'repair_statuses' && (
             <div className="max-w-lg">
-              <p className="text-sm text-zinc-400 mb-4">Define the stages a repair moves through. The order here is the default sort order.</p>
+              <p className="text-sm text-gray-500 mb-4">Define the stages a repair moves through. The order here is the default sort order.</p>
               <SimpleListManager
                 title="Repair Statuses"
                 collectionName="repair_status_options"
@@ -498,7 +498,7 @@ export default function Setup() {
 
           {activeTab === 'repair_problems' && (
             <div className="max-w-lg">
-              <p className="text-sm text-zinc-400 mb-4">Pre-defined repair problems staff can select. Optionally set a default price that auto-adds to the repair cart.</p>
+              <p className="text-sm text-gray-500 mb-4">Pre-defined repair problems staff can select. Optionally set a default price that auto-adds to the repair cart.</p>
               <SimpleListManager
                 title="Repair Problems"
                 collectionName="repair_problems"
@@ -510,7 +510,7 @@ export default function Setup() {
 
           {activeTab === 'brand_models' && (
             <div className="max-w-lg">
-              <p className="text-sm text-zinc-400 mb-4">Add brand + model combinations for quick device selection when creating repairs.</p>
+              <p className="text-sm text-gray-500 mb-4">Add brand + model combinations for quick device selection when creating repairs.</p>
               <SimpleListManager
                 title="Brand Models"
                 collectionName="brand_models"
@@ -522,7 +522,7 @@ export default function Setup() {
 
           {activeTab === 'categories' && (
             <div className="max-w-lg">
-              <p className="text-sm text-zinc-400 mb-4">Product categories used to organise your inventory.</p>
+              <p className="text-sm text-gray-500 mb-4">Product categories used to organise your inventory.</p>
               <SimpleListManager
                 title="Product Categories"
                 collectionName="product_categories"
@@ -533,7 +533,7 @@ export default function Setup() {
 
           {activeTab === 'manufacturers' && (
             <div className="max-w-lg">
-              <p className="text-sm text-zinc-400 mb-4">Manufacturer / brand names for your products.</p>
+              <p className="text-sm text-gray-500 mb-4">Manufacturer / brand names for your products.</p>
               <SimpleListManager
                 title="Manufacturers"
                 collectionName="manufacturers"
@@ -544,7 +544,7 @@ export default function Setup() {
 
           {activeTab === 'vendors' && (
             <div className="max-w-lg">
-              <p className="text-sm text-zinc-400 mb-4">Vendors / suppliers used in your Expenses module.</p>
+              <p className="text-sm text-gray-500 mb-4">Vendors / suppliers used in your Expenses module.</p>
               <SimpleListManager
                 title="Vendors"
                 collectionName="vendors"
@@ -555,7 +555,7 @@ export default function Setup() {
 
           {activeTab === 'expense_types' && (
             <div className="max-w-lg">
-              <p className="text-sm text-zinc-400 mb-4">Categories for your business expenses (e.g. Rent, Utilities, Stock, Labour).</p>
+              <p className="text-sm text-gray-500 mb-4">Categories for your business expenses (e.g. Rent, Utilities, Stock, Labour).</p>
               <SimpleListManager
                 title="Expense Types"
                 collectionName="expense_types"
@@ -566,7 +566,7 @@ export default function Setup() {
 
           {activeTab === 'customer_types' && (
             <div className="max-w-lg">
-              <p className="text-sm text-zinc-400 mb-4">Tag customers by type for filtering and reporting (e.g. Wholesale, VIP, Walk-in).</p>
+              <p className="text-sm text-gray-500 mb-4">Tag customers by type for filtering and reporting (e.g. Wholesale, VIP, Walk-in).</p>
               <SimpleListManager
                 title="Customer Types"
                 collectionName="customer_types"

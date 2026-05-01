@@ -23,7 +23,7 @@ type Appointment = {
 };
 
 const STATUS_CONFIG: Record<Appointment['status'], { label: string; color: string }> = {
-  scheduled: { label: 'Scheduled', color: 'bg-zinc-700 text-zinc-200' },
+  scheduled: { label: 'Scheduled', color: 'bg-gray-100 text-gray-700' },
   confirmed: { label: 'Confirmed', color: 'bg-blue-500/20 text-blue-400' },
   completed: { label: 'Completed', color: 'bg-green-500/20 text-green-400' },
   cancelled: { label: 'Cancelled', color: 'bg-red-500/20 text-red-400' },
@@ -166,8 +166,8 @@ export default function Appointments() {
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Appointments</h1>
-          <p className="text-sm text-zinc-400 mt-0.5">{todayCount} today · {upcomingCount} upcoming</p>
+          <h1 className="text-2xl font-bold text-gray-900">Appointments</h1>
+          <p className="text-sm text-gray-500 mt-0.5">{todayCount} today · {upcomingCount} upcoming</p>
         </div>
         <button
           onClick={openNew}
@@ -181,19 +181,19 @@ export default function Appointments() {
       {/* Filters */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
             placeholder="Search customer or service..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-xl border border-[#2A2A2E] bg-[#141416] pl-9 pr-4 py-2.5 text-sm text-white placeholder-zinc-500 focus:border-[#22C55E] focus:outline-none"
+            className="w-full rounded-xl border border-gray-200 bg-white pl-9 pr-4 py-2.5 text-sm text-white placeholder-gray-400 focus:border-[#22C55E] focus:outline-none"
           />
         </div>
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value as any)}
-          className="rounded-xl border border-[#2A2A2E] bg-[#141416] px-3 py-2.5 text-sm text-white focus:border-[#22C55E] focus:outline-none"
+          className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 focus:border-[#22C55E] focus:outline-none"
         >
           <option value="all">All Statuses</option>
           {Object.entries(STATUS_CONFIG).map(([k, v]) => (
@@ -204,20 +204,20 @@ export default function Appointments() {
 
       {/* Grouped by date */}
       {Object.keys(grouped).length === 0 ? (
-        <div className="rounded-2xl border border-[#2A2A2E] bg-[#141416] p-12 text-center">
+        <div className="rounded-2xl border border-gray-200 bg-white p-12 text-center">
           <Calendar className="mx-auto h-12 w-12 text-zinc-600" />
-          <p className="mt-3 text-sm font-medium text-zinc-300">No appointments found</p>
-          <p className="mt-1 text-xs text-zinc-500">Schedule your first appointment to get started.</p>
+          <p className="mt-3 text-sm font-medium text-gray-600">No appointments found</p>
+          <p className="mt-1 text-xs text-gray-400">Schedule your first appointment to get started.</p>
         </div>
       ) : (
         <div className="space-y-6">
           {Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b)).map(([date, appts]) => (
             <div key={date}>
               <div className="flex items-center gap-3 mb-3">
-                <span className={`text-sm font-bold ${date === today ? 'text-[#22C55E]' : 'text-white'}`}>
+                <span className={`text-sm font-bold ${date === today ? 'text-[#22C55E]' : 'text-gray-900'}`}>
                   {date === today ? 'Today' : safeFormatDate(date)}
                 </span>
-                <span className="rounded-full bg-[#1C1C1F] border border-[#2A2A2E] px-2 py-0.5 text-xs text-zinc-400">
+                <span className="rounded-full bg-gray-50 border border-gray-200 px-2 py-0.5 text-xs text-gray-500">
                   {appts.length}
                 </span>
               </div>
@@ -225,12 +225,12 @@ export default function Appointments() {
                 {appts.map((appt) => {
                   const st = STATUS_CONFIG[appt.status] || STATUS_CONFIG.scheduled;
                   return (
-                    <div key={appt.id} className="rounded-2xl border border-[#2A2A2E] bg-[#141416] p-4">
+                    <div key={appt.id} className="rounded-2xl border border-gray-200 bg-white p-4">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <p className="font-semibold text-white truncate">{appt.customer_name}</p>
                           {appt.customer_phone && (
-                            <p className="text-xs text-zinc-500 mt-0.5 flex items-center gap-1">
+                            <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
                               <Phone className="h-3 w-3" /> {appt.customer_phone}
                             </p>
                           )}
@@ -242,13 +242,13 @@ export default function Appointments() {
                       {appt.service && (
                         <p className="mt-2 text-sm text-[#22C55E] font-medium">{appt.service}</p>
                       )}
-                      <div className="mt-3 flex items-center gap-3 text-xs text-zinc-500">
+                      <div className="mt-3 flex items-center gap-3 text-xs text-gray-400">
                         <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {appt.time || 'TBD'}</span>
                       </div>
                       {appt.notes && (
-                        <p className="mt-2 text-xs text-zinc-400 line-clamp-2">{appt.notes}</p>
+                        <p className="mt-2 text-xs text-gray-500 line-clamp-2">{appt.notes}</p>
                       )}
-                      <div className="mt-3 flex items-center gap-2 border-t border-[#2A2A2E] pt-3">
+                      <div className="mt-3 flex items-center gap-2 border-t border-gray-200 pt-3">
                         <select
                           value={appt.status}
                           onChange={async (e) => {
@@ -256,7 +256,7 @@ export default function Appointments() {
                             await updateDoc(doc(db, 'appointments', appt.id), { status: newStatus });
                             setAppointments((prev) => prev.map((a) => a.id === appt.id ? { ...a, status: newStatus } : a));
                           }}
-                          className="flex-1 rounded-lg border border-[#2A2A2E] bg-[#1C1C1F] px-2 py-1 text-xs text-white focus:outline-none"
+                          className="flex-1 rounded-lg border border-gray-200 bg-gray-50 px-3 py-1 text-xs text-gray-900 focus:outline-none"
                         >
                           {Object.entries(STATUS_CONFIG).map(([k, v]) => (
                             <option key={k} value={k}>{v.label}</option>
@@ -264,14 +264,14 @@ export default function Appointments() {
                         </select>
                         <button
                           onClick={() => openEdit(appt)}
-                          className="rounded-lg border border-[#2A2A2E] bg-[#1C1C1F] p-1.5 text-zinc-400 hover:text-white transition-colors"
+                          className="rounded-lg border border-gray-200 bg-gray-50 p-1.5 text-gray-500 hover:text-white transition-colors"
                         >
                           <Edit2 className="h-3.5 w-3.5" />
                         </button>
                         <button
                           onClick={() => handleDelete(appt.id)}
                           disabled={deleting === appt.id}
-                          className="rounded-lg border border-[#2A2A2E] bg-[#1C1C1F] p-1.5 text-zinc-400 hover:text-red-400 transition-colors"
+                          className="rounded-lg border border-gray-200 bg-gray-50 p-1.5 text-gray-500 hover:text-red-400 transition-colors"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
@@ -288,69 +288,69 @@ export default function Appointments() {
       {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="w-full max-w-lg rounded-2xl border border-[#2A2A2E] bg-[#0F0F11] shadow-2xl">
-            <div className="flex items-center justify-between border-b border-[#2A2A2E] px-6 py-4">
+          <div className="w-full max-w-lg rounded-2xl border border-gray-200 bg-[#0F0F11] shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
               <h2 className="text-lg font-bold text-white">{editing ? 'Edit Appointment' : 'New Appointment'}</h2>
-              <button onClick={() => setShowModal(false)} className="text-zinc-400 hover:text-white">
+              <button onClick={() => setShowModal(false)} className="text-gray-500 hover:text-white">
                 <X className="h-5 w-5" />
               </button>
             </div>
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
-                  <label className="block text-xs font-semibold text-zinc-400 mb-1.5">Customer Name *</label>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1.5">Customer Name *</label>
                   <input
                     type="text"
                     value={form.customer_name}
                     onChange={(e) => setForm((f) => ({ ...f, customer_name: e.target.value }))}
-                    className="w-full rounded-xl border border-[#2A2A2E] bg-[#141416] px-3 py-2.5 text-sm text-white placeholder-zinc-600 focus:border-[#22C55E] focus:outline-none"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-[#22C55E] focus:outline-none"
                     placeholder="John Smith"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-400 mb-1.5">Phone</label>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1.5">Phone</label>
                   <input
                     type="text"
                     value={form.customer_phone}
                     onChange={(e) => setForm((f) => ({ ...f, customer_phone: e.target.value }))}
-                    className="w-full rounded-xl border border-[#2A2A2E] bg-[#141416] px-3 py-2.5 text-sm text-white placeholder-zinc-600 focus:border-[#22C55E] focus:outline-none"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-[#22C55E] focus:outline-none"
                     placeholder="072 000 0000"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-400 mb-1.5">Service</label>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1.5">Service</label>
                   <input
                     type="text"
                     value={form.service}
                     onChange={(e) => setForm((f) => ({ ...f, service: e.target.value }))}
-                    className="w-full rounded-xl border border-[#2A2A2E] bg-[#141416] px-3 py-2.5 text-sm text-white placeholder-zinc-600 focus:border-[#22C55E] focus:outline-none"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-[#22C55E] focus:outline-none"
                     placeholder="Screen Repair"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-400 mb-1.5">Date *</label>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1.5">Date *</label>
                   <input
                     type="date"
                     value={form.date}
                     onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
-                    className="w-full rounded-xl border border-[#2A2A2E] bg-[#141416] px-3 py-2.5 text-sm text-white focus:border-[#22C55E] focus:outline-none"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 focus:border-[#22C55E] focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-400 mb-1.5">Time</label>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1.5">Time</label>
                   <input
                     type="time"
                     value={form.time}
                     onChange={(e) => setForm((f) => ({ ...f, time: e.target.value }))}
-                    className="w-full rounded-xl border border-[#2A2A2E] bg-[#141416] px-3 py-2.5 text-sm text-white focus:border-[#22C55E] focus:outline-none"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 focus:border-[#22C55E] focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-400 mb-1.5">Status</label>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1.5">Status</label>
                   <select
                     value={form.status}
                     onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as Appointment['status'] }))}
-                    className="w-full rounded-xl border border-[#2A2A2E] bg-[#141416] px-3 py-2.5 text-sm text-white focus:border-[#22C55E] focus:outline-none"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 focus:border-[#22C55E] focus:outline-none"
                   >
                     {Object.entries(STATUS_CONFIG).map(([k, v]) => (
                       <option key={k} value={k}>{v.label}</option>
@@ -358,21 +358,21 @@ export default function Appointments() {
                   </select>
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-xs font-semibold text-zinc-400 mb-1.5">Notes</label>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1.5">Notes</label>
                   <textarea
                     value={form.notes}
                     onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
                     rows={3}
-                    className="w-full rounded-xl border border-[#2A2A2E] bg-[#141416] px-3 py-2.5 text-sm text-white placeholder-zinc-600 focus:border-[#22C55E] focus:outline-none resize-none"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-[#22C55E] focus:outline-none resize-none"
                     placeholder="Any additional notes..."
                   />
                 </div>
               </div>
             </div>
-            <div className="flex items-center justify-end gap-3 border-t border-[#2A2A2E] px-6 py-4">
+            <div className="flex items-center justify-end gap-3 border-t border-gray-200 px-6 py-4">
               <button
                 onClick={() => setShowModal(false)}
-                className="rounded-xl border border-[#2A2A2E] bg-[#1C1C1F] px-4 py-2 text-sm font-semibold text-zinc-300 hover:text-white"
+                className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-600 hover:text-gray-900"
               >
                 Cancel
               </button>
