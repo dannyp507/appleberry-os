@@ -23,6 +23,9 @@ import {
   Search,
   Calendar,
   Wallet,
+  LayoutDashboard,
+  Moon,
+  PieChart,
 } from 'lucide-react';
 import { safeFormatDate } from '../lib/utils';
 import { startOfDay, startOfMonth, subDays } from 'date-fns';
