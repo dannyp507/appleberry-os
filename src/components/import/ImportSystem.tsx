@@ -452,11 +452,12 @@ export default function ImportSystem() {
             }
 
             // Products: Firestore rule requires stock to be a number >= 0.
-            // Default to 0 if not provided in the CSV.
+            // Parse and clamp — negative stock (e.g. -1) also fails the rule.
             if (dataType === 'products' || dataType === 'inventory') {
-              payload.stock = typeof payload.stock === 'number' ? payload.stock : (parseFloat(payload.stock) || 0);
-              payload.cost_price = typeof payload.cost_price === 'number' ? payload.cost_price : (parseFloat(payload.cost_price) || 0);
-              payload.selling_price = typeof payload.selling_price === 'number' ? payload.selling_price : (parseFloat(payload.selling_price) || 0);
+              const rawStock = parseFloat(payload.stock);
+              payload.stock = Math.max(0, isNaN(rawStock) ? 0 : rawStock);
+              payload.cost_price = Math.max(0, parseFloat(payload.cost_price) || 0);
+              payload.selling_price = Math.max(0, parseFloat(payload.selling_price) || 0);
             }
 
             batch.set(docRef, payload);
