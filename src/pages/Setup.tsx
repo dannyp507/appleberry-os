@@ -206,7 +206,7 @@ function SimpleListManager({
         {extraFields === 'color' && (
           <input
             type="color"
-            className="w-10 h-10 rounded-lg border border-gray-200 bg-[#101012] cursor-pointer"
+            className="w-10 h-10 rounded-lg border border-gray-200 bg-white cursor-pointer"
             value={newExtra || '#6b7280'}
             onChange={e => setNewExtra(e.target.value)}
           />
@@ -224,7 +224,7 @@ function SimpleListManager({
       {items.length === 0 ? (
         <p className="text-sm text-gray-400 italic py-4">No items yet. Add your first one above.</p>
       ) : (
-        <div className="rounded-xl border border-gray-200 divide-y divide-[#2A2A2E] overflow-hidden">
+        <div className="rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
           {items.map(item => (
             <div key={item.id} className="flex items-center gap-3 px-4 py-3 bg-white hover:bg-gray-50 transition-colors group">
               {extraFields === 'color' && (
@@ -260,7 +260,7 @@ function SimpleListManager({
                 </>
               ) : (
                 <>
-                  <span className="flex-1 text-sm text-white">{item.name}</span>
+                  <span className="flex-1 text-sm text-gray-900">{item.name}</span>
                   {extraFields === 'price' && item.default_price != null && item.default_price > 0 && (
                     <span className="text-xs text-gray-500 font-medium">R{item.default_price.toFixed(2)}</span>
                   )}
