@@ -61,6 +61,18 @@ function RouteLoader() {
   );
 }
 
+// Prefetch the most-visited pages after initial load so they feel instant
+function prefetchCommonPages() {
+  // Small delay so it doesn't compete with initial render
+  setTimeout(() => {
+    import('./pages/Repairs');
+    import('./pages/POS');
+    import('./pages/Dashboard');
+    import('./pages/Customers');
+    import('./pages/Inventory');
+  }, 3000);
+}
+
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -164,6 +176,8 @@ export default function App() {
         const resolved = await resolveProfileAndCompany(user);
         setProfile(resolved.profile);
         setCompany(resolved.company);
+        // Kick off background prefetch of common pages after auth resolves
+        prefetchCommonPages();
       } catch (error) {
         console.error('Error fetching user profile:', error);
         setProfile(null);
