@@ -22,6 +22,7 @@ import {
   MessageSquare,
   Search,
   Calendar,
+  Wallet,
 } from 'lucide-react';
 import { safeFormatDate } from '../lib/utils';
 import { startOfDay, startOfMonth, subDays } from 'date-fns';
