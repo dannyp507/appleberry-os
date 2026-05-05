@@ -228,9 +228,26 @@ async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT || 3000);
 
-  app.use(express.json());
+  // In-memory store for temporary PDF tokens (for WhatsApp sending)
+  const tempPdfStore = new Map<string, { buffer: Buffer; filename: string; expiresAt: number }>();
+
+  app.use(express.json({ limit: '20mb' }));
   app.get("/health", (_req, res) => {
     res.status(200).json({ ok: true });
+  });
+
+  // Serve a temporarily stored PDF by token — no auth required so planifyx can fetch it
+  app.get("/api/temp-pdf/:token", (req, res) => {
+    const entry = tempPdfStore.get(req.params.token);
+    if (!entry || Date.now() > entry.expiresAt) {
+      tempPdfStore.delete(req.params.token);
+      return res.status(404).json({ error: 'PDF not found or expired' });
+    }
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${entry.filename}"`);
+    res.send(entry.buffer);
+    // Delete after serving (single use)
+    tempPdfStore.delete(req.params.token);
   });
 
   app.get("/api/staff-invites/resolve", async (req, res) => {
@@ -698,8 +715,20 @@ async function startServer() {
 
         const baseUrl = settings.apiUrl.replace(/\/send.*$/, '');
 
-        // ── STEP 1: Send PDF as base64 JSON (planifyx preferred format) ──
+        // ── STEP 1: Store PDF temporarily and send public URL to planifyx ──
         if (pdfBase64) {
+          const pdfBuffer = Buffer.from(pdfBase64, 'base64');
+          const token = crypto.randomUUID();
+          tempPdfStore.set(token, {
+            buffer: pdfBuffer,
+            filename: pdfFilename || 'Invoice.pdf',
+            expiresAt: Date.now() + 10 * 60 * 1000, // 10 min
+          });
+
+          const host = req.headers['x-forwarded-host'] || req.headers.host || '';
+          const protocol = req.headers['x-forwarded-proto'] || (req.socket as any).encrypted ? 'https' : 'http';
+          const pdfTempUrl = `${protocol}://${host}/api/temp-pdf/${token}`;
+
           const fileEndpoints = [
             `${baseUrl}/send-file`,
             `${baseUrl}/send`,
@@ -708,63 +737,37 @@ async function startServer() {
 
           for (const endpoint of fileEndpoints) {
             try {
-              const jsonPayload = {
+              const payload = {
                 instance_id: instanceId,
                 access_token: accessToken,
                 token: accessToken,
                 number: phone,
                 to: phone,
                 type: 'file',
-                file: `data:application/pdf;base64,${pdfBase64}`,
+                url: pdfTempUrl,
                 filename: pdfFilename || 'Invoice.pdf',
                 caption: message || 'Your invoice is attached.',
                 message: message || 'Your invoice is attached.',
+                mimetype: 'application/pdf',
               };
 
-              const response = await axios.post(endpoint, jsonPayload, {
+              const response = await axios.post(endpoint, payload, {
                 headers: { 'Content-Type': 'application/json' },
                 timeout: 30000,
               });
 
-              console.log(`[WhatsApp] PDF base64 JSON to ${endpoint}: HTTP ${response.status}`, JSON.stringify(response.data).slice(0, 300));
+              console.log(`[WhatsApp] File URL to ${endpoint}: HTTP ${response.status}`, JSON.stringify(response.data).slice(0, 300));
 
               if (response.status < 300 && isPlanifyxSuccess(response.data)) {
                 return res.json({ success: true, data: response.data });
               }
-              console.warn(`[WhatsApp] ${endpoint} response body:`, response.data);
+              console.warn(`[WhatsApp] ${endpoint} response:`, response.data);
             } catch (e: any) {
-              console.warn(`[WhatsApp] PDF JSON to ${endpoint} failed:`, e.response?.data || e.message);
+              console.warn(`[WhatsApp] File URL to ${endpoint} failed:`, e.response?.data || e.message);
             }
           }
 
-          // ── STEP 1b: Try multipart form upload as fallback ──
-          try {
-            const pdfBuffer = Buffer.from(pdfBase64, 'base64');
-            const FormDataNode = (await import('form-data')).default;
-            const form = new FormDataNode();
-            form.append('instance_id', instanceId);
-            form.append('access_token', accessToken);
-            form.append('number', phone);
-            form.append('caption', message || 'Your invoice is attached.');
-            form.append('type', 'document');
-            form.append('filename', pdfFilename || 'Invoice.pdf');
-            form.append('file', pdfBuffer, { filename: pdfFilename || 'Invoice.pdf', contentType: 'application/pdf' });
-
-            const response = await axios.post(`${baseUrl}/send-file`, form, {
-              headers: form.getHeaders(),
-              timeout: 30000,
-            });
-
-            console.log(`[WhatsApp] Multipart upload: HTTP ${response.status}`, JSON.stringify(response.data).slice(0, 300));
-
-            if (response.status < 300 && isPlanifyxSuccess(response.data)) {
-              return res.json({ success: true, data: response.data });
-            }
-          } catch (e: any) {
-            console.warn('[WhatsApp] Multipart upload failed:', e.response?.data || e.message);
-          }
-
-          console.warn('[WhatsApp] All PDF send attempts failed, falling back to text message with note');
+          console.warn('[WhatsApp] All PDF URL attempts failed, falling back to text message');
         }
 
         // ── STEP 2: Send text message with note that PDF is available ──
