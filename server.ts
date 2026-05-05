@@ -228,26 +228,24 @@ async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT || 3000);
 
-  // In-memory store for temporary PDF tokens (for WhatsApp sending)
-  const tempPdfStore = new Map<string, { buffer: Buffer; filename: string; expiresAt: number }>();
+  // In-memory store for public invoice tokens (no auth — for WhatsApp links)
+  const publicInvoiceStore = new Map<string, { buffer: Buffer; filename: string; expiresAt: number }>();
 
   app.use(express.json({ limit: '20mb' }));
   app.get("/health", (_req, res) => {
     res.status(200).json({ ok: true });
   });
 
-  // Serve a temporarily stored PDF by token — no auth required so planifyx can fetch it
-  app.get("/api/temp-pdf/:token", (req, res) => {
-    const entry = tempPdfStore.get(req.params.token);
+  // Public invoice download — no auth, accessed via WhatsApp link, expires in 48h
+  app.get("/invoice/:token", (req, res) => {
+    const entry = publicInvoiceStore.get(req.params.token);
     if (!entry || Date.now() > entry.expiresAt) {
-      tempPdfStore.delete(req.params.token);
-      return res.status(404).json({ error: 'PDF not found or expired' });
+      publicInvoiceStore.delete(req.params.token);
+      return res.status(404).send('<h2>Invoice link has expired. Please contact the shop for a new copy.</h2>');
     }
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${entry.filename}"`);
     res.send(entry.buffer);
-    // Delete after serving (single use)
-    tempPdfStore.delete(req.params.token);
   });
 
   app.get("/api/staff-invites/resolve", async (req, res) => {
@@ -715,64 +713,26 @@ async function startServer() {
 
         const baseUrl = settings.apiUrl.replace(/\/send.*$/, '');
 
-        // ── STEP 1: Store PDF temporarily and send public URL to planifyx ──
+        // ── Build invoice link and send as WhatsApp text message ──
+        // Planifyx unofficial API doesn't support file attachments reliably.
+        // Instead we store the PDF server-side and send a tap-to-open link.
+        let invoiceLink = '';
         if (pdfBase64) {
           const pdfBuffer = Buffer.from(pdfBase64, 'base64');
           const token = crypto.randomUUID();
-          tempPdfStore.set(token, {
+          publicInvoiceStore.set(token, {
             buffer: pdfBuffer,
             filename: pdfFilename || 'Invoice.pdf',
-            expiresAt: Date.now() + 10 * 60 * 1000, // 10 min
+            expiresAt: Date.now() + 48 * 60 * 60 * 1000, // 48 hours
           });
-
-          const host = req.headers['x-forwarded-host'] || req.headers.host || '';
-          const protocol = req.headers['x-forwarded-proto'] || (req.socket as any).encrypted ? 'https' : 'http';
-          const pdfTempUrl = `${protocol}://${host}/api/temp-pdf/${token}`;
-
-          const fileEndpoints = [
-            `${baseUrl}/send-file`,
-            `${baseUrl}/send`,
-            settings.apiUrl,
-          ];
-
-          for (const endpoint of fileEndpoints) {
-            try {
-              const payload = {
-                instance_id: instanceId,
-                access_token: accessToken,
-                token: accessToken,
-                number: phone,
-                to: phone,
-                type: 'file',
-                url: pdfTempUrl,
-                filename: pdfFilename || 'Invoice.pdf',
-                caption: message || 'Your invoice is attached.',
-                message: message || 'Your invoice is attached.',
-                mimetype: 'application/pdf',
-              };
-
-              const response = await axios.post(endpoint, payload, {
-                headers: { 'Content-Type': 'application/json' },
-                timeout: 30000,
-              });
-
-              console.log(`[WhatsApp] File URL to ${endpoint}: HTTP ${response.status}`, JSON.stringify(response.data).slice(0, 300));
-
-              if (response.status < 300 && isPlanifyxSuccess(response.data)) {
-                return res.json({ success: true, data: response.data });
-              }
-              console.warn(`[WhatsApp] ${endpoint} response:`, response.data);
-            } catch (e: any) {
-              console.warn(`[WhatsApp] File URL to ${endpoint} failed:`, e.response?.data || e.message);
-            }
-          }
-
-          console.warn('[WhatsApp] All PDF URL attempts failed, falling back to text message');
+          const host = (req.headers['x-forwarded-host'] || req.headers.host || '').toString().split(',')[0].trim();
+          const proto = (req.headers['x-forwarded-proto'] || 'https').toString().split(',')[0].trim();
+          invoiceLink = `${proto}://${host}/invoice/${token}`;
         }
 
-        // ── STEP 2: Send text message with note that PDF is available ──
-        const textMsg = pdfBase64
-          ? `${message}\n\n📄 To view your invoice, please contact us and we'll resend it.`
+        // ── Send WhatsApp text message with invoice link ──
+        const textMsg = invoiceLink
+          ? `${message}\n\n📄 View & download your invoice here:\n${invoiceLink}\n\n_(Link expires in 48 hours)_`
           : message;
 
         const textPayload = {
