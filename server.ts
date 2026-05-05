@@ -698,79 +698,103 @@ async function startServer() {
 
         const baseUrl = settings.apiUrl.replace(/\/send.*$/, '');
 
-        // ── STEP 1: Try sending the PDF as a document via multipart upload ──
+        // ── STEP 1: Send PDF as base64 JSON (planifyx preferred format) ──
         if (pdfBase64) {
-          const pdfBuffer = Buffer.from(pdfBase64, 'base64');
-          const FormDataNode = (await import('form-data')).default;
-
-          const docEndpoints = [
-            `${baseUrl}/send-document`,
+          const fileEndpoints = [
+            `${baseUrl}/send-file`,
             `${baseUrl}/send`,
             settings.apiUrl,
           ];
 
-          for (const endpoint of docEndpoints) {
+          for (const endpoint of fileEndpoints) {
             try {
-              const form = new FormDataNode();
-              form.append('instance_id', instanceId);
-              form.append('access_token', accessToken);
-              form.append('token', accessToken);
-              form.append('number', phone);
-              form.append('to', phone);
-              form.append('caption', message || 'Your invoice is attached.');
-              form.append('message', message || 'Your invoice is attached.');
-              form.append('type', 'document');
-              form.append('filename', pdfFilename || 'Invoice.pdf');
-              form.append('file', pdfBuffer, { filename: pdfFilename || 'Invoice.pdf', contentType: 'application/pdf' });
+              const jsonPayload = {
+                instance_id: instanceId,
+                access_token: accessToken,
+                token: accessToken,
+                number: phone,
+                to: phone,
+                type: 'file',
+                file: `data:application/pdf;base64,${pdfBase64}`,
+                filename: pdfFilename || 'Invoice.pdf',
+                caption: message || 'Your invoice is attached.',
+                message: message || 'Your invoice is attached.',
+              };
 
-              const response = await axios.post(endpoint, form, {
-                headers: form.getHeaders(),
-                params: { instance_id: instanceId, access_token: accessToken },
-                timeout: 20000,
+              const response = await axios.post(endpoint, jsonPayload, {
+                headers: { 'Content-Type': 'application/json' },
+                timeout: 30000,
               });
 
-              console.log(`[WhatsApp] PDF upload to ${endpoint}: HTTP ${response.status}`, JSON.stringify(response.data).slice(0, 300));
+              console.log(`[WhatsApp] PDF base64 JSON to ${endpoint}: HTTP ${response.status}`, JSON.stringify(response.data).slice(0, 300));
 
               if (response.status < 300 && isPlanifyxSuccess(response.data)) {
                 return res.json({ success: true, data: response.data });
               }
-              if (response.status < 300 && !isPlanifyxSuccess(response.data)) {
-                // Got 200 but error body — log and try next
-                console.warn(`[WhatsApp] ${endpoint} returned 200 but error body:`, response.data);
-              }
+              console.warn(`[WhatsApp] ${endpoint} response body:`, response.data);
             } catch (e: any) {
-              console.warn(`[WhatsApp] PDF upload to ${endpoint} failed:`, e.response?.data || e.message);
-              // try next
+              console.warn(`[WhatsApp] PDF JSON to ${endpoint} failed:`, e.response?.data || e.message);
             }
           }
-          console.warn('[WhatsApp] All PDF document endpoints failed, falling back to text message');
+
+          // ── STEP 1b: Try multipart form upload as fallback ──
+          try {
+            const pdfBuffer = Buffer.from(pdfBase64, 'base64');
+            const FormDataNode = (await import('form-data')).default;
+            const form = new FormDataNode();
+            form.append('instance_id', instanceId);
+            form.append('access_token', accessToken);
+            form.append('number', phone);
+            form.append('caption', message || 'Your invoice is attached.');
+            form.append('type', 'document');
+            form.append('filename', pdfFilename || 'Invoice.pdf');
+            form.append('file', pdfBuffer, { filename: pdfFilename || 'Invoice.pdf', contentType: 'application/pdf' });
+
+            const response = await axios.post(`${baseUrl}/send-file`, form, {
+              headers: form.getHeaders(),
+              timeout: 30000,
+            });
+
+            console.log(`[WhatsApp] Multipart upload: HTTP ${response.status}`, JSON.stringify(response.data).slice(0, 300));
+
+            if (response.status < 300 && isPlanifyxSuccess(response.data)) {
+              return res.json({ success: true, data: response.data });
+            }
+          } catch (e: any) {
+            console.warn('[WhatsApp] Multipart upload failed:', e.response?.data || e.message);
+          }
+
+          console.warn('[WhatsApp] All PDF send attempts failed, falling back to text message with note');
         }
 
-        // ── STEP 2: Send plain text message as fallback ──
+        // ── STEP 2: Send text message with note that PDF is available ──
+        const textMsg = pdfBase64
+          ? `${message}\n\n📄 To view your invoice, please contact us and we'll resend it.`
+          : message;
+
         const textPayload = {
           instance_id: instanceId,
           access_token: accessToken,
           token: accessToken,
           to: phone,
           number: phone,
-          body: message,
-          message: message,
+          body: textMsg,
+          message: textMsg,
           type: 'text',
         };
 
         try {
           const response = await axios.post(settings.apiUrl, textPayload, {
-            params: { instance_id: instanceId, access_token: accessToken },
+            headers: { 'Content-Type': 'application/json' },
             timeout: 15000,
           });
 
           console.log(`[WhatsApp] Text send: HTTP ${response.status}`, JSON.stringify(response.data).slice(0, 300));
 
           if (response.status < 300 && isPlanifyxSuccess(response.data)) {
-            return res.json({ success: true, data: response.data });
+            return res.json({ success: true, data: response.data, note: 'PDF attachment failed — text message sent' });
           }
 
-          // Got 200 but response body says error
           const errMsg = planifyxErrorMsg(response.data);
           console.error('[WhatsApp] API returned success HTTP but error body:', response.data);
           return res.status(400).json({ error: `WhatsApp API error: ${errMsg}` });

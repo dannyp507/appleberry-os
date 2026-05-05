@@ -178,7 +178,11 @@ export default function PostSaleModal({ isOpen, onClose, repair, customer, cart,
       }, { headers: await getAuthHeaders() });
 
       if (response.data.success) {
-        toast.success('WhatsApp invoice sent ✓');
+        if (response.data.note) {
+          toast.warning('Message sent but PDF attachment failed — customer received text only');
+        } else {
+          toast.success('WhatsApp invoice sent ✓');
+        }
       }
     } catch (error: any) {
       console.error('WhatsApp error:', error);
