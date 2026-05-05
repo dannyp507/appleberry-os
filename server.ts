@@ -1,4 +1,5 @@
 import express from "express";
+import compression from "compression";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -865,7 +866,12 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
+    // Gzip/Brotli compress all responses — reduces JS/CSS transfer by ~65%
+    app.use(compression());
+    app.use(express.static(distPath, {
+      maxAge: '1y', // Cache static assets for 1 year (they have hashed filenames)
+      etag: true,
+    }));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });

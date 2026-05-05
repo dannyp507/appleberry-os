@@ -32,6 +32,12 @@ export default defineConfig(({mode}) => {
               if (id.includes('papaparse') || id.includes('xlsx')) {
                 return 'import-vendor';
               }
+              if (id.includes('recharts') || id.includes('d3-') || id.includes('victory')) {
+                return 'charts-vendor';
+              }
+              if (id.includes('lucide-react')) {
+                return 'icons-vendor';
+              }
             }
           },
         },
