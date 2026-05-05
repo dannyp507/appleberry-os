@@ -163,8 +163,10 @@ export default function PostSaleModal({ isOpen, onClose, repair, customer, cart,
 
       const pdfUrl = saleId ? `${window.location.origin}/api/invoices/${saleId}.pdf?compact=1` : null;
       const isLocalUrl = pdfUrl ? /:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/i.test(pdfUrl) : false;
-      const ticketRef = repair?.ticket_number || 'Sale';
-      const attachmentMessage = `Hello ${customer.name}, your invoice for ${ticketRef} is attached.`;
+      const ticketRef = repair?.ticket_number
+        ? `Ticket #${repair.ticket_number}`
+        : `Invoice #${(saleId || 'Sale').slice(0, 8).toUpperCase()}`;
+      const attachmentMessage = `Hello ${customer.name}, please find your ${ticketRef} invoice attached. Thank you for your business! 🙏`;
 
       const response = await axios.post('/api/send-whatsapp', {
         phone: normalizePhone(customer.phone),
