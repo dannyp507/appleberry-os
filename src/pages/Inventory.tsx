@@ -465,7 +465,7 @@ export default function Inventory() {
             {loading && products.length === 0 ? (
               [1,2,3,4,5].map(i => (
                 <tr key={i} className="animate-pulse">
-                <td colSpan={5} className="px-6 py-4"><div className="h-4 bg-[#242429] rounded w-full"></div></td>
+                <td colSpan={5} className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-full"></div></td>
                 </tr>
               ))
             ) : filteredProducts.length === 0 ? (

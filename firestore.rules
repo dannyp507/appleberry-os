@@ -157,6 +157,14 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /system_settings/{docId} {
+      allow get: if signedIn() && (resource == null || existingCompanyRecord());
+      allow list: if false;
+      allow create: if isOwnerOrAdmin() && incomingCompanyRecord();
+      allow update: if isOwnerOrAdmin() && canUpdateCompanyRecord();
+      allow delete: if false;
+    }
+
     match /counters/{counterId} {
       allow get: if isStaff() && (resource == null || existingCompanyRecord());
       allow list: if false;
@@ -326,6 +334,42 @@ service cloud.firestore {
     match /repair_problems/{problemId} {
       allow read: if canReadCompanyRecord();
       allow create, update: if isStaff() && incomingCompanyRecord();
+      allow delete: if isOwnerOrAdmin() && existingCompanyRecord();
+    }
+
+    match /brand_models/{id} {
+      allow read: if canReadCompanyRecord();
+      allow create, update: if isOwnerOrAdmin() && incomingCompanyRecord();
+      allow delete: if isOwnerOrAdmin() && existingCompanyRecord();
+    }
+
+    match /product_categories/{id} {
+      allow read: if canReadCompanyRecord();
+      allow create, update: if isOwnerOrAdmin() && incomingCompanyRecord();
+      allow delete: if isOwnerOrAdmin() && existingCompanyRecord();
+    }
+
+    match /manufacturers/{id} {
+      allow read: if canReadCompanyRecord();
+      allow create, update: if isOwnerOrAdmin() && incomingCompanyRecord();
+      allow delete: if isOwnerOrAdmin() && existingCompanyRecord();
+    }
+
+    match /vendors/{id} {
+      allow read: if canReadCompanyRecord();
+      allow create, update: if isOwnerOrAdmin() && incomingCompanyRecord();
+      allow delete: if isOwnerOrAdmin() && existingCompanyRecord();
+    }
+
+    match /expense_types/{id} {
+      allow read: if canReadCompanyRecord();
+      allow create, update: if isOwnerOrAdmin() && incomingCompanyRecord();
+      allow delete: if isOwnerOrAdmin() && existingCompanyRecord();
+    }
+
+    match /customer_types/{id} {
+      allow read: if canReadCompanyRecord();
+      allow create, update: if isOwnerOrAdmin() && incomingCompanyRecord();
       allow delete: if isOwnerOrAdmin() && existingCompanyRecord();
     }
 

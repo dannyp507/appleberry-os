@@ -166,7 +166,7 @@ export default function PostSaleModal({ isOpen, onClose, repair, customer, cart,
       const ticketRef = repair?.ticket_number
         ? `Ticket #${repair.ticket_number}`
         : `Invoice #${(saleId || 'Sale').slice(0, 8).toUpperCase()}`;
-      const attachmentMessage = `Hello ${customer.name}, please find your ${ticketRef} invoice attached. Thank you for your business! 🙏`;
+      const attachmentMessage = `Hello ${customer.name}, your ${ticketRef} invoice is ready. Tap the link below to view and download it. Thank you for your business! 🙏`;
 
       const response = await axios.post('/api/send-whatsapp', {
         phone: normalizePhone(customer.phone),

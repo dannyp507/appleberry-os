@@ -137,7 +137,7 @@ export default function InventoryReports() {
             key={t.id}
             onClick={() => setTab(t.id)}
             className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
-              tab === t.id ? 'bg-[#22C55E] text-white' : 'text-gray-500 hover:text-white'
+              tab === t.id ? 'bg-[#22C55E] text-white' : 'text-gray-500 hover:text-gray-800'
             }`}
           >
             {t.label}
@@ -181,7 +181,7 @@ export default function InventoryReports() {
                 <th className="px-5 py-3.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">Retail Value</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#2A2A2E]">
+            <tbody className="divide-y divide-gray-100">
               {categoryData.map((row, i) => (
                 <tr key={row.category} className="hover:bg-white/[0.02]">
                   <td className="px-5 py-3.5">
@@ -200,9 +200,9 @@ export default function InventoryReports() {
             <tfoot>
               <tr className="border-t border-gray-200 bg-gray-50">
                 <td className="px-5 py-3.5 text-sm font-bold text-gray-900">Total</td>
-                <td className="px-5 py-3.5 text-right text-sm font-bold text-white">{stats.totalSkus}</td>
-                <td className="px-5 py-3.5 text-right text-sm font-bold text-white">{stats.totalUnits.toLocaleString()}</td>
-                <td className="px-5 py-3.5 text-right text-sm font-bold text-white">{formatCurrency(stats.costValue)}</td>
+                <td className="px-5 py-3.5 text-right text-sm font-bold text-gray-900">{stats.totalSkus}</td>
+                <td className="px-5 py-3.5 text-right text-sm font-bold text-gray-900">{stats.totalUnits.toLocaleString()}</td>
+                <td className="px-5 py-3.5 text-right text-sm font-bold text-gray-900">{formatCurrency(stats.costValue)}</td>
                 <td className="px-5 py-3.5 text-right text-sm font-bold text-[#22C55E]">{formatCurrency(stats.retailValue)}</td>
               </tr>
             </tfoot>
@@ -229,14 +229,14 @@ export default function InventoryReports() {
                   <th className="px-5 py-3.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#2A2A2E]">
+              <tbody className="divide-y divide-gray-100">
                 {physicalProducts
                   .filter((p) => p.stock <= p.low_stock_threshold)
                   .sort((a, b) => a.stock - b.stock)
                   .map((p) => (
                     <tr key={p.id} className="hover:bg-white/[0.02]">
                       <td className="px-5 py-3.5">
-                        <p className="text-sm font-medium text-white">{p.name}</p>
+                        <p className="text-sm font-medium text-gray-900">{p.name}</p>
                         {p.sku && <p className="text-xs text-gray-400 mt-0.5">SKU: {p.sku}</p>}
                       </td>
                       <td className="px-5 py-3.5 text-sm text-gray-500">{p.category}</td>
@@ -277,7 +277,7 @@ export default function InventoryReports() {
                   <th
                     key={col.field}
                     onClick={() => toggleSort(col.field)}
-                    className="px-5 py-3.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white first:text-left"
+                    className="px-5 py-3.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gray-700 first:text-left"
                   >
                     <span className="flex items-center gap-1 justify-end first:justify-start">
                       {col.label}
@@ -287,17 +287,17 @@ export default function InventoryReports() {
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#2A2A2E]">
+            <tbody className="divide-y divide-gray-100">
               {sortedProducts.map((p) => (
                 <tr key={p.id} className="hover:bg-white/[0.02]">
                   <td className="px-5 py-3.5">
-                    <p className="text-sm font-medium text-white">{p.name}</p>
+                    <p className="text-sm font-medium text-gray-900">{p.name}</p>
                     <p className="text-xs text-gray-400">{p.category}</p>
                   </td>
                   <td className="px-5 py-3.5 text-right text-sm text-gray-600">{p.stock}</td>
                   <td className="px-5 py-3.5 text-right text-sm text-gray-600">{formatCurrency(p.cost_price)}</td>
                   <td className="px-5 py-3.5 text-right text-sm text-gray-600">{formatCurrency(p.selling_price)}</td>
-                  <td className="px-5 py-3.5 text-right text-sm font-semibold text-white">{formatCurrency(p.stock * p.cost_price)}</td>
+                  <td className="px-5 py-3.5 text-right text-sm font-semibold text-gray-900">{formatCurrency(p.stock * p.cost_price)}</td>
                 </tr>
               ))}
             </tbody>
