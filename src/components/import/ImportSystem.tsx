@@ -381,7 +381,7 @@ export default function ImportSystem() {
     // Load existing records for deduplication (live mode only)
     const existingKeys = importMode === 'live' ? await loadExistingKeys(dataType) : new Set<string>();
 
-    const batchSize = 20;
+    const batchSize = 400;
     for (let i = 0; i < data.length; i += batchSize) {
       const chunk = data.slice(i, i + batchSize);
       const batch = importMode === 'live' ? writeBatch(db) : null;
