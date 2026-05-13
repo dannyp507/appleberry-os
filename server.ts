@@ -864,6 +864,124 @@ async function startServer() {
     });
   }
 
+  // ── Bulk Import endpoint (server-side, uses Admin SDK — no rule overhead) ──
+  app.post('/api/import', async (req, res) => {
+    try {
+      const ctx = await requireRequestContext(req);
+      const { collection: colName, records, mode, duplicateDecisions } = req.body as {
+        collection: string;
+        records: Array<{ uniqueKey: string | null; payload: Record<string, any> }>;
+        mode: 'live' | 'dry';
+        duplicateDecisions?: Record<string, { decision: 'replace' | 'skip' | 'keep_both'; existingDocId?: string }>;
+      };
+
+      // Safety: only allow known data collections
+      const ALLOWED = [
+        'customers','repairs','products','sales','sale_items','expenses',
+        'payments','purchases','invoices','imei_devices','stock_take',
+        'marketing_templates','marketing_campaigns','marketing_segments',
+        'marketing_automations','marketing_deliveries','brand_models',
+        'product_categories','manufacturers','vendors','expense_types',
+        'customer_types','repair_status_options','repair_problems',
+      ];
+      if (!ALLOWED.includes(colName)) {
+        return res.status(400).json({ error: `Collection "${colName}" is not importable.` });
+      }
+
+      if (mode === 'dry') {
+        return res.json({ success: true, written: 0, skipped: 0, message: 'Dry run — nothing written.' });
+      }
+
+      let written = 0;
+      let skipped = 0;
+      const BATCH_SIZE = 499; // Firestore Admin SDK max
+
+      // Separate records into: new writes, replacements, skips
+      const toWrite: Array<{ ref: FirebaseFirestore.DocumentReference; payload: Record<string, any> }> = [];
+
+      for (const record of records) {
+        const key = record.uniqueKey;
+        const decision = key && duplicateDecisions?.[key];
+
+        if (decision) {
+          if (decision.decision === 'skip') { skipped++; continue; }
+          if (decision.decision === 'replace' && decision.existingDocId) {
+            toWrite.push({ ref: adminDb.collection(colName).doc(decision.existingDocId), payload: record.payload });
+          } else {
+            // keep_both — new doc
+            toWrite.push({ ref: adminDb.collection(colName).doc(), payload: record.payload });
+          }
+        } else {
+          toWrite.push({ ref: adminDb.collection(colName).doc(), payload: record.payload });
+        }
+      }
+
+      // Commit in chunks of 499
+      for (let i = 0; i < toWrite.length; i += BATCH_SIZE) {
+        const chunk = toWrite.slice(i, i + BATCH_SIZE);
+        const batch = adminDb.batch();
+        for (const { ref, payload } of chunk) {
+          batch.set(ref, { ...payload, company_id: ctx.companyId });
+        }
+        await batch.commit();
+        written += chunk.length;
+      }
+
+      return res.json({ success: true, written, skipped });
+    } catch (err: any) {
+      console.error('Import error:', err);
+      return res.status(err.status || 500).json({ error: err.message || 'Import failed' });
+    }
+  });
+
+  // ── Bulk scan endpoint — check which records already exist ────────────────
+  app.post('/api/import/scan', async (req, res) => {
+    try {
+      const ctx = await requireRequestContext(req);
+      const { collection: colName } = req.body as { collection: string };
+
+      const ALLOWED = [
+        'customers','repairs','products','sales','expenses',
+        'payments','purchases','invoices','imei_devices','stock_take',
+        'brand_models','product_categories','manufacturers','vendors',
+        'expense_types','customer_types','repair_status_options','repair_problems',
+      ];
+      if (!ALLOWED.includes(colName)) {
+        return res.status(400).json({ error: `Collection "${colName}" is not scannable.` });
+      }
+
+      const snap = await adminDb.collection(colName)
+        .where('company_id', '==', ctx.companyId)
+        .get();
+
+      // Return minimal data: docId + key fields for dedup matching
+      const docs = snap.docs.map(d => {
+        const data = d.data();
+        return {
+          id: d.id,
+          external_id: data.external_id || null,
+          sku: data.sku || null,
+          name: data.name || null,
+          first_name: data.first_name || null,
+          last_name: data.last_name || null,
+          phone: data.phone || null,
+          email: data.email || null,
+          imei: data.imei || null,
+          invoice_number: data.invoice_number || null,
+          date: data.date || null,
+          amount: data.amount || null,
+          title: data.title || null,
+          payment_method: data.payment_method || null,
+        };
+      });
+
+      return res.json({ success: true, docs });
+    } catch (err: any) {
+      console.error('Scan error:', err);
+      return res.status(err.status || 500).json({ error: err.message || 'Scan failed' });
+    }
+  });
+
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://0.0.0.0:${PORT}`);
   });

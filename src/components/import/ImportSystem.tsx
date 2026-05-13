@@ -37,11 +37,12 @@ import {
   getDocs,
   writeBatch,
   doc,
-  updateDoc,
 } from 'firebase/firestore';
 import { toast } from 'sonner';
 import { useTenant } from '../../lib/tenant';
 import { isCompanyScopedRecord, withCompanyId } from '../../lib/companyData';
+import axios from 'axios';
+import { getAuthHeaders } from '../../lib/authHeaders';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -283,8 +284,8 @@ export default function ImportSystem() {
   };
 
   /**
-   * Load existing Firestore docs as a Map<uniqueKey, {id, data}>
-   * so we can detect duplicates AND know which doc to overwrite.
+   * Fetch existing docs via the server-side scan endpoint.
+   * Admin SDK on Railway → much faster than client Firestore reads.
    */
   const loadExistingDocs = async (
     type: ImportDataType
@@ -293,9 +294,12 @@ export default function ImportSystem() {
     if (!companyId) return map;
     try {
       const colName = type === 'inventory' ? 'products' : type;
-      const snap = await getDocs(query(collection(db, colName), where('company_id', '==', companyId)));
-      snap.docs.forEach((d) => {
-        const data = d.data() as any;
+      const resp = await axios.post('/api/import/scan',
+        { collection: colName },
+        { headers: await getAuthHeaders() }
+      );
+      const docs: any[] = resp.data.docs || [];
+      docs.forEach((data) => {
         let key: string | null = null;
         switch (type) {
           case 'customers':
@@ -315,16 +319,14 @@ export default function ImportSystem() {
             key = data.external_id ? `ticket:${String(data.external_id).trim()}` : null;
             break;
           case 'expenses':
-            key =
-              data.date && data.amount != null && data.title
-                ? `${String(data.date).substring(0, 10)}|${data.amount}|${String(data.title).toLowerCase().trim()}`
-                : null;
+            key = data.date && data.amount != null && data.title
+              ? `${String(data.date).substring(0, 10)}|${data.amount}|${String(data.title).toLowerCase().trim()}`
+              : null;
             break;
           case 'payments':
-            key =
-              data.invoice_number && data.payment_method && data.amount != null
-                ? `${data.invoice_number}|${data.payment_method}|${data.amount}`
-                : null;
+            key = data.invoice_number && data.payment_method && data.amount != null
+              ? `${data.invoice_number}|${data.payment_method}|${data.amount}`
+              : null;
             break;
           case 'purchases':
             key = data.external_id ? `po:${String(data.external_id).trim()}` : null;
@@ -336,10 +338,10 @@ export default function ImportSystem() {
             key = data.imei ? `imei:${String(data.imei).trim()}` : null;
             break;
         }
-        if (key) map.set(key, { id: d.id, data });
+        if (key) map.set(key, { id: data.id, data });
       });
     } catch (e) {
-      console.warn('Existing doc load failed, skipping dedup:', e);
+      console.warn('Server scan failed, skipping dedup:', e);
     }
     return map;
   };
@@ -429,7 +431,7 @@ export default function ImportSystem() {
     );
   };
 
-  // ── Step 2: Execute import using decisions ───────────────────────────────
+  // ── Step 2: Execute import via server-side Admin SDK (fast) ─────────────
 
   const runImportWithDecisions = async (
     resolvedDuplicates: DuplicateItem[],
@@ -447,85 +449,70 @@ export default function ImportSystem() {
     const importResults: ImportResult = {
       total: data.length,
       success: 0,
-      skipped: 0,
+      skipped: resolvedDuplicates.filter(d => d.decision === 'skip').length,
       failed: resolvedInvalid.length,
       errors: [...resolvedInvalid],
     };
 
-    const fields = IMPORT_FIELDS[dataType];
-
     try {
-      // ── Process new records in large batches ─────────────────────────────
-      const batchSize = 400;
-      for (let i = 0; i < resolvedNew.length; i += batchSize) {
-        const chunk = resolvedNew.slice(i, i + batchSize);
-        const batch = importMode === 'live' ? writeBatch(db) : null;
-
-        for (const { transformed } of chunk) {
-          if (importMode === 'live' && batch) {
-            const docRef = doc(collection(db, dataType));
-            batch.set(docRef, buildPayload(transformed, dataType));
-          }
-          importResults.success++;
-        }
-
-        if (importMode === 'live' && batch) await batch.commit();
-        setProgress(Math.round(((i + chunk.length) / (resolvedNew.length + resolvedDuplicates.length)) * 100));
+      if (importMode === 'dry') {
+        importResults.success = resolvedNew.length + resolvedDuplicates.filter(d => d.decision !== 'skip').length;
+        setResults(importResults);
+        setStep('results');
+        toast.info(`Simulation: ${importResults.success} would import, ${importResults.failed} would fail`);
+        return;
       }
 
-      // ── Process duplicates according to their decisions ──────────────────
-      const baseOffset = resolvedNew.length;
-      for (let i = 0; i < resolvedDuplicates.length; i += batchSize) {
-        const chunk = resolvedDuplicates.slice(i, i + batchSize);
-        const batch = importMode === 'live' ? writeBatch(db) : null;
+      setProgress(10);
 
-        for (const dup of chunk) {
-          if (dup.decision === 'skip') {
-            importResults.skipped++;
-            continue;
-          }
+      // Build the records array for the server
+      const allRecords = [
+        ...resolvedNew.map(r => ({
+          uniqueKey: getUniqueKey(dataType, r.transformed),
+          payload: buildPayload(r.transformed, dataType),
+        })),
+        ...resolvedDuplicates
+          .filter(d => d.decision !== 'skip')
+          .map(d => ({
+            uniqueKey: d.uniqueKey,
+            payload: buildPayload(d.incoming, dataType),
+          })),
+      ];
 
-          if (importMode === 'live' && batch) {
-            const payload = buildPayload(dup.incoming, dataType);
-
-            if (dup.decision === 'replace' && dup.existingDocId) {
-              // Overwrite the existing doc
-              batch.set(doc(db, dataType, dup.existingDocId), payload);
-              importResults.success++;
-            } else if (dup.decision === 'keep_both') {
-              // Write as a brand new doc
-              batch.set(doc(collection(db, dataType)), payload);
-              importResults.success++;
-            } else {
-              importResults.skipped++;
-            }
-          } else {
-            if (dup.decision !== 'skip') importResults.success++;
-            else importResults.skipped++;
-          }
+      // Build the decisions map for the server
+      const duplicateDecisions: Record<string, { decision: DuplicateDecision; existingDocId?: string }> = {};
+      resolvedDuplicates.forEach(d => {
+        if (d.decision !== 'skip') {
+          duplicateDecisions[d.uniqueKey] = { decision: d.decision, existingDocId: d.existingDocId || undefined };
         }
+      });
 
-        if (importMode === 'live' && batch) await batch.commit();
-        setProgress(
-          Math.round(((baseOffset + i + chunk.length) / (resolvedNew.length + resolvedDuplicates.length)) * 100)
-        );
-      }
+      setProgress(20);
+
+      // Send to server — one HTTP call, server writes in 499-doc Admin SDK batches
+      const colName = dataType === 'inventory' ? 'products' : dataType;
+      const resp = await axios.post('/api/import', {
+        collection: colName,
+        records: allRecords,
+        mode: 'live',
+        duplicateDecisions,
+      }, { headers: await getAuthHeaders() });
+
+      setProgress(100);
+
+      importResults.success = resp.data.written ?? allRecords.length;
+      importResults.skipped += resp.data.skipped ?? 0;
 
       setResults(importResults);
       setStep('results');
-
-      if (importMode === 'live') {
-        toast.success(
-          `Import complete: ${importResults.success} saved, ${importResults.skipped} skipped, ${importResults.failed} failed`
-        );
-      } else {
-        toast.info(`Simulation: ${importResults.success} would import, ${importResults.failed} would fail`);
-      }
+      toast.success(`Import complete: ${importResults.success} saved, ${importResults.skipped} skipped, ${importResults.failed} failed`);
     } catch (err: any) {
       console.error('Import error:', err);
+      importResults.errors.push({ row: 0, message: err.response?.data?.error || err.message || 'Server import failed', data: {} });
+      importResults.failed++;
       setResults(importResults);
       setStep('results');
-      toast.error(err.message || 'Import failed');
+      toast.error(err.response?.data?.error || err.message || 'Import failed');
     } finally {
       setIsProcessing(false);
     }
