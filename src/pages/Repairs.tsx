@@ -387,11 +387,11 @@ export default function Repairs() {
           !statusName.includes('complete') &&
           !statusName.includes('completed'));
 
-      const matchesSearch = 
-        r.device_name.toLowerCase().includes(search.toLowerCase()) ||
+      const matchesSearch =
+        (r.device_name || '').toLowerCase().includes(search.toLowerCase()) ||
         (r.imei && r.imei.includes(search)) ||
         (r.ticket_number && r.ticket_number.toLowerCase().includes(search.toLowerCase())) ||
-        r.customer?.name.toLowerCase().includes(search.toLowerCase());
+        (r.customer?.name || '').toLowerCase().includes(search.toLowerCase());
       
       const matchesStatus =
         statusFilter === 'All Statuses' ||
