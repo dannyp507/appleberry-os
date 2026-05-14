@@ -169,7 +169,8 @@ export default function EndOfDay() {
         salesDocs,
       });
     } catch (e: any) {
-      toast.error(e.message);
+      console.error('End of day fetch error:', e);
+      toast.error('Could not load today\'s data: ' + (e.message || 'Unknown error'));
     } finally {
       setLoading(false);
     }
@@ -354,6 +355,56 @@ export default function EndOfDay() {
         <StatCard title="Total Sales" value={formatCurrency(data.sales)} sub={`${data.salesCount} transactions`} icon={DollarSign} color="text-blue-400" />
         <StatCard title="Repair Revenue" value={formatCurrency(data.repairs)} sub={`${data.repairsCount} paid repairs`} icon={TrendingUp} color="text-green-400" />
         <StatCard title="Expenses" value={formatCurrency(data.expenses)} sub="Today's costs" icon={Wallet} color="text-red-400" />
+      </div>
+
+      {/* Today's Transactions */}
+      <div className="rounded-2xl border border-gray-200 bg-white p-5">
+        <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-blue-400" /> Today's Transactions
+          <span className="ml-auto text-xs text-gray-400 font-normal">{data.salesDocs.length} sales recorded today</span>
+        </h3>
+        {data.salesDocs.length === 0 ? (
+          <p className="text-gray-400 text-sm italic py-4 text-center">No sales recorded today yet.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100">
+                  <th className="text-left py-2 px-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Time</th>
+                  <th className="text-left py-2 px-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Customer</th>
+                  <th className="text-left py-2 px-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Payment</th>
+                  <th className="text-right py-2 px-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Amount</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {data.salesDocs.map((sale: any) => (
+                  <tr key={sale.id} className="hover:bg-gray-50/50">
+                    <td className="py-2.5 px-3 text-gray-500 whitespace-nowrap">
+                      {sale.created_at ? format(new Date(sale.created_at), 'HH:mm') : '—'}
+                    </td>
+                    <td className="py-2.5 px-3 text-gray-700 font-medium">
+                      {sale.customer_name || 'Walk-in'}
+                    </td>
+                    <td className="py-2.5 px-3">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                        {sale.payment_method || (sale.payment_methods?.[0]) || 'Unknown'}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-3 text-right font-bold text-gray-900">
+                      {formatCurrency(sale.total_amount || 0)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-gray-200">
+                  <td colSpan={3} className="py-2.5 px-3 text-sm font-bold text-gray-600">Total</td>
+                  <td className="py-2.5 px-3 text-right font-black text-gray-900">{formatCurrency(data.sales)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
