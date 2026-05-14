@@ -33,6 +33,8 @@ import { db } from '../lib/firebase';
 import { useTenant } from '../lib/tenant';
 import { toast } from 'sonner';
 import { requireCompanyId } from '../lib/db';
+import axios from 'axios';
+import { getAuthHeaders } from '../lib/authHeaders';
 
 // ─── types ────────────────────────────────────────────────────────────────────
 type Tab =
@@ -487,6 +489,7 @@ export default function Setup() {
           {activeTab === 'repair_statuses' && (
             <div className="max-w-lg">
               <p className="text-sm text-gray-500 mb-4">Define the stages a repair moves through. The order here is the default sort order.</p>
+              <SeedStatusesButton />
               <SimpleListManager
                 title="Repair Statuses"
                 collectionName="repair_status_options"
@@ -578,5 +581,44 @@ export default function Setup() {
         </div>
       </div>
     </div>
+  );
+}
+
+function SeedStatusesButton() {
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
+
+  const handleSeed = async () => {
+    setLoading(true);
+    try {
+      const resp = await axios.post('/api/seed/repair-statuses', {}, { headers: await getAuthHeaders() });
+      const { added } = resp.data;
+      if (added > 0) {
+        toast.success(`${added} default statuses added! Refresh to see them.`);
+      } else {
+        toast.info('All default statuses already exist.');
+      }
+      setDone(true);
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to seed statuses');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (done) return null;
+
+  return (
+    <button
+      onClick={handleSeed}
+      disabled={loading}
+      className="mb-4 w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 text-primary font-semibold text-sm hover:bg-primary/10 transition-all disabled:opacity-60"
+    >
+      {loading ? (
+        <><span className="animate-spin">⏳</span> Adding default statuses…</>
+      ) : (
+        <>⚡ Load all 14 default repair statuses</>
+      )}
+    </button>
   );
 }

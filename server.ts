@@ -864,6 +864,48 @@ async function startServer() {
     });
   }
 
+  // ── Seed default data (one-time setup) ──────────────────────────────────
+  app.post('/api/seed/repair-statuses', async (req, res) => {
+    try {
+      const ctx = await requireRequestContext(req);
+      if (!ctx.isAdmin) return res.status(403).json({ error: 'Admin only' });
+
+      const DEFAULT_STATUSES = [
+        { name: 'New',                  color: '#6366f1', order_index: 0 },
+        { name: 'Open',                 color: '#3b82f6', order_index: 1 },
+        { name: 'Estimate',             color: '#8b5cf6', order_index: 2 },
+        { name: 'QUOTE ONLY',           color: '#a855f7', order_index: 3 },
+        { name: 'Waiting for go ahead', color: '#f59e0b', order_index: 4 },
+        { name: 'Waiting for Parts',    color: '#f97316', order_index: 5 },
+        { name: 'In store Technician',  color: '#06b6d4', order_index: 6 },
+        { name: 'Shop Spares',          color: '#14b8a6', order_index: 7 },
+        { name: 'Waiting For Pickup',   color: '#22c55e', order_index: 8 },
+        { name: 'Invoiced',             color: '#84cc16', order_index: 9 },
+        { name: 'Finished',             color: '#10b981', order_index: 10 },
+        { name: 'Completed',            color: '#059669', order_index: 11 },
+        { name: 'Closed',               color: '#64748b', order_index: 12 },
+        { name: 'Cancelled',            color: '#ef4444', order_index: 13 },
+      ];
+
+      const existing = await adminDb.collection('repair_status_options')
+        .where('company_id', '==', ctx.companyId).get();
+      const existingNames = new Set(existing.docs.map(d => (d.data().name || '').toLowerCase()));
+
+      const batch = adminDb.batch();
+      let added = 0;
+      for (const status of DEFAULT_STATUSES) {
+        if (existingNames.has(status.name.toLowerCase())) continue;
+        const ref = adminDb.collection('repair_status_options').doc();
+        batch.set(ref, { ...status, company_id: ctx.companyId, created_at: new Date().toISOString() });
+        added++;
+      }
+      if (added > 0) await batch.commit();
+      return res.json({ success: true, added, message: `${added} statuses added.` });
+    } catch (err: any) {
+      return res.status(err.status || 500).json({ error: err.message });
+    }
+  });
+
   // ── Bulk Import endpoint (server-side, uses Admin SDK — no rule overhead) ──
   app.post('/api/import', async (req, res) => {
     try {
