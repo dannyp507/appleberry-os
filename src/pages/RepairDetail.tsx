@@ -98,6 +98,7 @@ export default function RepairDetail() {
 
     // Load Repair
     const unsubscribeRepair = onSnapshot(doc(db, 'repairs', id), async (docSnap) => {
+      try {
       if (docSnap.exists()) {
         const repairData = { id: docSnap.id, ...docSnap.data() } as Repair;
         if (!isCompanyScopedRecord(repairData, companyId)) {
@@ -121,16 +122,26 @@ export default function RepairDetail() {
           setLinkedRepairs(linked.filter(Boolean) as any[]);
         }
 
-        // Load Customer
-        const custSnap = await getDoc(doc(db, 'customers', repairData.customer_id));
-        if (custSnap.exists() && isCompanyScopedRecord(custSnap.data(), companyId)) {
-          setCustomer({ id: custSnap.id, ...custSnap.data() } as Customer);
+        // Load Customer (guard against null/empty customer_id from imported data)
+        if (repairData.customer_id) {
+          try {
+            const custSnap = await getDoc(doc(db, 'customers', repairData.customer_id));
+            if (custSnap.exists() && isCompanyScopedRecord(custSnap.data(), companyId)) {
+              setCustomer({ id: custSnap.id, ...custSnap.data() } as Customer);
+            }
+          } catch {
+            // customer lookup failed — leave customer as null, don't block render
+          }
         }
       } else {
         toast.error('Repair not found');
         navigate('/repairs');
       }
-      setLoading(false);
+      } catch (err: any) {
+        toast.error('Failed to load repair: ' + (err?.message || err));
+      } finally {
+        setLoading(false);
+      }
     });
 
     // Load Items
