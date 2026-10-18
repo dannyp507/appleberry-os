@@ -8,6 +8,7 @@ import { formatCurrency, safeFormatDate } from '../lib/utils';
 import { Profile, RepairStatus } from '../types';
 import { useTenant } from '../lib/tenant';
 import { companyQuery } from '../lib/db';
+import { isClosedStatusName } from '../lib/repairStatus';
 
 type RepairRecord = {
   id: string;
@@ -58,13 +59,11 @@ export default function RepairsReports() {
     }
   }
 
-  const closedKeywords = ['done', 'complete', 'completed', 'closed', 'collected', 'finished'];
-
   const enrichedRepairs = useMemo(() => {
     return repairs.map((repair) => {
       const status = repair.status_id ? statuses.get(repair.status_id) : undefined;
       const statusName = status?.name || 'Unknown';
-      const isClosed = closedKeywords.some((keyword) => statusName.toLowerCase().includes(keyword));
+      const isClosed = isClosedStatusName(statusName);
       const createdAt = repair.created_at ? new Date(repair.created_at) : null;
       const updatedAt = repair.updated_at ? new Date(repair.updated_at) : null;
       const turnaroundDays = createdAt && updatedAt && !Number.isNaN(createdAt.getTime()) && !Number.isNaN(updatedAt.getTime())

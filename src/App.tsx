@@ -20,6 +20,7 @@ const Signup = lazy(() => import('./pages/Signup'));
 const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
 const Onboarding = lazy(() => import('./pages/Onboarding'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Home = lazy(() => import('./pages/Home'));
 const MarketingHub = lazy(() => import('./pages/MarketingHub'));
 const POS = lazy(() => import('./pages/POS'));
 const Inventory = lazy(() => import('./pages/Inventory'));
@@ -220,7 +221,8 @@ export default function App() {
             <Suspense fallback={<RouteLoader />}>
               <Routes>
                 <Route path="/onboarding" element={<Onboarding />} />
-                <Route path="/" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : <Dashboard profile={profile} />} />
+                <Route path="/" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : <Home profile={profile} />} />
+                <Route path="/dashboard" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'dashboard.view') ? <Dashboard profile={profile} /> : <Navigate to="/" replace />} />
                 <Route path="/campaigns" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'marketing.view') ? <MarketingHub /> : <Navigate to="/" replace />} />
                 <Route path="/pos" element={requiresOnboarding ? <Navigate to="/onboarding" replace /> : hasPermission(profile, 'pos.use') ? <POS /> : <Navigate to="/" replace />} />
                 <Route path="/view-invoice/:id" element={<InvoiceView />} />

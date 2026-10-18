@@ -2,6 +2,7 @@ import { collection, doc, writeBatch } from 'firebase/firestore';
 import { db } from './firebase';
 import { Company } from '../types';
 import { ALL_PERMISSIONS } from './permissions';
+import { DEFAULT_REPAIR_STATUSES } from './repairStatus';
 
 export function createCompanySlug(name: string) {
   return name
@@ -30,13 +31,7 @@ export async function seedCompanyWorkspace(input: {
   const shopSettingsRef = doc(db, 'settings', getCompanySettingsDocId('shop', input.companyId));
   const communicationSettingsRef = doc(db, 'settings', getCompanySettingsDocId('communication', input.companyId));
 
-  const statuses = [
-    { name: 'Booked In', color: '#214e5f', order_index: 1 },
-    { name: 'Awaiting Quote Approval', color: '#d98a3a', order_index: 2 },
-    { name: 'In Progress', color: '#4d7787', order_index: 3 },
-    { name: 'Ready for Collection', color: '#2b8a57', order_index: 4 },
-    { name: 'Collected', color: '#6d6862', order_index: 5 },
-  ];
+  const statuses = DEFAULT_REPAIR_STATUSES;
 
   const company: Omit<Company, 'id'> = {
     name: input.companyName,

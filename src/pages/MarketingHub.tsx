@@ -9,6 +9,7 @@ import { useTenant } from '../lib/tenant';
 import { filterByCompany, isCompanyScopedRecord, withCompanyId } from '../lib/companyData';
 import { getCompanySettingsDocId } from '../lib/company';
 import { companyQuery, requireCompanyId } from '../lib/db';
+import { isReadyStatusName } from '../lib/repairStatus';
 
 type MarketingDelivery = {
   id: string;
@@ -495,7 +496,7 @@ export default function MarketingHub() {
       const minDaysMatch = queryText.match(/ready_age_days\s*>=\s*(\d+)/i);
       const minDays = minDaysMatch ? Number(minDaysMatch[1]) : 0;
       const readyStatusIds = statuses
-        .filter((status) => status.name.toLowerCase().includes('ready'))
+        .filter((status) => isReadyStatusName(status.name))
         .map((status) => status.id);
 
       const recipients = repairs
@@ -586,7 +587,7 @@ export default function MarketingHub() {
     }
 
     const readyStatusIds = statuses
-      .filter((status) => status.name.toLowerCase().includes('ready'))
+      .filter((status) => isReadyStatusName(status.name))
       .map((status) => status.id);
 
     const minimumDays = automation.trigger === 'pickup_3_day' ? 3 : 0;

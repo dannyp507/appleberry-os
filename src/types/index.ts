@@ -150,6 +150,7 @@ export interface Repair {
     data_loss_risk_accepted?: boolean;
   };
   form_type?: 'in' | 'out';
+  due_at?: string | null;
   created_at: string;
   updated_at: string;
   customer?: Customer;

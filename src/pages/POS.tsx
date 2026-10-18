@@ -36,7 +36,9 @@ import CustomerModal from '../components/repairs/CustomerModal';
 import PostSaleModal from '../components/pos/PostSaleModal';
 import { useTenant } from '../lib/tenant';
 import { isCompanyScopedRecord, withCompanyId } from '../lib/companyData';
-import { buildInvoiceNumber, isStockTrackedProduct, roundMoney, TAX_RATE } from '../lib/business';
+import { isStockTrackedProduct, roundMoney, TAX_RATE } from '../lib/business';
+import { readCounters, takeNumber } from '../lib/numbering';
+import { INVOICED_STATUS_NAME } from '../lib/repairStatus';
 import { companyQuery, companySubcollection, requireCompanyId } from '../lib/db';
 
 interface InvoiceSummary {
@@ -367,9 +369,16 @@ export default function POS() {
       const workspaceId = requireCompanyId(companyId);
       const now = new Date().toISOString();
       const saleRef = doc(collection(db, 'sales'));
-      const invoiceNumber = buildInvoiceNumber();
+      let invoiceNumber = '';
+
+      // A paid repair moves to Invoiced, as in Cellstore.
+      const invoicedStatusId = currentRepair?.id
+        ? (await getDocs(companyQuery('repair_status_options', workspaceId))).docs
+            .find((statusDoc) => String(statusDoc.data().name || '').trim().toLowerCase() === INVOICED_STATUS_NAME.toLowerCase())?.id || null
+        : null;
 
       await runTransaction(db, async (transaction) => {
+        const counters = await readCounters(transaction, workspaceId);
         const productSnapshots = new Map<string, Product>();
 
         for (const item of cart) {
@@ -400,6 +409,8 @@ export default function POS() {
           const costPrice = inventoryProduct?.cost_price ?? item.cost_price ?? 0;
           return acc + ((unitPrice - costPrice) * item.quantity);
         }, 0));
+
+        invoiceNumber = takeNumber(transaction, workspaceId, counters, 'invoice');
 
         transaction.set(saleRef, withCompanyId(workspaceId, {
           customer_id: selectedCustomer?.id || null,
@@ -474,12 +485,13 @@ export default function POS() {
             paid_amount: roundMoney((currentRepair.paid_amount || 0) + grandTotal),
             total_amount: grandTotal,
             status_payment: 'paid',
+            ...(invoicedStatusId ? { status_id: invoicedStatusId } : {}),
             sale_id: saleRef.id,
             updated_at: now,
           });
           transaction.set(doc(collection(db, `repairs/${currentRepair.id}/history`)), withCompanyId(workspaceId, {
             repair_id: currentRepair.id,
-            status_id: currentRepair.status_id,
+            status_id: invoicedStatusId || currentRepair.status_id,
             changed_by: auth.currentUser?.uid || selectedStaffId,
             notes: `Paid through POS invoice ${invoiceNumber}`,
             created_at: now,

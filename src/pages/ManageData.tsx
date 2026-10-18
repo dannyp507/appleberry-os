@@ -10,14 +10,16 @@ import ImportSystem from '../components/import/ImportSystem';
 import ManageProblems from '../components/manage/ManageProblems';
 import CommunicationSettings from '../components/manage/CommunicationSettings';
 import ShopSettings from '../components/manage/ShopSettings';
+import NumbersAndStatuses from '../components/manage/NumbersAndStatuses';
 
-type ManageSection = 'import' | 'problems' | 'communication' | 'shop';
+type ManageSection = 'import' | 'problems' | 'communication' | 'shop' | 'numbering';
 
 export default function ManageData() {
   const [activeSection, setActiveSection] = useState<ManageSection>('import');
 
   const menuItems = [
     { id: 'shop', label: 'Shop Settings', icon: Store },
+    { id: 'numbering', label: 'Numbers & Statuses', icon: Hash },
     { id: 'import', label: 'Import Data', icon: Upload },
     { id: 'problems', label: 'Manage Repair Problems', icon: AlertCircle },
     { id: 'communication', label: 'Communication Settings', icon: MessageSquare },
@@ -60,6 +62,8 @@ export default function ManageData() {
         return <CommunicationSettings />;
       case 'shop':
         return <ShopSettings />;
+      case 'numbering':
+        return <NumbersAndStatuses />;
       default:
         return <ImportSystem />;
     }
@@ -114,4 +118,4 @@ export default function ManageData() {
 }
 
 // Helper icons for the menu
-import { AlertCircle, Store } from 'lucide-react';
+import { AlertCircle, Hash, Store } from 'lucide-react';

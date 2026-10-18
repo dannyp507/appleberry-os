@@ -36,6 +36,7 @@ import { PermissionKey, hasPermission } from '../lib/permissions';
 import { useTenant } from '../lib/tenant';
 import { isCompanyScopedRecord } from '../lib/companyData';
 import { companyQuery } from '../lib/db';
+import { isClosedStatusName } from '../lib/repairStatus';
 
 type TopProductRow = {
   productId: string;
@@ -98,18 +99,18 @@ export default function Dashboard({ profile }: { profile: Profile | null }) {
       const monthlyProfitTotal = monthlyDocs.reduce((acc, snapshotDoc: any) => acc + Number(snapshotDoc.profit || 0), 0);
       const terminalStatusIds = new Set(
         repairStatusDocs
-          .filter((status: any) => ['collected', 'closed', 'cancelled', 'void'].includes(String(status.name || '').toLowerCase()))
+          .filter((status: any) => isClosedStatusName(status.name))
           .map((status: any) => status.id)
       );
       const activeRepairsCount = repairDocs.filter((repair: any) => {
         const statusName = String(repair.status_name || repair.status || '').toLowerCase();
         const statusId = String(repair.status_id || '');
-        return !terminalStatusIds.has(statusId) && !['collected', 'closed', 'cancelled', 'void'].includes(statusName);
+        return !terminalStatusIds.has(statusId) && !isClosedStatusName(statusName);
       }).length;
       const overdueRepairsCount = repairDocs.filter((repair: any) => {
         const statusName = String(repair.status_name || repair.status || '').toLowerCase();
         const statusId = String(repair.status_id || '');
-        const isActive = !terminalStatusIds.has(statusId) && !['collected', 'closed', 'cancelled', 'void'].includes(statusName);
+        const isActive = !terminalStatusIds.has(statusId) && !isClosedStatusName(statusName);
         const updatedAt = new Date(repair.updated_at || repair.created_at || Date.now()).getTime();
         const daysSinceUpdate = Number.isFinite(updatedAt) ? (Date.now() - updatedAt) / 86400000 : 0;
         return isActive && (statusName.includes('overdue') || statusName.includes('blocked') || daysSinceUpdate >= 7);
@@ -194,7 +195,7 @@ export default function Dashboard({ profile }: { profile: Profile | null }) {
     const items = [
       { icon: Wallet, label: 'Expenses', path: '/expenses', color: 'text-[#3B82F6]', permission: 'expenses.view' as PermissionKey },
       { icon: Truck, label: 'Inventory Transfer', path: '/transfer', color: 'text-[#3B82F6]', permission: 'transfer.view' as PermissionKey },
-      { icon: LayoutDashboard, label: 'Dashboard', path: '/', color: 'text-[#3B82F6]', permission: 'dashboard.view' as PermissionKey },
+      { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', color: 'text-[#3B82F6]', permission: 'dashboard.view' as PermissionKey },
       { icon: Moon, label: 'End of Day', path: '/end-of-day', color: 'text-[#F59E0B]', permission: 'end_of_day.view' as PermissionKey },
       { icon: Users, label: 'Staff Employee', path: '/staff', color: 'text-[#3B82F6]', permission: 'staff.manage' as PermissionKey },
       { icon: PieChart, label: 'Sales Reports', path: '/reports/sales', color: 'text-[#22C55E]', permission: 'reports.sales' as PermissionKey },

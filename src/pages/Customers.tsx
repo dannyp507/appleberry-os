@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { db } from '../lib/firebase';
 import { collection, getDocs, addDoc, updateDoc, doc, orderBy, writeBatch } from 'firebase/firestore';
 import { 
@@ -28,74 +28,6 @@ import { withCompanyId } from '../lib/companyData';
 import { useSearchParams } from 'react-router-dom';
 import { companyQuery, requireCompanyId } from '../lib/db';
 
-const CustomerCard = memo(function CustomerCard({
-  customer,
-  onEdit,
-}: {
-  customer: Customer;
-  onEdit: (customer: Customer) => void;
-}) {
-  return (
-    <div className="section-card p-6 rounded-[24px] hover:-translate-y-0.5 transition-all group relative">
-      <div className="flex items-start justify-between mb-4">
-        <div className="w-12 h-12 rounded-full bg-[#efe0ce] flex items-center justify-center text-[#c65a22]">
-          <User className="w-6 h-6" />
-        </div>
-        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button
-            onClick={() => onEdit(customer)}
-            className="p-2 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-all"
-          >
-            <Edit2 className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-      <h3 className="font-bold text-gray-900 text-lg mb-2">
-        {customer.first_name} {customer.last_name}
-      </h3>
-      {customer.company && (
-        <div className="flex items-center gap-2 text-xs text-gray-500 mb-4">
-          <Building2 className="w-3 h-3" />
-          {customer.company}
-        </div>
-      )}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <Phone className="w-4 h-4 text-gray-400" />
-          {customer.phone || 'No phone'}
-        </div>
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <Mail className="w-4 h-4 text-gray-400" />
-          <span className="truncate">{customer.email || 'No email'}</span>
-        </div>
-        {customer.address_info?.city && (
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <MapPin className="w-4 h-4 text-gray-400" />
-            {customer.address_info.city}, {customer.address_info.state}
-          </div>
-        )}
-        <div className="flex flex-wrap gap-2 pt-2">
-          <span className={cn(
-            "rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em]",
-            customer.whatsapp_marketing_opt_in === false
-              ? "bg-[#f6e4de] text-[#9b4c28]"
-              : "bg-[#e4f2eb] text-[#2f6b4a]"
-          )}>
-            WhatsApp {customer.whatsapp_marketing_opt_in === false ? 'opted out' : 'opted in'}
-          </span>
-          <span className={cn(
-            "rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em]",
-            customer.email_marketing_opt_in === false
-              ? "bg-[#f6e4de] text-[#9b4c28]"
-              : "bg-[#e4edf5] text-[#31546f]"
-          )}>
-            Email {customer.email_marketing_opt_in === false ? 'opted out' : 'opted in'}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-});
 
 export default function Customers() {
   const { companyId } = useTenant();
@@ -313,9 +245,13 @@ export default function Customers() {
 
   const filteredCustomers = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
-    if (!normalizedSearch) return customers;
+    const byFirstName = [...customers].sort((a, b) =>
+      (a.first_name || a.name || '').localeCompare(b.first_name || b.name || '', undefined, { sensitivity: 'base' }) ||
+      (a.last_name || '').localeCompare(b.last_name || '', undefined, { sensitivity: 'base' })
+    );
+    if (!normalizedSearch) return byFirstName;
 
-    return customers.filter((customer) =>
+    return byFirstName.filter((customer) =>
       (customer.first_name?.toLowerCase() || '').includes(normalizedSearch) ||
       (customer.last_name?.toLowerCase() || '').includes(normalizedSearch) ||
       (customer.phone && customer.phone.includes(search.trim())) ||
@@ -327,8 +263,7 @@ export default function Customers() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.28em] text-[#7b5c3c] font-semibold mb-2">Client Records</p>
-          <h1 className="display-font text-4xl font-bold text-[#18242b]">Customers</h1>
+          <h1 className="display-font text-4xl font-bold text-[#18242b]">Manage Customers</h1>
           <p className="text-[#5d6468] mt-2">Manage your client database, contact details, and import history.</p>
         </div>
         <div className="flex gap-2">
@@ -344,7 +279,7 @@ export default function Customers() {
             className="appleberry-gradient text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 hover:opacity-90 transition-all shadow-sm"
           >
             <Plus className="w-5 h-5" />
-            Add Customer
+            Create Customer
           </button>
         </div>
       </div>
@@ -353,7 +288,7 @@ export default function Customers() {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
         <input
           type="text"
-          placeholder="Search by name, phone, or email..."
+          placeholder="Search Customers"
           className="w-full pl-10 pr-4 py-3 bg-white/90 border border-[#dbc8b2] rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -361,12 +296,47 @@ export default function Customers() {
       </div>
 
       {!isModalOpen && (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {loading && customers.length === 0 ? (
-          [1,2,3].map(i => <div key={i} className="h-48 section-card animate-pulse rounded-[24px]"></div>)
-          ) : filteredCustomers.map(customer => (
-            <CustomerCard key={customer.id} customer={customer} onEdit={handleOpenModal} />
-          ))}
+        <div className="section-card rounded-[24px] overflow-x-auto">
+          <table className="w-full min-w-[760px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-[#e6d7c6] text-[11px] uppercase tracking-wider text-[#5d6468]">
+                <th className="px-4 py-3">Name</th>
+                <th className="px-4 py-3">Company</th>
+                <th className="px-4 py-3">Email</th>
+                <th className="px-4 py-3">Contact No</th>
+                <th className="px-4 py-3">Secondary Phone</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading && customers.length === 0 ? (
+                [1, 2, 3, 4, 5].map((i) => (
+                  <tr key={i} className="animate-pulse">
+                    <td colSpan={5} className="px-4 py-3"><div className="h-4 rounded bg-[#efe4d6]" /></td>
+                  </tr>
+                ))
+              ) : filteredCustomers.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-12 text-center text-[#5d6468]">No customers found</td>
+                </tr>
+              ) : (
+                filteredCustomers.map((customer) => (
+                  <tr
+                    key={customer.id}
+                    onClick={() => handleOpenModal(customer)}
+                    className="cursor-pointer border-b border-[#f1e6d8] hover:bg-white/70 transition-colors"
+                  >
+                    <td className="px-4 py-3 font-semibold text-[#18242b]">
+                      {[customer.first_name, customer.last_name].filter(Boolean).join(' ') || customer.name}
+                    </td>
+                    <td className="px-4 py-3 text-[#4b5357]">{customer.company || ''}</td>
+                    <td className="px-4 py-3 text-[#4b5357] max-w-[240px] truncate">{customer.email || ''}</td>
+                    <td className="px-4 py-3 text-[#4b5357] whitespace-nowrap">{customer.phone || ''}</td>
+                    <td className="px-4 py-3 text-[#4b5357] whitespace-nowrap">{customer.secondary_phone || ''}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       )}
 

@@ -31,6 +31,8 @@ import { useSearchParams } from 'react-router-dom';
 import { useTenant } from '../lib/tenant';
 import { withCompanyId } from '../lib/companyData';
 import { companyQuery, requireCompanyId } from '../lib/db';
+import { isClosedStatusName } from '../lib/repairStatus';
+import { normalizeImportedNumber } from '../lib/numbering';
 import { buildTicketNumber } from '../lib/business';
 
 const getStatusTone = (statusName?: string | null, updatedAt?: string) => {
@@ -48,12 +50,14 @@ const getStatusTone = (statusName?: string | null, updatedAt?: string) => {
     return 'danger';
   }
 
-  if (name.includes('waiting') || name.includes('pending') || name.includes('parts') || name.includes('hold')) {
+  if (name.includes('waiting') || name.includes('estimate') || name.includes('pending') || name.includes('parts') || name.includes('hold')) {
     return 'warning';
   }
 
   if (
     name.includes('ready') ||
+    name.includes('finished') ||
+    name.includes('invoiced') ||
     name.includes('complete') ||
     name.includes('completed') ||
     name.includes('collected') ||
@@ -94,7 +98,7 @@ export default function Repairs() {
   const [staff, setStaff] = useState<Profile[]>([]);
   
   const [search, setSearch] = useState(searchParams.get('search') || '');
-  const initialStatusFilter = searchParams.get('status') === 'open' ? 'Open Repairs' : 'All Statuses';
+  const initialStatusFilter = searchParams.get('status') === 'all' ? 'All Statuses' : 'Open';
   const [statusFilter, setStatusFilter] = useState(initialStatusFilter);
   const [technicianFilter, setTechnicianFilter] = useState('All Technicians');
   
@@ -142,7 +146,7 @@ export default function Repairs() {
 
   useEffect(() => {
     setSearch(searchParams.get('search') || '');
-    setStatusFilter(searchParams.get('status') === 'open' ? 'Open Repairs' : 'All Statuses');
+    setStatusFilter(searchParams.get('status') === 'all' ? 'All Statuses' : 'Open');
   }, [searchParams]);
 
   async function fetchStatuses() {
@@ -277,7 +281,7 @@ export default function Repairs() {
             const repairData = {
               ...withCompanyId(workspaceId, {}),
               customer_id: customer.id,
-              ticket_number: row['Ticket #'] || buildTicketNumber(),
+              ticket_number: normalizeImportedNumber('repair', row['Ticket #']) || buildTicketNumber(),
               device_name: `${row['Brand'] || ''} ${row['Model'] || ''}`.trim() || 'Unknown Device',
               imei: row['IMEI/Serial No.'] || '',
               issue_description: row['Problem'] || '',
@@ -341,14 +345,39 @@ export default function Repairs() {
     }
   };
 
+  // Tickets brought over by the general importer keep Cellstore's fields as text
+  // (status, technician, brand/model, external_id) instead of linked ids, so fall back to those.
   const enrichedRepairs = useMemo(() => {
     return repairs.map(repair => {
+      const legacy = repair as Repair & {
+        status?: string | RepairStatus;
+        technician?: string;
+        brand?: string;
+        model?: string;
+        device_model?: string;
+        external_id?: string;
+      };
+      const legacyStatusName = typeof legacy.status === 'string' ? legacy.status : '';
       const customer = customers.find(c => c.id === repair.customer_id);
-      const status = statuses.find(s => s.id === repair.status_id);
-      const technician = staff.find(s => s.id === repair.technician_id);
+      const status =
+        statuses.find(s => s.id === repair.status_id) ||
+        (legacyStatusName
+          ? statuses.find(s => s.name.trim().toLowerCase() === legacyStatusName.trim().toLowerCase()) ||
+            ({ id: `legacy:${legacyStatusName}`, name: legacyStatusName, color: '#94a3b8', order_index: 999 } as RepairStatus)
+          : undefined);
+      const technician =
+        staff.find(s => s.id === repair.technician_id) ||
+        (legacy.technician ? ({ id: '', full_name: legacy.technician } as Profile) : undefined);
       const problem = problems.find(p => p.id === repair.problem_id);
+      const deviceName =
+        repair.device_name ||
+        [legacy.brand, legacy.model].filter(Boolean).join(' ') ||
+        legacy.device_model ||
+        '';
       return {
         ...repair,
+        device_name: deviceName,
+        ticket_number: repair.ticket_number || normalizeImportedNumber('repair', legacy.external_id) || undefined,
         customer,
         status,
         technician,
@@ -359,13 +388,14 @@ export default function Repairs() {
 
   const uniqueStatuses = useMemo(() => {
     const seen = new Set<string>();
-    return statuses.filter((status) => {
+    const inUse = enrichedRepairs.map((repair) => repair.status).filter(Boolean) as RepairStatus[];
+    return [...statuses, ...inUse].filter((status) => {
       const key = (status.name || '').trim().toLowerCase();
       if (!key || seen.has(key)) return false;
       seen.add(key);
       return true;
     });
-  }, [statuses]);
+  }, [statuses, enrichedRepairs]);
 
   const uniqueStaff = useMemo(() => {
     const seen = new Set<string>();
@@ -380,22 +410,20 @@ export default function Repairs() {
   const filteredRepairs = useMemo(() => {
     return enrichedRepairs.filter(r => {
       const statusName = (r.status?.name || '').toLowerCase();
-      const isOpenRepair =
-        !statusName ||
-        (!statusName.includes('collected') &&
-          !statusName.includes('cancelled') &&
-          !statusName.includes('complete') &&
-          !statusName.includes('completed'));
+      const isOpenRepair = !isClosedStatusName(statusName);
 
-      const matchesSearch = 
-        r.device_name.toLowerCase().includes(search.toLowerCase()) ||
-        (r.imei && r.imei.includes(search)) ||
-        (r.ticket_number && r.ticket_number.toLowerCase().includes(search.toLowerCase())) ||
-        r.customer?.name.toLowerCase().includes(search.toLowerCase());
+      const query = search.toLowerCase();
+      const customerName = r.customer?.name || [r.customer?.first_name, r.customer?.last_name].filter(Boolean).join(' ');
+      const matchesSearch =
+        !query ||
+        (r.device_name || '').toLowerCase().includes(query) ||
+        (r.imei || '').includes(search) ||
+        (r.ticket_number || '').toLowerCase().includes(query) ||
+        customerName.toLowerCase().includes(query);
       
       const matchesStatus =
         statusFilter === 'All Statuses' ||
-        (statusFilter === 'Open Repairs' ? isOpenRepair : r.status?.name === statusFilter);
+        (statusFilter === 'Open' ? isOpenRepair : r.status?.name === statusFilter);
       const matchesTech = technicianFilter === 'All Technicians' || r.technician?.full_name === technicianFilter;
       
       return matchesSearch && matchesStatus && matchesTech;
@@ -415,12 +443,7 @@ export default function Repairs() {
       (acc, repair) => {
         const statusName = repair.status?.name || '';
         const tone = getStatusTone(statusName, repair.updated_at);
-        const normalized = statusName.toLowerCase();
-        const isClosed =
-          normalized.includes('collected') ||
-          normalized.includes('cancelled') ||
-          normalized.includes('complete') ||
-          normalized.includes('completed');
+        const isClosed = isClosedStatusName(statusName);
 
         if (!isClosed && tone !== 'warning' && tone !== 'danger') acc.open += 1;
         if (tone === 'warning') acc.waiting += 1;
@@ -433,7 +456,7 @@ export default function Repairs() {
     );
   }, [enrichedRepairs]);
 
-  const hasActiveFilters = Boolean(search || statusFilter !== 'All Statuses' || technicianFilter !== 'All Technicians');
+  const hasActiveFilters = Boolean(search || statusFilter !== 'Open' || technicianFilter !== 'All Technicians');
 
   const summaryCards = [
     {
@@ -487,7 +510,7 @@ export default function Repairs() {
             className="btn btn-primary justify-center px-5 py-3 text-sm shadow-[0_0_28px_rgba(34,197,94,0.18)]"
           >
             <Plus className="w-5 h-5" />
-            New Repair Job
+            Create Ticket
           </button>
         </div>
       </div>
@@ -535,8 +558,8 @@ export default function Repairs() {
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
           >
+            <option>Open</option>
             <option>All Statuses</option>
-            <option>Open Repairs</option>
             {uniqueStatuses.map(s => (
               <option key={s.id} value={s.name}>{s.name}</option>
             ))}
@@ -557,7 +580,7 @@ export default function Repairs() {
             <button 
               onClick={() => {
                 setSearch('');
-                setStatusFilter('All Statuses');
+                setStatusFilter('Open');
                 setTechnicianFilter('All Technicians');
               }}
               className="px-3 py-2 text-xs text-zinc-500 hover:text-[#3B82F6] font-semibold transition-colors disabled:opacity-30 disabled:hover:text-zinc-500"
@@ -581,31 +604,32 @@ export default function Repairs() {
           <p className="text-xs text-zinc-500">Rows open full repair details</p>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1080px] border-separate border-spacing-0 text-sm text-left">
+          <table className="w-full min-w-[980px] border-separate border-spacing-0 text-sm text-left">
             <thead className="bg-[#101012]">
               <tr>
-                <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500">Ticket</th>
-                <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500">Customer</th>
-                <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500">Device</th>
-                <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500">Status</th>
-                <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500">Technician</th>
-                <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500">Problem</th>
-                <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500 text-right">Value</th>
-                <th className="px-5 py-3 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500 text-right">Updated</th>
+                <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-500 whitespace-nowrap">Name</th>
+                <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-500 whitespace-nowrap">Ticket</th>
+                <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-500 whitespace-nowrap">Model/Brand/More info</th>
+                <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-500 whitespace-nowrap">Tech</th>
+                <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-500 whitespace-nowrap">Problem</th>
+                <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-500 whitespace-nowrap">Created</th>
+                <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-500 whitespace-nowrap">Due</th>
+                <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-500 whitespace-nowrap">Status</th>
+                <th className="px-4 py-3 text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-500 whitespace-nowrap">Last Update</th>
               </tr>
             </thead>
             <tbody>
               {loading && repairs.length === 0 ? (
                 [1,2,3,4,5].map(i => (
                   <tr key={i} className="animate-pulse">
-                    <td colSpan={8} className="px-5 py-3">
+                    <td colSpan={9} className="px-5 py-3">
                       <div className="h-16 rounded-lg bg-[#202024]/70" />
                     </td>
                   </tr>
                 ))
               ) : filteredRepairs.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-16">
+                  <td colSpan={9} className="px-6 py-16">
                     <div className="mx-auto max-w-md text-center">
                       <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-[#2A2A2E] bg-[#141416] text-[#3B82F6]">
                         <Wrench className="h-7 w-7" />
@@ -623,7 +647,7 @@ export default function Repairs() {
                           <button
                             onClick={() => {
                               setSearch('');
-                              setStatusFilter('All Statuses');
+                              setStatusFilter('Open');
                               setTechnicianFilter('All Technicians');
                             }}
                             className="btn btn-secondary"
@@ -633,7 +657,7 @@ export default function Repairs() {
                         )}
                         <button onClick={() => navigate('/repairs/new')} className="btn btn-primary">
                           <Plus className="w-4 h-4" />
-                          New Repair Job
+                          Create Ticket
                         </button>
                       </div>
                     </div>
@@ -645,63 +669,37 @@ export default function Repairs() {
                   const statusTone = getStatusTone(statusName, repair.updated_at);
                   const displayTicket = repair.ticket_number || `#${repair.id.substring(0, 8)}`;
                   const problemText = repair.problem?.name || repair.issue_description || 'General repair';
-                  const customerName = repair.customer?.name || 'Unknown customer';
+                  const customerName = repair.customer?.name || [repair.customer?.first_name, repair.customer?.last_name].filter(Boolean).join(' ') || 'Unknown customer';
                   const technicianName = repair.technician?.full_name || 'Unassigned';
 
                   return (
                   <tr 
                     key={repair.id} 
-                    className="group cursor-pointer border-b border-[#2A2A2E] transition-colors hover:bg-[#1C1C1F]"
+                    className="group cursor-pointer transition-colors hover:bg-[#1C1C1F]"
                     onClick={() => navigate(`/repairs/${repair.id}`)}
                   >
-                    <td className="border-b border-[#2A2A2E] px-5 py-4 align-top">
-                      <div className="flex items-center gap-3">
-                        <div className={cn('h-10 w-10 shrink-0 rounded-lg border flex items-center justify-center', getStatusClasses(statusTone))}>
-                          <Wrench className="h-4 w-4" />
-                        </div>
-                        <div>
-                          <p className="font-mono text-sm font-black text-white">{displayTicket}</p>
-                          <p className="mt-1 text-[11px] uppercase tracking-[0.12em] text-zinc-500">
-                            {safeFormatDate(repair.created_at, 'dd MMM')}
-                          </p>
-                        </div>
-                      </div>
+                    <td className="border-b border-[#2A2A2E] px-4 py-3 font-semibold text-white">{customerName}</td>
+                    <td className="border-b border-[#2A2A2E] px-4 py-3 font-mono font-bold text-white whitespace-nowrap">{displayTicket}</td>
+                    <td className="border-b border-[#2A2A2E] px-4 py-3">
+                      <p className="text-zinc-100">{repair.device_name || 'Unknown device'}</p>
+                      {repair.imei && <p className="mt-0.5 font-mono text-xs text-zinc-500">{repair.imei}</p>}
                     </td>
-                    <td className="border-b border-[#2A2A2E] px-5 py-4 align-top">
-                      <p className="font-semibold text-white">{customerName}</p>
-                      <p className="mt-1 text-xs text-zinc-500">Customer record</p>
+                    <td className="border-b border-[#2A2A2E] px-4 py-3 whitespace-nowrap">
+                      <span className={cn(repair.technician ? 'text-zinc-100' : 'text-[#F59E0B]')}>{technicianName}</span>
                     </td>
-                    <td className="border-b border-[#2A2A2E] px-5 py-4 align-top">
-                      <div className="flex items-start gap-2">
-                        <Smartphone className="mt-0.5 h-4 w-4 shrink-0 text-zinc-500" />
-                        <div>
-                          <p className="font-semibold text-zinc-100">{repair.device_name || 'Unknown device'}</p>
-                          {repair.imei && <p className="mt-1 font-mono text-xs text-zinc-500">IMEI {repair.imei}</p>}
-                        </div>
-                      </div>
+                    <td className="border-b border-[#2A2A2E] px-4 py-3">
+                      <p className="line-clamp-2 max-w-[220px] text-zinc-300">{problemText}</p>
                     </td>
-                    <td className="border-b border-[#2A2A2E] px-5 py-4 align-top">
-                      <span className={cn('inline-flex items-center rounded-full border px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em]', getStatusClasses(statusTone))}>
+                    <td className="border-b border-[#2A2A2E] px-4 py-3 whitespace-nowrap text-zinc-300">{safeFormatDate(repair.created_at, 'dd-MM-yyyy')}</td>
+                    <td className="border-b border-[#2A2A2E] px-4 py-3 whitespace-nowrap text-zinc-300">{repair.due_at ? safeFormatDate(repair.due_at, 'dd-MM-yyyy') : '—'}</td>
+                    <td className="border-b border-[#2A2A2E] px-4 py-3">
+                      <span className={cn('inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-bold', getStatusClasses(statusTone))}>
                         {statusName}
                       </span>
                     </td>
-                    <td className="border-b border-[#2A2A2E] px-5 py-4 align-top">
-                      <div className="inline-flex max-w-[180px] items-center gap-2 rounded-lg border border-[#2A2A2E] bg-[#141416] px-3 py-2">
-                        <User className="h-4 w-4 shrink-0 text-[#3B82F6]" />
-                        <span className={cn('truncate text-sm font-semibold', repair.technician ? 'text-zinc-100' : 'text-[#F59E0B]')}>
-                          {technicianName}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="border-b border-[#2A2A2E] px-5 py-4 align-top">
-                      <p className="line-clamp-2 max-w-[260px] text-sm leading-5 text-zinc-300">{problemText}</p>
-                    </td>
-                    <td className="border-b border-[#2A2A2E] px-5 py-4 text-right align-top font-semibold text-zinc-100">
-                      {formatCurrency(repair.total_amount || repair.cost || 0)}
-                    </td>
-                    <td className="border-b border-[#2A2A2E] px-5 py-4 text-right align-top">
-                      <p className="text-xs font-semibold text-zinc-300 whitespace-nowrap">{formatRelativeTime(repair.updated_at)}</p>
-                      <p className="mt-1 text-[11px] text-zinc-500 whitespace-nowrap">{safeFormatDate(repair.updated_at, 'dd MMM HH:mm')}</p>
+                    <td className="border-b border-[#2A2A2E] px-4 py-3 whitespace-nowrap">
+                      <p className="text-zinc-300">{safeFormatDate(repair.updated_at, 'dd-MM-yyyy')}</p>
+                      <p className="text-[11px] text-zinc-500">{formatRelativeTime(repair.updated_at)}</p>
                     </td>
                   </tr>
                   );

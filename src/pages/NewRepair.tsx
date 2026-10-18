@@ -4,8 +4,10 @@ import { db, auth } from '../lib/firebase';
 import { 
   collection, 
   addDoc, 
+  doc,
   getDocs, 
-  orderBy
+  orderBy,
+  runTransaction
 } from 'firebase/firestore';
 import { 
   Plus, 
@@ -28,7 +30,8 @@ import CustomerModal from '../components/repairs/CustomerModal';
 import DeviceModal from '../components/repairs/DeviceModal';
 import { useTenant } from '../lib/tenant';
 import { withCompanyId } from '../lib/companyData';
-import { buildTicketNumber, roundMoney } from '../lib/business';
+import { roundMoney } from '../lib/business';
+import { readCounters, takeNumber } from '../lib/numbering';
 import { companyQuery, requireCompanyId } from '../lib/db';
 
 export default function NewRepair() {
@@ -149,7 +152,6 @@ export default function NewRepair() {
 
       const repairData = {
         ...withCompanyId(workspaceId, {}),
-        ticket_number: buildTicketNumber(),
         customer_id: selectedCustomer.id,
         device_name: selectedDevice.name,
         imei: selectedDevice.imei,
@@ -185,16 +187,20 @@ export default function NewRepair() {
         updated_at: now
       };
 
-      const docRef = await addDoc(collection(db, 'repairs'), repairData);
-
-      // Add initial history
-      await addDoc(collection(db, `repairs/${docRef.id}/history`), {
-        company_id: workspaceId,
-        repair_id: docRef.id,
-        status_id: initialStatus?.id || '',
-        changed_by: user?.uid || 'system',
-        notes: 'Repair ticket created',
-        created_at: now
+      // Ticket number (t###) is taken in the same transaction that creates the ticket.
+      const docRef = doc(collection(db, 'repairs'));
+      await runTransaction(db, async (transaction) => {
+        const counters = await readCounters(transaction, workspaceId);
+        const ticketNumber = takeNumber(transaction, workspaceId, counters, 'repair');
+        transaction.set(docRef, { ...repairData, ticket_number: ticketNumber });
+        transaction.set(doc(collection(db, `repairs/${docRef.id}/history`)), {
+          company_id: workspaceId,
+          repair_id: docRef.id,
+          status_id: initialStatus?.id || '',
+          changed_by: user?.uid || 'system',
+          notes: 'Repair ticket created',
+          created_at: now
+        });
       });
 
       for (const item of selectedItems) {

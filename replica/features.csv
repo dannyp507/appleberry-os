@@ -1,0 +1,79 @@
+feature,area,priority,original,clone,notes
+Ring up products and services with scan or search,pos,must,yes,yes,POS.tsx
+Attach customer to sale (search or quick add),pos,must,yes,yes,
+Split payments across methods (cash card EFT),pos,must,yes,yes,payments[] in POS
+VAT-inclusive totals with correct VAT split,pos,must,yes,partial,BUG: vat = total*0.15 instead of total*15/115 (POS.tsx:331) - overstates VAT ~15%
+Sequential invoice numbers,pos,must,yes,yes,s### via counters/{company} in the checkout transaction; set the start in Manage Data > Numbers & Statuses
+Per-line and whole-sale discounts,pos,should,yes,yes,
+Clear sale and start over,pos,should,yes,yes,
+Activity log and notes on a sale,pos,should,yes,partial,Add New Note button has no handler
+Digital signature capture,pos,should,yes,partial,button renders but has no handler (POS.tsx:1063 / RepairDetail.tsx:569)
+Require customer on sale (setting),pos,could,yes,no,
+Open cash drawer without sale / petty cash,pos,could,yes,no,
+Customer-facing display (CFD),pos,could,yes,no,
+Create repair ticket (customer device problem),repairs,must,yes,yes,NewRepair.tsx
+Repair list filtered by status tech and sort,repairs,must,yes,yes,
+Assign technician,repairs,must,yes,yes,
+Custom repair statuses with colours,repairs,must,yes,yes,repair_status_options
+Add parts and services to a ticket,repairs,must,yes,yes,services_and_parts
+Take deposit on a repair,repairs,must,yes,partial,paid_amount and payments exist; verify deposit flows through to invoice and EOD
+Convert finished repair to invoice,repairs,must,yes,yes,POS takes currentRepair
+Device passcode or lock pattern on ticket,repairs,must,yes,yes,ticket_details
+Due date and time on ticket,repairs,must,yes,no,no due date field in Repair type
+Start ticket as estimate (quote),repairs,should,yes,no,
+Storage location / bin on ticket,repairs,should,yes,no,
+Check-in and check-out forms (condition checklist),repairs,should,yes,partial,form_type in/out only; no configurable form builder
+Status-change notifications by email and SMS/WhatsApp,repairs,should,yes,partial,repair_ready automation in MarketingHub; no per-status templates
+Print ticket full-page thermal and labels,repairs,should,yes,partial,PDF invoice exists; no thermal receipt or ticket/customer label
+Repair ticket edit history (track edits),repairs,should,yes,yes,repairs/history subcollection
+Managed repair problem list with default price,repairs,should,yes,yes,ManageProblems.tsx - better than original (original has free-text duplicates)
+Customer list with search sort and archive,customers,must,yes,partial,no archived customers view
+Customer detail with repair and purchase history,customers,must,yes,yes,
+Customer types,customers,should,yes,yes,
+Customer alert message,customers,could,yes,yes,
+Payment terms customers (accounts),customers,could,yes,no,
+Product catalogue with SKU barcode category price,inventory,must,yes,yes,
+Per-item low stock threshold and low-stock filter,inventory,must,yes,yes,low_stock_threshold
+Need/Have/On-PO quantities,inventory,should,yes,yes,"Need = parts on open tickets, OnPO = outstanding on ordered/partial POs"
+Manufacturer on products,inventory,should,yes,partial,brand on devices only
+Barcode label printing,inventory,should,yes,no,
+Archive products,inventory,should,yes,no,
+Serialized devices inventory (IMEI colour GB condition),inventory,must,yes,yes,DevicesInventory.tsx
+Purchase orders with receive and partial receive,inventory,must,yes,yes,
+Purchase order returns and unpaid filter,inventory,could,yes,no,
+Stock take,inventory,must,yes,yes,
+Inventory transfer between locations,inventory,should,yes,yes,
+Customer orders: quotes deposits layaway,orders,should,yes,no,/orders route redirects to /
+Expenses with vendor and type,expenses,should,yes,partial,category only; no vendor or bill paid tracking
+P&L statement,expenses,could,yes,no,
+End of day: payments by type and cash count,eod,must,yes,partial,cash reconciliation shown but close is never saved; no starting balance or EOD history list
+Store credit tracking,eod,could,yes,no,
+Dashboard with date ranges sales repairs customers low stock,reports,must,yes,yes,
+Sales reports by date staff customer payment product category tax unpaid,reports,must,yes,partial,has by-payment and by-staff; check product/category/tax/unpaid
+Repairs reports by status problem technician,reports,should,yes,yes,
+Inventory reports (value purchased PO),reports,should,yes,no,/reports/inventory redirects to /
+Activity log filter by user and type,admin,should,yes,yes,
+Staff with roles and permissions,admin,must,yes,yes,better than original (granular permissions)
+Staff PIN and time clock,admin,could,yes,no,
+Commissions,admin,could,yes,no,
+Restrict access by IP address,admin,could,yes,no,
+Multiple locations,admin,should,yes,yes,
+Export data to file,admin,should,yes,yes,
+Import customers and products,admin,should,yes,yes,ImportSystem.tsx
+Appointment calendar,appointments,should,yes,no,/appointments redirects to /
+Customer website and embeddable widgets (repair status quote booking),website,could,yes,no,/website redirects to /
+Online repair status check for customers,website,should,yes,no,
+SMS provider integration,integrations,should,yes,partial,WhatsApp + SMTP email instead of SMS
+Custom fields per module,settings,could,yes,no,
+Invoice and ticket print templates (large and thermal),settings,should,yes,no,
+Dark theme,settings,could,yes,no,
+Global search,search,should,yes,yes,GlobalSearch.tsx
+Marketing campaigns and automations (WhatsApp email),marketing,could,no,yes,added - not in original
+Public invoice link for customers,sales,could,no,partial,added; /view-invoice/:id reads Firestore client-side and rules require a staff login - verify it opens for a logged-out customer
+Left rail with Cellstore's 8 daily modules in the same order,familiarity,must,yes,partial,7 of 8 - Orders not built yet
+Home tile grid for the other modules,familiarity,must,yes,partial,"tiles for every built module; unbuilt ones (Orders, Calendar, Website, Inventory Reports, Getting Started, Integrations) left off"
+Repair status names staff know (New Assigned Waiting on Customer Finished Invoiced...),familiarity,must,yes,yes,defaults + one-click switch in Manage Data; imported text statuses shown as-is
+Repairs list defaults to Open with the same columns,familiarity,must,yes,yes,Due shows a dash until due dates exist
+Invoice list columns Date Time Invoice# Customer Sales Person Taxable Taxes Total,familiarity,should,yes,yes,Taxes worked out as total x 15/115
+Light theme throughout (dark rail blue buttons),familiarity,should,yes,partial,POS is dark and repairs are light
+Same list shape: filters top search right create top-right page size bottom,familiarity,should,yes,partial,filters + search done on Repairs/Invoices/Products; no page-size picker

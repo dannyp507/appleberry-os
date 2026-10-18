@@ -7,3 +7,6 @@ coverage/
 .env*
 !.env.example
 .vercel
+
+# Cellstore reference screenshots (contain customer data)
+replica/screens/

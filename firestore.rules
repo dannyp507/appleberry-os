@@ -153,6 +153,38 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Sequential ticket (t###) and invoice (s###) numbers. Staff can only take the next
+    // number (+1); owners and admins can set where numbering continues from.
+    function counterStepsByOne(field) {
+      return !(field in request.resource.data)
+        || (field in resource.data
+              ? (request.resource.data[field] == resource.data[field]
+                  || request.resource.data[field] == resource.data[field] + 1)
+              : request.resource.data[field] is int);
+    }
+
+    function validCounterValue(field) {
+      return !(field in request.resource.data)
+        || (request.resource.data[field] is int && request.resource.data[field] >= 1);
+    }
+
+    match /counters/{companyIdParam} {
+      allow get: if inCompany(companyIdParam);
+      allow list: if false;
+      allow create: if inCompany(companyIdParam)
+        && request.resource.data.company_id == companyIdParam
+        && validCounterValue('next_repair_number')
+        && validCounterValue('next_invoice_number');
+      allow update: if inCompany(companyIdParam)
+        && request.resource.data.company_id == companyIdParam
+        && validCounterValue('next_repair_number')
+        && validCounterValue('next_invoice_number')
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['company_id', 'next_repair_number', 'next_invoice_number'])
+        && (isOwnerOrAdmin()
+          || (counterStepsByOne('next_repair_number') && counterStepsByOne('next_invoice_number')));
+      allow delete: if false;
+    }
+
     match /customers/{customerId} {
       allow read: if canReadCompanyRecord();
       allow create: if canCreateCompanyRecord() && hasRequiredString('first_name');

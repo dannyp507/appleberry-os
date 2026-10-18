@@ -1,21 +1,27 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { doc, getDoc, getDocs } from 'firebase/firestore';
 import { Search, FileText, Download, Eye, Receipt, CreditCard, AlertCircle, RotateCcw } from 'lucide-react';
 import { db } from '../lib/firebase';
 import { formatCurrency, safeFormatDate } from '../lib/utils';
-import { Customer, Sale } from '../types';
+import { Customer, Profile, Sale } from '../types';
 import { useTenant } from '../lib/tenant';
 import { isCompanyScopedRecord } from '../lib/companyData';
 import { companyQuery } from '../lib/db';
 import { getAuthHeaders } from '../lib/authHeaders';
 import RefundModal from '../components/pos/RefundModal';
 import { hasPermission } from '../lib/permissions';
+import { roundMoney, TAX_RATE } from '../lib/business';
+import { normalizeImportedNumber } from '../lib/numbering';
 
 type SaleRecord = {
   id: string;
   company_id?: string | null;
   customer_id?: string | null;
+  customer_name?: string | null;
+  invoice_number?: string | null;
+  external_invoice_number?: string | null;
+  staff_id?: string | null;
   subtotal?: number;
   global_discount?: number;
   total_amount?: number;
@@ -30,6 +36,10 @@ type SaleRecord = {
 type InvoiceRow = {
   sale: SaleRecord;
   customer: Customer | null;
+  invoiceNumber: string;
+  salesPerson: string;
+  taxable: number;
+  taxes: number;
   amountPaid: number;
   balance: number;
   paymentStatus: 'paid' | 'partial' | 'unpaid';
@@ -39,10 +49,13 @@ type InvoiceRow = {
 export default function Invoices() {
   const { companyId, profile } = useTenant();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [rows, setRows] = useState<InvoiceRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState(searchParams.get('search') || '');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'partial' | 'unpaid'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'refunds' | 'unpaid'>('all');
+  const [salesPersonFilter, setSalesPersonFilter] = useState('all');
+  const [salesPeople, setSalesPeople] = useState<string[]>([]);
   const [refundSale, setRefundSale] = useState<Sale | null>(null);
 
   useEffect(() => {
@@ -56,8 +69,14 @@ export default function Invoices() {
   async function fetchInvoices() {
     setLoading(true);
     try {
-      const salesSnapshot = await getDocs(companyQuery('sales', companyId));
+      const [salesSnapshot, staffSnapshot] = await Promise.all([
+        getDocs(companyQuery('sales', companyId)),
+        getDocs(companyQuery('profiles', companyId)),
+      ]);
       const sales = salesSnapshot.docs.map((saleDoc) => ({ id: saleDoc.id, ...saleDoc.data() } as SaleRecord));
+      const staffNames = new Map(
+        staffSnapshot.docs.map((staffDoc) => [staffDoc.id, (staffDoc.data() as Profile).full_name || 'Staff'])
+      );
 
       const customerIds = Array.from(new Set(sales.map((sale) => sale.customer_id).filter(Boolean))) as string[];
       const customerEntries = await Promise.all(
@@ -80,9 +99,18 @@ export default function Invoices() {
             ? Array.from(new Set(payments.map((payment) => payment.method || 'Unknown'))).join(', ')
             : sale.payment_method || 'No payment';
 
+          // Prices include VAT, so the VAT portion is total × rate / (1 + rate).
+          const taxes = roundMoney(total * TAX_RATE / (1 + TAX_RATE));
+
           return {
             sale,
             customer,
+            invoiceNumber:
+              normalizeImportedNumber('invoice', sale.invoice_number || sale.external_invoice_number) ||
+              `#${sale.id.slice(0, 8)}`,
+            salesPerson: (sale.staff_id && staffNames.get(sale.staff_id)) || 'Unassigned',
+            taxable: roundMoney(total - taxes),
+            taxes,
             amountPaid,
             balance,
             paymentStatus,
@@ -92,6 +120,7 @@ export default function Invoices() {
         .sort((a, b) => String(b.sale.created_at || '').localeCompare(String(a.sale.created_at || '')));
 
       setRows(invoiceRows);
+      setSalesPeople(Array.from(new Set(invoiceRows.map((row) => row.salesPerson))).sort());
     } catch (error) {
       console.error('Error fetching invoices:', error);
     } finally {
@@ -105,12 +134,17 @@ export default function Invoices() {
       const matchesSearch =
         query.length === 0 ||
         row.sale.id.toLowerCase().includes(query) ||
-        (row.customer?.name || '').toLowerCase().includes(query) ||
+        row.invoiceNumber.toLowerCase().includes(query) ||
+        (row.customer?.name || row.sale.customer_name || '').toLowerCase().includes(query) ||
         (row.customer?.phone || '').toLowerCase().includes(query);
-      const matchesStatus = statusFilter === 'all' || row.paymentStatus === statusFilter;
-      return matchesSearch && matchesStatus;
+      const matchesType =
+        statusFilter === 'all' ||
+        (statusFilter === 'refunds' && (row.sale.refund_status || 'none') !== 'none') ||
+        (statusFilter === 'unpaid' && row.balance > 0.01);
+      const matchesSalesPerson = salesPersonFilter === 'all' || row.salesPerson === salesPersonFilter;
+      return matchesSearch && matchesType && matchesSalesPerson;
     });
-  }, [rows, search, statusFilter]);
+  }, [rows, search, statusFilter, salesPersonFilter]);
 
   const summary = useMemo(() => {
     const totalInvoiced = filteredRows.reduce((sum, row) => sum + Number(row.sale.total_amount || 0), 0);
@@ -142,8 +176,7 @@ export default function Invoices() {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500 font-semibold mb-2">Sales Ledger</p>
-          <h1 className="text-3xl font-black text-white">Invoices</h1>
+          <h1 className="text-3xl font-black text-white">Sales Invoices</h1>
           <p className="text-zinc-400">Track completed sales, balances, refunds, and customer invoice history.</p>
         </div>
       </div>
@@ -156,85 +189,93 @@ export default function Invoices() {
       </div>
 
       <div className="section-card rounded-xl p-4 space-y-4">
+        {/* Filters along the top, search on the right, as in Cellstore */}
         <div className="flex flex-col lg:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by invoice id, customer name, or phone"
-              className="w-full pl-10 pr-4 py-2.5"
-            />
-          </div>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
             className="px-4 py-2.5"
           >
-            <option value="all">All statuses</option>
-            <option value="paid">Paid</option>
-            <option value="partial">Partially paid</option>
+            <option value="all">All Types</option>
+            <option value="refunds">Refunds</option>
             <option value="unpaid">Unpaid</option>
           </select>
+          <select
+            value={salesPersonFilter}
+            onChange={(e) => setSalesPersonFilter(e.target.value)}
+            className="px-4 py-2.5"
+          >
+            <option value="all">All Sales People</option>
+            {salesPeople.map((name) => (
+              <option key={name} value={name}>{name}</option>
+            ))}
+          </select>
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search Customer or Invoice"
+              className="w-full pl-10 pr-4 py-2.5"
+            />
+          </div>
         </div>
 
         <div className="overflow-x-auto">
           <table className="ops-table w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 text-left text-gray-500 uppercase text-[11px] tracking-wider">
-                <th className="px-4 py-3">Invoice</th>
-                <th className="px-4 py-3">Customer</th>
-                <th className="px-4 py-3">Date</th>
-                <th className="px-4 py-3">Payment</th>
-                <th className="px-4 py-3">Refund</th>
-                <th className="px-4 py-3 text-right">Total</th>
-                <th className="px-4 py-3 text-right">Balance</th>
-                <th className="px-4 py-3 text-right">Actions</th>
+                <th className="px-3 py-3 whitespace-nowrap">Date</th>
+                <th className="px-3 py-3 whitespace-nowrap">Time</th>
+                <th className="px-3 py-3 whitespace-nowrap">Invoice#</th>
+                <th className="px-3 py-3 whitespace-nowrap">Customer Name</th>
+                <th className="px-3 py-3 whitespace-nowrap">Sales Person</th>
+                <th className="px-3 py-3 whitespace-nowrap text-right">Taxable</th>
+                <th className="px-3 py-3 whitespace-nowrap text-right">Taxes</th>
+                <th className="px-3 py-3 whitespace-nowrap text-right">Non Taxable</th>
+                <th className="px-3 py-3 whitespace-nowrap text-right">Total</th>
+                <th className="px-3 py-3 whitespace-nowrap"></th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 Array.from({ length: 5 }).map((_, index) => (
                   <tr key={index} className="animate-pulse border-b border-gray-50">
-                    <td colSpan={8} className="px-4 py-4"><div className="h-4 bg-gray-100 rounded" /></td>
+                    <td colSpan={10} className="px-4 py-4"><div className="h-4 bg-gray-100 rounded" /></td>
                   </tr>
                 ))
               ) : filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-14 text-center text-gray-400">
+                  <td colSpan={10} className="px-4 py-14 text-center text-gray-400">
                     <Receipt className="w-10 h-10 mx-auto mb-3 opacity-30" />
                     <p>No invoices found</p>
                   </td>
                 </tr>
               ) : (
                 filteredRows.map((row) => (
-                  <tr key={row.sale.id} className="border-b border-gray-50 hover:bg-gray-50/80 transition-colors">
-                    <td className="px-4 py-4">
-                      <div>
-                        <p className="font-semibold text-gray-900">#{row.sale.id.slice(0, 8)}</p>
-                        <p className="text-xs text-gray-400">Avg ticket {formatCurrency(summary.avgInvoice)}</p>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4">
-                      <p className="font-medium text-gray-900">{row.customer?.name || 'Walk-in Customer'}</p>
-                      <p className="text-xs text-gray-500">{row.customer?.phone || row.customer?.email || 'No contact details'}</p>
-                    </td>
-                    <td className="px-4 py-4 text-gray-600">{safeFormatDate(row.sale.created_at, 'dd MMM yyyy HH:mm')}</td>
-                    <td className="px-4 py-4">
-                      <span className={statusPill(row.paymentStatus)}>{labelForStatus(row.paymentStatus)}</span>
-                      <p className="text-xs text-gray-500 mt-1">{row.paymentSummary}</p>
-                    </td>
-                    <td className="px-4 py-4">
-                      <span className={refundPill(row.sale.refund_status || 'none')}>
-                        {refundLabel(row.sale.refund_status || 'none')}
-                      </span>
-                      {Number(row.sale.refunded_amount || 0) > 0 && (
-                        <p className="text-xs text-red-600 mt-1">{formatCurrency(Number(row.sale.refunded_amount || 0))}</p>
+                  <tr
+                    key={row.sale.id}
+                    className="cursor-pointer border-b border-gray-50 hover:bg-gray-50/80 transition-colors"
+                    onClick={() => navigate(`/view-invoice/${row.sale.id}`)}
+                  >
+                    <td className="px-3 py-3 whitespace-nowrap text-gray-600">{safeFormatDate(row.sale.created_at, 'dd-MM-yy')}</td>
+                    <td className="px-3 py-3 whitespace-nowrap text-gray-600">{safeFormatDate(row.sale.created_at, 'h:mm a')}</td>
+                    <td className="px-3 py-3 whitespace-nowrap">
+                      <p className="font-semibold text-gray-900">{row.invoiceNumber}</p>
+                      {(row.sale.refund_status || 'none') !== 'none' && (
+                        <span className={refundPill(row.sale.refund_status || 'none')}>{refundLabel(row.sale.refund_status || 'none')}</span>
                       )}
                     </td>
-                    <td className="px-4 py-4 text-right font-semibold text-gray-900">{formatCurrency(Number(row.sale.total_amount || 0))}</td>
-                    <td className="px-4 py-4 text-right font-semibold text-red-600">{formatCurrency(row.balance)}</td>
-                    <td className="px-4 py-4">
+                    <td className="px-3 py-3 font-medium text-gray-900">{row.customer?.name || row.sale.customer_name || 'Unassigned'}</td>
+                    <td className="px-3 py-3 whitespace-nowrap text-gray-600">{row.salesPerson}</td>
+                    <td className="px-3 py-3 whitespace-nowrap text-right text-gray-700">{formatCurrency(row.taxable)}</td>
+                    <td className="px-3 py-3 whitespace-nowrap text-right text-gray-700">{formatCurrency(row.taxes)}</td>
+                    <td className="px-3 py-3 whitespace-nowrap text-right text-gray-700">{formatCurrency(0)}</td>
+                    <td className="px-3 py-3 whitespace-nowrap text-right">
+                      <p className="font-semibold text-gray-900">{formatCurrency(Number(row.sale.total_amount || 0))}</p>
+                      {row.balance > 0.01 && <p className="text-xs text-red-600">Due {formatCurrency(row.balance)}</p>}
+                    </td>
+                    <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-2">
                         <Link
                           to={`/view-invoice/${row.sale.id}`}
@@ -298,18 +339,6 @@ function SummaryCard({ title, value, icon: Icon, tone }: { title: string; value:
       <p className="text-2xl font-black text-white">{value}</p>
     </div>
   );
-}
-
-function statusPill(status: 'paid' | 'partial' | 'unpaid') {
-  if (status === 'paid') return 'badge badge-success';
-  if (status === 'partial') return 'badge badge-warning';
-  return 'badge badge-danger';
-}
-
-function labelForStatus(status: 'paid' | 'partial' | 'unpaid') {
-  if (status === 'paid') return 'Paid';
-  if (status === 'partial') return 'Partial';
-  return 'Unpaid';
 }
 
 function refundPill(status: 'none' | 'partial' | 'full') {
