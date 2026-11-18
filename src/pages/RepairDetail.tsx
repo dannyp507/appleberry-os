@@ -59,8 +59,9 @@ interface RepairItem {
 export default function RepairDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { company } = useTenant();
+  const { company, profile } = useTenant();
   const companyId = company?.id || null;
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'owner';
   
   const [repair, setRepair] = useState<Repair | null>(null);
   const [customer, setCustomer] = useState<Customer | null>(null);
@@ -77,6 +78,7 @@ export default function RepairDetail() {
   const [paymentAmount, setPaymentAmount] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [editingPaymentIndex, setEditingPaymentIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -266,6 +268,23 @@ export default function RepairDetail() {
       toast.success('Payment added');
     } catch (error: any) {
       toast.error(error.message);
+    }
+  };
+
+  const handleUpdatePaymentMethod = async (index: number, newMethod: string) => {
+    if (!id || !repair) return;
+    const updated = (repair.payments || []).map((p, i) =>
+      i === index ? { ...p, method: newMethod } : p
+    );
+    try {
+      await updateDoc(doc(db, 'repairs', id), {
+        payments: updated,
+        updated_at: new Date().toISOString()
+      });
+      setEditingPaymentIndex(null);
+      toast.success('Payment method updated');
+    } catch (err: any) {
+      toast.error(err.message);
     }
   };
 
@@ -681,9 +700,54 @@ export default function RepairDetail() {
                 </div>
               </div>
             </div>
-            <div className="bg-[#e2e8f0] p-4 flex justify-between items-center">
-              <span className="font-black text-gray-700">Amount Due</span>
-              <span className="font-black text-gray-900 text-xl">{formatCurrency(amountDue)}</span>
+            {/* Payments made */}
+            {(repair.payments || []).length > 0 && (
+              <div className="border-t border-gray-100 divide-y divide-gray-50">
+                {(repair.payments || []).map((p, i) => (
+                  <div key={i} className="flex justify-between items-center px-4 py-2 text-xs">
+                    {isAdmin && editingPaymentIndex === i ? (
+                      <select
+                        autoFocus
+                        className="border border-primary rounded px-2 py-1 text-xs font-bold bg-white focus:outline-none"
+                        defaultValue={p.method}
+                        onChange={(e) => handleUpdatePaymentMethod(i, e.target.value)}
+                        onBlur={() => setEditingPaymentIndex(null)}
+                      >
+                        {['Cash','Cheque','Visa','Mastercard','AMEX','Discover','Other','Debit Card','EFT Via Capital','EFT Via FNB','EFT','Card'].map(m => (
+                          <option key={m}>{m}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span className="font-bold text-gray-600 flex items-center gap-1">
+                        {p.method}
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            onClick={() => setEditingPaymentIndex(i)}
+                            className="ml-1 text-gray-300 hover:text-primary transition-colors"
+                            title="Edit payment method"
+                          >
+                            <PenTool className="w-3 h-3" />
+                          </button>
+                        )}
+                      </span>
+                    )}
+                    <span className="font-black text-green-600">{formatCurrency(p.amount)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="bg-[#e2e8f0] p-4 space-y-1">
+              <div className="flex justify-between text-xs text-gray-600">
+                <span>Total Paid</span>
+                <span className="font-bold text-green-700">{formatCurrency(totalPaid)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="font-black text-gray-700">Amount Due</span>
+                <span className={`font-black text-xl ${amountDue <= 0 ? 'text-green-600' : 'text-gray-900'}`}>
+                  {amountDue <= 0 ? 'PAID' : formatCurrency(amountDue)}
+                </span>
+              </div>
             </div>
           </div>
 
